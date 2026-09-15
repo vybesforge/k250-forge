@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# k250-scene — run a K250-4S pattern on the e-stim box.
+#
+# Usage:
+#   k250-scene <pattern> [--base N] [--peak N] [--secs N] [--hardcap N]
+#                         [--ma-top N] [--sweep-period N] [--limits FILE]
+#   k250-scene --list
+#   k250-scene --limits-show
+#
+# SAFETY: the power ceiling comes from limits.json (power.max_percent). A
+# --hardcap on the command line can only LOWER it, never raise it. This is
+# enforced in code so a driver -- human or AI -- cannot exceed the agreed limit
+# by typo, by drift, or by persuasion.
+#
+# One BLE connection at a time: never run two of these at once.
+set -euo pipefail
+
+PY=/home/user/k250/venv/bin/python
+PLAY=/home/user/k250/k250_play.py
+DEFAULT_LIMITS=/home/user/k250/limits.json
+
+if [ $# -eq 0 ]; then
+  exec "$PY" "$PLAY" --help
+fi
+
+if [ "$1" = "--list" ]; then
+  "$PY" - <<'EOF'
+import k250_play as p
+names = sorted(p.PATTERNS)
+print(f"{len(names)} patterns:")
+for n in names:
+    print("  ", n)
+EOF
+  exit 0
+fi
+
+# find --limits FILE anywhere in the args (so limits can be swapped per scene)
+LIMITS="$DEFAULT_LIMITS"
+args=("$@")
+for i in "${!args[@]}"; do
+  if [ "${args[$i]}" = "--limits" ]; then
+    LIMITS="${args[$((i+1))]}"
+  fi
+done
+
+READ=$("$PY" - "$LIMITS" <<'EOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception as e:
+    print(f"ERROR", file=sys.stderr)
+    print(f"could not read limits file: {e}", file=sys.stderr)
+    sys.exit(1)
+p = d.get("power", {})
+print(p.get("max_percent", 50), p.get("default_percent", 38), d.get("stop_word", "red"))
+EOF
+)
+CAP=$(echo "$READ" | cut -d' ' -f1)
+DEF=$(echo "$READ" | cut -d' ' -f2)
+STOP=$(echo "$READ" | cut -d' ' -f3)
+
+if [ "$1" = "--limits-show" ]; then
+  echo "limits file : $LIMITS"
+  echo "power cap   : ${CAP}%   (engine will not write above this)"
+  echo "default pw  : ${DEF}%"
+  echo "stop word   : $STOP"
+  exit 0
+fi
+
+# strip --limits from what we forward (k250_play.py doesn't know it)
+FWD=()
+skip=0
+for i in "${!args[@]}"; do
+  if [ "$skip" = "1" ]; then skip=0; continue; fi
+  if [ "${args[$i]}" = "--limits" ]; then skip=1; continue; fi
+  FWD+=("${args[$i]}")
+done
+
+# effective cap = min(caller hardcap if any, limits cap)
+HARD=""
+for i in "${!FWD[@]}"; do
+  if [ "${FWD[$i]}" = "--hardcap" ]; then HARD="${FWD[$((i+1))]}"; fi
+done
+
+if [ -z "$HARD" ]; then
+  EFF="$CAP"
+else
+  EFF=$("$PY" -c "print(min(float('$HARD'), float('$CAP')))")
+  if "$PY" -c "import sys; sys.exit(0 if float('$HARD') > float('$CAP') else 1)"; then
+    echo "NOTE: --hardcap $HARD exceeds the agreed cap ${CAP}% — clamped to ${CAP}%." >&2
+  fi
+fi
+EFF=$(printf '%.0f' "$EFF")
+
+echo "limits: $(basename "$LIMITS")  cap=${CAP}%  effective_hardcap=${EFF}%  stop_word=${STOP}" >&2
+exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF"

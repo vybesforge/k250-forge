@@ -1,0 +1,52 @@
+{
+  "_comment": "K250-4S driving limits. This file is the safety contract between the human wearing the electrodes and whatever AI/human is driving the box. The engine REFUSES to write power above power.max_percent -- it is enforced in code, not by good intentions. Generate a copy with limits-form.html or edit by hand.",
+  "version": 1,
+  "profile": "default",
+
+  "stop_word": "red",
+
+  "power": {
+    "max_percent": 50,
+    "default_percent": 38,
+    "pleasure_band": [35, 50],
+    "note": "Above ~50 reads as pain, which can be wanted but must be deliberate. Raise max_percent only with a spoken, explicit request from the wearer in that session."
+  },
+
+  "speed": {
+    "max": 25,
+    "note": "Multi Adjust. 0 = fastest buzz, 25 = slow heavy thump. Period in seconds ~= value/10000. Usable band for most work is 0-25; past ~35 it thins out."
+  },
+
+  "pattern_notes": {
+    "sweet_spots": {
+      "sweep_flat_power_percent": 38,
+      "sweep_period_seconds": [8, 20],
+      "hard_drop": "speed 25 -> 0 in one step, not a glide"
+    }
+  },
+
+  "channels": {
+    "mode": "auto",
+    "allowed": [1, 2, 3, 4],
+    "note": "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live."
+  },
+
+  "session": {
+    "max_duration_s": 600,
+    "require_wearer_able_to_speak": true,
+    "note": "If the wearer cannot report (asleep, gagged, alone, not typing), do NOT raise power. Hold the ceiling and prefer longer over harder."
+  },
+
+  "safety": {
+    "no_mains_power": true,
+    "skin_check_after": true,
+    "loops_loose": true,
+    "no_chest_or_cross_heart_path": true,
+    "note": "no_mains_power is the device manual's own rule: do not play while connected to mains power. loops_loose = circulation at the pads is the one thing that can genuinely injure."
+  },
+
+  "physical_kill_switch": {
+    "device": "hold any knob on the box for 2 seconds -> powers off",
+    "note": "Give this to whoever is physically present. It works without any software, network, or AI in the loop."
+  }
+}

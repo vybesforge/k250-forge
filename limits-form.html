@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K250-4S — limits builder</title>
+<style>
+  :root { --bg:#111417; --card:#181d21; --line:#2a3238; --fg:#e7edf1; --mut:#8fa0ab; --acc:#e0a45e; --warn:#e07a5f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
+  .sub { color:var(--mut); margin-bottom:24px; font-size:13px; }
+  fieldset { border:1px solid var(--line); border-radius:10px; background:var(--card); margin:0 0 16px; padding:16px 18px 18px; }
+  legend { color:var(--acc); font-size:12px; text-transform:uppercase; letter-spacing:.08em; padding:0 6px; }
+  .row { display:flex; align-items:center; gap:14px; margin:12px 0; }
+  .row label { flex:0 0 220px; color:var(--mut); font-size:13px; }
+  .row .val { flex:0 0 66px; text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  input[type=range] { flex:1; accent-color:var(--acc); }
+  input[type=text], input[type=number] { background:#0e1114; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:6px 9px; font:inherit; }
+  .chk { display:flex; gap:10px; align-items:flex-start; margin:9px 0; }
+  .chk input { margin-top:3px; accent-color:var(--acc); }
+  .chk span { font-size:13px; color:var(--mut); }
+  .warnbox { border-left:3px solid var(--warn); background:#1d1714; padding:10px 14px; border-radius:6px; font-size:13px; color:#f0d9cf; margin:14px 0 0; }
+  .hero { display:flex; gap:18px; align-items:baseline; padding:14px 18px; background:linear-gradient(180deg,#1d242a,#181d21); border:1px solid var(--line); border-radius:10px; margin-bottom:16px; }
+  .hero b { font-size:34px; font-variant-numeric:tabular-nums; color:var(--acc); }
+  .hero .lbl { color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+  textarea { width:100%; height:300px; background:#0e1114; border:1px solid var(--line); color:#cfe3ee; border-radius:8px; padding:12px; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  button { background:var(--acc); color:#1a1206; border:0; border-radius:7px; padding:10px 16px; font:600 14px inherit; cursor:pointer; margin-right:8px; }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  .seg { color:var(--mut); font-size:12px; margin:6px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>K250-4S — limits builder</h1>
+  <div class="sub">Build a <code>limits.json</code>. The engine clamps every write to <b>max power</b> here, in code — a driver cannot exceed it by typo, drift, or persuasion.</div>
+
+  <div class="hero">
+    <div><div class="lbl">Engine will not exceed</div><b id="heroCap">50%</b></div>
+    <div><div class="lbl">Stop word</div><b id="heroStop" style="font-size:22px">red</b></div>
+  </div>
+
+  <fieldset>
+    <legend>Power</legend>
+    <div class="row"><label>Hard ceiling — max percent</label><input type="range" id="cap" min="5" max="100" value="50"><div class="val" id="capV">50%</div></div>
+    <div class="row"><label>Starting level</label><input type="range" id="def" min="5" max="100" value="38"><div class="val" id="defV">38%</div></div>
+    <div class="row"><label>Pleasure band — low</label><input type="range" id="plo" min="0" max="100" value="35"><div class="val" id="ploV">35%</div></div>
+    <div class="row"><label>Pleasure band — high</label><input type="range" id="phi" min="0" max="100" value="50"><div class="val" id="phiV">50%</div></div>
+    <div class="seg">Above the pleasure band reads as pain. That can be wanted — but it should be a deliberate, spoken choice, not drift.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Speed (Multi Adjust)</legend>
+    <div class="row"><label>Speed ceiling</label><input type="range" id="smax" min="0" max="10000" step="100" value="2500"><div class="val" id="smaxV">25</div></div>
+    <div class="seg">0 = fastest buzz · 25 = slow heavy thump · period in seconds ≈ value ÷ 10000.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Session</legend>
+    <div class="row"><label>Max duration (seconds)</label><input type="number" id="dur" value="600" min="30" max="7200" style="width:110px"></div>
+    <div class="row"><label>Stop word</label><input type="text" id="stop" value="red" style="width:140px"></div>
+    <div class="chk"><input type="checkbox" id="speak" checked><span>Wearer must be able to speak / report. If they can't, hold the ceiling and prefer <i>longer</i> over <i>harder</i>.</span></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Non-negotiables</legend>
+    <div class="chk"><input type="checkbox" id="mains" checked><span>Never play while connected to mains power (device manual's own rule — surge risk).</span></div>
+    <div class="chk"><input type="checkbox" id="loops" checked><span>Loops/pads loose — circulation at the pads is the one thing that can genuinely injure.</span></div>
+    <div class="chk"><input type="checkbox" id="chest" checked><span>No pad path across the chest / through the heart.</span></div>
+    <div class="chk"><input type="checkbox" id="skin" checked><span>Skin check under the pads after every session.</span></div>
+    <div class="warnbox">Hardware kill switch: <b>hold any knob on the box for 2 seconds and it powers off.</b> Give that to whoever is in the room. It needs no software, no network, and no AI.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Output</legend>
+    <button id="gen">Generate limits.json</button>
+    <button class="ghost" id="dl">Download</button>
+    <button class="ghost" id="copy">Copy</button>
+    <textarea id="out" spellcheck="false"></textarea>
+    <div class="seg">Save as <code>limits.json</code> next to the tools, then: <code>k250-scene speed_sweep --base 38 --secs 90</code></div>
+  </fieldset>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ids = ['cap','def','plo','phi','smax'];
+const one = v => Math.round(v/100);
+function sync() {
+  $('capV').textContent = $('cap').value + '%';
+  $('defV').textContent = $('def').value + '%';
+  $('ploV').textContent = $('plo').value + '%';
+  $('phiV').textContent = $('phi').value + '%';
+  $('smaxV').textContent = one($('smax').value);
+  $('heroCap').textContent = $('cap').value + '%';
+  $('heroStop').textContent = $('stop').value || '—';
+  if (+$('def').value > +$('cap').value) $('def').value = $('cap').value;
+  $('defV').textContent = $('def').value + '%';
+}
+ids.forEach(i => $(i).addEventListener('input', sync));
+$('stop').addEventListener('input', sync);
+
+function build() {
+  const o = {
+    _comment: "K250-4S driving limits. The engine clamps every power write to power.max_percent in CODE. Raise it only on an explicit, spoken request from the wearer in that session.",
+    version: 1,
+    profile: "default",
+    stop_word: $('stop').value || 'red',
+    power: {
+      max_percent: +$('cap').value,
+      default_percent: +$('def').value,
+      pleasure_band: [+$('plo').value, +$('phi').value],
+      note: "Above the pleasure band reads as pain, which can be wanted but must be deliberate."
+    },
+    speed: {
+      max: +$('smax').value,
+      note: "Multi Adjust. 0 = fastest buzz, max = slow heavy thump. Period seconds ~= value/10000."
+    },
+    channels: { mode: "auto", allowed: [1,2,3,4],
+      note: "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused." },
+    session: {
+      max_duration_s: +$('dur').value,
+      require_wearer_able_to_speak: $('speak').checked
+    },
+    safety: {
+      no_mains_power: $('mains').checked,
+      loops_loose: $('loops').checked,
+      no_chest_or_cross_heart_path: $('chest').checked,
+      skin_check_after: $('skin').checked
+    },
+    physical_kill_switch: {
+      device: "hold any knob on the box for 2 seconds -> powers off",
+      note: "Give this to whoever is physically present. Works with no software in the loop."
+    }
+  };
+  return JSON.stringify(o, null, 2);
+}
+$('gen').onclick = () => { $('out').value = build(); };
+$('copy').onclick = async () => { $('out').value = build(); try { await navigator.clipboard.writeText($('out').value); $('copy').textContent = 'Copied'; setTimeout(()=>$('copy').textContent='Copy',1200);} catch(e){} };
+$('dl').onclick = () => {
+  const b = new Blob([build()], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = 'limits.json'; a.click();
+};
+sync(); $('out').value = build();
+</script>
+</body>
+</html>

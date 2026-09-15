@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# k250-status — read the K250-4S state: firmware, battery, LIVE CHANNELS,
+# pattern and speed per channel. Read-only: it never changes power.
+#
+# NOTE: PW (power) is NOT reported by the box in a read-all — it is only echoed
+# when written. So "power" never appears here even while the box is running.
+# The one honest witness that power is flowing is the operator.
+exec /home/user/k250/venv/bin/python /home/user/k250/k250_status.py

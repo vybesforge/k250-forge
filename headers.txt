@@ -1,0 +1,24 @@
+HTTP/2 302 
+content-length: 0
+location: https://www.konnector.com/
+date: Tue, 15 Sep 2026 02:35:44 GMT
+x-cache: Miss from cloudfront
+via: 1.1 4093d20d641782c8a61cba78cc905034.cloudfront.net (CloudFront)
+x-amz-cf-pop: MCI50-P4
+alt-svc: h3=":443"; ma=86400
+x-amz-cf-id: Lp1XD6E85OxK24jvDYmkHezk6SELJlgX9ryekezX6XkVUG9fRalZ-Q==
+
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+content-length: 1145
+date: Tue, 15 Sep 2026 02:35:44 GMT
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+x-powered-by: Next.js
+etag: "1e7ycuctcwvt"
+vary: Accept-Encoding
+x-cache: Miss from cloudfront
+via: 1.1 2302c2428d6389fbfcf9e046e013cf64.cloudfront.net (CloudFront)
+x-amz-cf-pop: MCI50-P4
+alt-svc: h3=":443"; ma=86400
+x-amz-cf-id: 22mYE_sKazKLKEOLMZbzivH4xAEI0PXT2rgALJoqRU7y9APn4FV7LA==
+

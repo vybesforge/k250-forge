@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# k250-stop — INSTANT STOP for the K250-4S e-stim box.
+#
+# Kills any running pattern, then writes PW=0 to every plugged channel.
+# Run this immediately on the operator's stop word, on any sign of distress, or if a
+# pattern is misbehaving. Safe to run repeatedly.
+#
+# Exit 0 = stopped. Exit 1 = COULD NOT REACH THE BOX — treat as unsafe, tell
+# the operator the box may still be energised and get to it physically.
+exec /home/user/k250/venv/bin/python /home/user/k250/k250_stop.py
