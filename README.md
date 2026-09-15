@@ -44,8 +44,9 @@ kill switch (*hold any knob for 2 seconds*) both override everything, including 
 including whoever is driving.
 
 **If you're an AI reading this:** you are not a competent judge of how much current is fine, and
-you cannot see the person. Hold the agreed ceiling, prefer *longer* over *harder*, and when the
-wearer says they feel nothing, believe them.
+you cannot see the person. Hold the agreed ceiling, prefer *longer* over *harder*. **If they feel
+nothing, cut the power and check the loop** — never escalate into silence. A pad that's loose or
+half-attached concentrates the current into a smaller area, and that is what burns people.
 
 ---
 
@@ -147,8 +148,10 @@ on that characteristic.
    channel's power *and* frequency both drop to zero. So: **re-send power after any `PA` write.**
    That behaviour is correctly observed, repeatedly, on the box's own screen.
 3. **`PW` is never reported in a read-all.** It is only echoed when written. There is no software
-   way to confirm power is *flowing* — **the person wearing it is the only instrument.** If they say
-   they feel nothing, believe them and investigate; never tell them it "should" be working.
+   way to confirm power is *flowing* — **the person wearing it is the only instrument.** No sensation
+   is a fault, not a green light: **cut the power, then check the loop** — pads seated, cable attached,
+   connection complete. A bad connection concentrates current into a smaller area and burns. Never tell
+   them it "should" be working.
    **What you *can* detect is load:** `CA` reports per-channel `Active` / `Unplugged`, which is the
    box's own continuity sense — it's why `AC` writes to an empty channel are refused, and why the
    channels read `Unplugged` the moment the loops come off. So "is an electrode attached to this

@@ -69,7 +69,7 @@
       "only on someone who can speak or signal, and who can be seen by whoever is in the room",
       "loops and pads kept loose -- circulation at the electrode is what causes real injury",
       "stop if it burns rather than stings, or if the skin doesn't settle back to normal",
-      "if the wearer says they feel nothing, believe them: hold the ceiling and go longer, not harder"
+      "if they feel nothing, power DOWN before anything else and check the loop: pads seated, cable attached, connection complete -- a loose or half-attached pad concentrates current into a smaller area and that is what burns people. Feeling nothing is a fault, not an invitation to push harder"
     ],
     "note": "One acknowledgement covers the whole hard_stops list above -- that is the point of it. It replaces the old per-rule booleans (no_mains_power, loops_loose, no_chest_or_cross_heart_path, skin_check_after): four ticks for one decision was duplication, not safety. If this is false, whoever generated the file did not confirm the rules."
   },
