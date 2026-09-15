@@ -21,6 +21,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # /home/<someone>/ or /Users/<someone>/ -- an absolute path into a personal home dir.
 ABSOLUTE_HOME = re.compile(r"(?:/home/|/Users/)[A-Za-z0-9._-]+")
 
+# Dependencies do not reliably expose a version attribute (bleak 1.x+ dropped it), so printing that
+# attribute turns a successful install into a traceback. Ask the package metadata instead. (Written
+# in two pieces so this file does not trip its own check.)
+VERSION_ATTR = re.compile(r"\.__" + r"version__")
+
 SKIP_DIRS = {".git", "venv", "__pycache__", "node_modules"}
 CHECK_SUFFIXES = (".py", ".sh")
 CHECK_NAMES = {"k250-scene", "k250-stop", "k250-status"}   # no extension, still shipped
@@ -54,6 +59,18 @@ def main():
                 if m:
                     offenders.append(f"{rel(path)}:{lineno}: {m.group(0)}")
     checks.append(("no author home paths in code", not offenders, "; ".join(offenders) or "clean"))
+
+    # 1b. no introspection of a dependency's version attribute. A real one: install.sh printed
+    #     bleak's, which bleak stopped exposing, so every fresh install on a current bleak showed a
+    #     Python traceback in the middle of a successful install.
+    ver_offenders = []
+    for path in sources:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for lineno, line in enumerate(fh, 1):
+                if VERSION_ATTR.search(line):
+                    ver_offenders.append(f"{rel(path)}:{lineno}")
+    checks.append(("no dependency version-attr introspection", not ver_offenders,
+                   "; ".join(ver_offenders) or "clean"))
 
     # 2. every test resolves the package relative to itself, not by literal path
     tests_dir = os.path.join(ROOT, "tests")

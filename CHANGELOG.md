@@ -6,6 +6,49 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.4 — 2026-09-15
+
+### Fixed — a fresh install printed a traceback while it was working
+
+`install.sh` reported the bleak version with `bleak.__version__`. **bleak stopped exposing that
+attribute** (it is metadata now), so on every current bleak the install printed
+
+```
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+AttributeError: module 'bleak' has no attribute '__version__'
+      bleak installed ()
+```
+
+in the middle of an otherwise successful install — the first output a stranger sees from this repo,
+and it reads exactly like a failed install. Cosmetic, but only in the sense that the venv still
+worked; the message was a lie.
+
+Now read from the package metadata, with a fallback so a future packaging change degrades to a plain
+`bleak` instead of a traceback:
+
+```bash
+... -c 'import importlib.metadata as m; print("bleak", m.version("bleak"))' 2>/dev/null || echo "bleak"
+```
+
+Credit: found by the same clean-checkout audit as v3.2.1–v3.2.3, and it is the one finding that had
+nothing to do with portability — it was a local, uncommitted edit in the reviewer's tree that no
+"does the clone work" check would ever have surfaced.
+
+### Added
+- `tests/test_portability.py` → 12 checks: no shipped file may introspect a dependency's version
+  attribute. The check is written in two pieces so it does not trip itself.
+
+### Verified
+- Reproduced first: a fresh `install.sh` run in a clean copy with a scratch `$HOME` printed the
+  traceback above, exit 0 — install fine, message wrong.
+- After the fix, same run: `bleak installed (bleak 3.0.2)`, no traceback.
+- The from-scratch install was then driven end to end: the symlinked `k250-scene --list` works from
+  an unrelated cwd, and `--limits-show` correctly resolved to the fresh clone's conservative
+  `limits.local.json` (10 % ceiling) rather than a developer's working limits.
+
+---
+
 ## v3.2.3 — 2026-09-15
 
 ### Fixed — `k250-scene --list` only worked from inside the clone

@@ -40,7 +40,7 @@ if ! "$HERE/venv/bin/python" -c "import bleak" 2>/dev/null; then
   echo "ERROR: bleak installed but will not import — the venv is not usable."
   exit 1
 fi
-echo "      bleak installed ($("$HERE/venv/bin/python" -c 'import bleak; print("bleak", bleak.__version__)'))"
+echo "      bleak installed ($("$HERE/venv/bin/python" -c 'import importlib.metadata as m; print("bleak", m.version("bleak"))' 2>/dev/null || echo "bleak"))"
 echo
 
 # 2. tools onto PATH
