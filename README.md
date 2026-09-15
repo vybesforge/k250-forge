@@ -187,8 +187,15 @@ simultaneously. Three rules make it work, all learned the hard way:
    next. Rapid per-tick switching halves each channel's update rate and fragments the power stream.
 
 **Expect the box's own screen to wig out while you drive it** — tab jumping, top bar smearing, the
-green active indicator flickering. Every `AC` write moves the box's selected tab, so its UI is
-literally chasing the driver. Cosmetic, and a useful confirmation that writes are landing.
+green active indicator flickering. It redraws its UI on **every command it receives**, not only on
+channel changes: measured on the real box (2026-09-15), at ~7 BLE frames per second the top bar
+visibly jumps on essentially every write. Cosmetic and harmless — and a useful confirmation that
+your writes are landing at all.
+
+The only way to reduce it is to send fewer frames, and that trades display calm for pattern
+resolution (the frequency axis is 95 % of the traffic, because it's the axis that keeps moving).
+Worth knowing before you spend an evening on it: it is the firmware's own UI behaviour, not
+something the driver does wrong.
 
 ## The two axes — this is the whole instrument
 
