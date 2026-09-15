@@ -6,6 +6,25 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.14 — 2026-09-15
+
+### Added — Apache-2.0, and a licence section that explains the choice
+
+The roadmap had sat on "a licence — the owner's call, not a technical question" since v3.0. Decided:
+**Apache-2.0**, full canonical text (fetched from apache.org, not transcribed), appendix attribution
+line filled in.
+
+Why this one, in the README rather than only in the file: the project is deliberately written to be
+read, copied and adapted — a `limits.json` you rewrite for your own body, an operator skill you drop
+into your own agent. Apache-2.0 keeps that open while adding an explicit patent grant and requiring
+modified files to be marked, which matters for a tool whose whole point is a safety contract someone
+else will edit.
+
+Also corrected: the layout listing (which had lost `FINDINGS.md` and gained a stray duplicate) and the
+tag list in **Versions**, which still stopped at `v3.2.10`.
+
+---
+
 ## v3.2.13 — 2026-09-15
 
 ### Changed — the install notes for all three platforms, after actually running on all three

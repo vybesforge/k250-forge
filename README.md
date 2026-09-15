@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.13** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.14** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -246,6 +246,8 @@ k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
+LICENSE                       Apache-2.0
+agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
 tests/                        eight suites, all runnable from any clone:
   test_pattern_change.py        regression: a PA change must clear the frequency cache
                                 and seed slew to zero
@@ -258,7 +260,6 @@ tests/                        eight suites, all runnable from any clone:
   test_limits_form.py           limits-form.html still generates a contract the engine reads
                                 (needs node; skips cleanly without it)
   test_stop_parsers.py          k250-stop finds the right processes on POSIX and Windows
-agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
 ```
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
@@ -487,7 +488,7 @@ Things worth building next, in rough order of usefulness:
    afterwards.
 4. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops
    loose, no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
-5. **A licence, and repo topics** — the owner's call, not a technical question.
+5. **A pattern composer UI** for roadmap item 2 — the vocabulary exists, the surface doesn't.
 
 **Shipped since v1.0:** multi-channel verified on two channels · per-channel limits · the three
 enforced controls (power / frequency / slew) · the enforced session budget · the limits page ·
@@ -506,13 +507,28 @@ over BLE. It isn't in the protocol.
 - `SB` / `CS` semantics unknown. Reverse Polarity is not reachable over BLE.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
 
+## Licence
+
+**Apache-2.0** — see [LICENSE](LICENSE). Copyright 2026 vybesforge.
+
+Why that one: this is a safety tool for a device that can hurt people, and it is deliberately written
+to be read, copied and adapted — a `limits.json` you can rewrite for your own body, an operator skill
+you can drop into your own agent. Apache-2.0 keeps that open (it is permissive, and it can be used in
+closed projects) while adding an explicit patent grant and a requirement that modified files be marked
+as changed. If you fork it and change how it clamps power, say so — in the file header, and in a note
+to whoever is wearing the pads.
+
+Nothing here is a medical device, and the licence says what every licence says: no warranty. The
+safety that matters is in the code (`limits.json` is enforced, not requested) and in the two rules at
+the top of this file.
+
 ## Versions
 
-Current release: **v3.2.13** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.14** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1` … `v3.2.10` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1` … `v3.2.13` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags
