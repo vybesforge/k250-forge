@@ -141,23 +141,23 @@ on that characteristic.
    `PW=10` is **0.1%** — imperceptible, and it looks exactly like "my commands do nothing." Always
    send `percent × 100`. Proof: cranking `MA` by hand to its maximum made the box report
    `MA: 10000`.
-2. **The box holds `PW` and `MA` — they persist until you change them.** Set 40% and it sits at 40%
-   with no further traffic; there is no dead-man timer, and writing `MA` does not disturb `PW`.
-   **The one thing that resets a channel is a PATTERN CHANGE.** Switch Manual → Waves (or to any
-   other pattern) and that channel's power *and* speed both go to zero — verified repeatedly, and
-   visible on the box's own screen. Always re-send power after any `PA` write.
-3. **A power write can go missing — so re-send rather than trust one.** One pattern held 31% flat,
-   wrote power exactly once, and the operator felt nothing for the full 55 seconds. The engine now
-   always writes (no "skip if unchanged" cache, which is what turned one lost write into a silent
-   pattern) and pauses briefly after any setting-level write. **Honest caveat: the exact cause was
-   never isolated** — it may have been a genuinely dropped write or a race immediately after an
-   `MA`. Re-sending is cheap insurance and it's what the official app does too. This is defensive,
-   not a requirement of the box.
-4. **`PW` is never reported in a read-all.** It is only echoed when written. There is no software
+2. **The box holds `PW` and `MA` — and the ONLY thing that zeroes them is a PATTERN CHANGE.**
+   Set 40% and it sits at 40% indefinitely; there is no dead-man timer, and writing `MA` does not
+   disturb `PW`. But switch the wave pattern — Manual → Waves, Waves → Climb, anything — and that
+   channel's power *and* frequency both drop to zero. So: **re-send power after any `PA` write.**
+   That behaviour is correctly observed, repeatedly, on the box's own screen.
+3. **`PW` is never reported in a read-all.** It is only echoed when written. There is no software
    way to confirm power is flowing — **the person wearing it is the only instrument.** If they say
    they feel nothing, believe them and investigate; never tell them it "should" be working.
-5. **A channel with no pattern refuses power.** See multi-channel below: `CA` can say `Active` while
+4. **A channel with no pattern refuses power.** See multi-channel below: `CA` can say `Active` while
    the channel's `PA` slot is blank, and every power write comes back as `{"PW": 0}`.
+
+**Why the engine still re-sends power anyway:** because the pattern-change reset means a driver
+must write *after* any `PA` change, and always writing means never having to special-case it. It's
+also what the official app does. Cost is nothing; it's belt-and-braces, not a requirement of the
+box. (An earlier version of this file claimed a specific failure where a single power write went
+missing and left 55 seconds silent. **That claim is retracted** — the operator has never seen it
+happen, and the real cause of that run was the pattern reset plus a driver that didn't re-send.)
 
 Also: the box gates channel selection on plug detection (`AC` writes to an unplugged channel are
 silently refused), it stops advertising when asleep or off the *Remote App Control* screen, and

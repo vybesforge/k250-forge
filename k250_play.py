@@ -177,13 +177,16 @@ class Player:
         await asyncio.sleep(0.04)
 
     async def w(self, p: float):
-        """Write power.
+        """Write power. Always writes — deliberately, but not because the box needs it.
 
-        The box HOLDS `PW` once set — it doesn't need re-sending on a timer, and
-        a `MA`/`PA` write doesn't clear it. (An earlier note here claimed the box
-        had to be told repeatedly; that was a misread of a run that failed for
-        other reasons.) Kept unconditional anyway: it's cheap, and since `PW` is
-        never read back it doubles as a safety net.
+        The box HOLDS `PW` once set: no re-sending on a timer, and an `MA` write
+        doesn't clear it. What DOES zero it is a **pattern change (`PA`)** — so
+        after any pattern change the power must be re-sent, and writing
+        unconditionally means never having to special-case that. Cheap, and it's
+        what the official app does too. (Two earlier notes here claimed the box
+        had to be told power repeatedly, and that a power write could go missing
+        and silence a pattern. Both are retracted — the operator has never seen
+        either, and the run behind them failed because the pattern changed.)
 
         Multi-channel: PW applies to the SELECTED channel, so when more than
         one channel is live we select-and-write each in turn. Every pattern
@@ -252,17 +255,13 @@ class Player:
         MA is a beat period: 0 = fastest buzz, 5000 ~= 2 beats/s, 10000 = 1 beat/s
         (period ~= MA/10000 seconds).
 
-        The box holds MA and PW independently — writing MA does not clear PW."""
+        The box holds MA and PW independently — writing MA does not clear PW.
+        Only a PATTERN CHANGE (PA) zeroes them."""
         v = str(int(max(0, min(value, self.ma_cap()))))
         if getattr(self, "_ma", None) == v:
             return
         self._ma = v
         await self.k.send({"MA": v})
-        # Let a setting-level write land before a power write follows it: a PW
-        # sent ~40ms after an MA has been observed to be dropped entirely,
-        # leaving the box silent for a whole pattern. The box HOLDS settings
-        # fine (set 40% and it stays at 40%); it is the write that can go missing.
-        await asyncio.sleep(0.08)
 
 
 # ---------------------------------------------------------------- patterns
