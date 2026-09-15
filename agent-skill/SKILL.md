@@ -45,6 +45,11 @@ used while building this repo, and it is deliberately short. The repo itself —
 | your ceilings | `k250-scene --limits-show` |
 | no bash (Windows) | `venv\Scripts\python k250_play.py …` — the engine reads `limits.json` itself, so the ceiling still applies |
 
+**Battery:** mention it at or below `battery.report_below_percent` in `limits.json` (10 % by default),
+or if the box drops off BLE and low charge is the plausible cause. Above that it is noise — the pack
+idles in the 20–30 % band on a bench charger, and it has gone flat mid-scene before, so the threshold
+is the only figure worth acting on.
+
 ## Protocol traps that look like bugs
 
 - **Values are 0..10000, not 0..100.** The app multiplies its slider by 100. Sending `PW=50` is

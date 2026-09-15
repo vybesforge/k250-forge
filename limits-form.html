@@ -112,6 +112,11 @@
   <div class="card">
     <h2>2 · Session &amp; safety</h2>
     <div class="row"><label for="stop">Stop word</label><input type="text" id="stop" value="red" style="width:150px"></div>
+    <div class="row"><label for="batt">Report battery below</label><input type="number" id="batt" min="0"
+      max="100" step="1" value="10" style="width:80px">
+      <span class="hint" style="margin:0">% — not a limit. The pack idles around 20–30% on the bench
+      charger, so a figure above this says nothing useful; mention the charge at or below it, or if the
+      box drops off BLE and low charge is the plausible cause.</span></div>
     <div class="durmrow">
       <label for="durm">Longest session</label>
       <div class="v" id="durmV">30 min</div>
@@ -240,6 +245,10 @@ function build(){
     session: { max_duration_s: +$('durm').value * 60,
                max_duration_s_ceiling: 14400,
                note: "ENFORCED by k250_session.py: the tools keep a ledger of running time and refuse to start once the budget is spent. A fresh session begins after 15 idle minutes, or with --reset-session." },
+    battery: {
+      report_below_percent: +$('batt').value,
+      note: "NOT a limit -- a reporting rule for whoever is driving. The pack idles in the 20-30% band during bench work, so a charge figure above this says nothing useful; mention it at or below this, or if the box drops off BLE and low charge is the plausible cause. It has gone flat mid-scene before; this is the threshold for caring, not a safety limit."
+    },
     safety: {
       hard_stops_acknowledged: $('ack').checked,
       hard_stops: [
@@ -269,6 +278,7 @@ for (let c = 1; c <= 4; c++){
   syncChannel(c);
 }
 $('stop').addEventListener('input', () => $('out').value = build());
+$('batt').addEventListener('input', () => $('out').value = build());
 $('ack').addEventListener('change', () => $('out').value = build());
 $('regen').onclick = () => { $('out').value = build(); };
 $('copy').onclick = async () => {

@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.5** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.6** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -246,7 +246,7 @@ k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
-tests/                        six suites, all runnable from any clone:
+tests/                        seven suites, all runnable from any clone:
   test_pattern_change.py        regression: a PA change must clear the frequency cache
                                 and seed slew to zero
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
@@ -254,6 +254,8 @@ tests/                        six suites, all runnable from any clone:
   test_portability.py           nothing shipped points at the author's machine
   test_wrapper_cli.py           the wrapper tools work from any cwd, and fail loudly
   test_shell_compat.py          no bash-4-only syntax; arrays guarded for macOS's bash 3.2
+  test_limits_form.py           limits-form.html still generates a contract the engine reads
+                                (needs node; skips cleanly without it)
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
 ```
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
@@ -451,9 +453,7 @@ Things worth building next, in rough order of usefulness:
    afterwards.
 4. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops
    loose, no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
-5. **A battery warning before a run.** The box has gone flat mid-scene twice, at around 32%. A
-   pre-flight read of `BC` that warns below ~25% and refuses below ~15% costs nothing.
-6. **A licence, and repo topics** — the owner's call, not a technical question.
+5. **A licence, and repo topics** — the owner's call, not a technical question.
 
 **Shipped since v1.0:** multi-channel verified on two channels · per-channel limits · the three
 enforced controls (power / frequency / slew) · the enforced session budget · the limits page ·
@@ -474,11 +474,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.5** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.6** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

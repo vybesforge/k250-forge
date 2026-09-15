@@ -6,6 +6,47 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.6 — 2026-09-15
+
+### Added — `battery.report_below_percent`, and the noise it replaces
+
+Battery was mentioned in five places and the numbers disagreed: the README's roadmap wanted a warning
+below ~25 % and a refusal below ~15 %, `FINDINGS.md` called 12 % "low-ish", and every status read
+invited a comment on a pack that sits in the 20–30 % band on a bench charger. That is how a report
+becomes noise, and noise gets tuned out — right up until the box goes flat mid-scene.
+
+There is now one figure, in the config, where the other limits live:
+
+```json
+"battery": {
+  "report_below_percent": 10,
+  "note": "NOT a limit -- a reporting rule…"
+}
+```
+
+**Mention the charge at or below it, or if the box drops off BLE and low charge is the plausible
+cause. Nothing above it.** The shipped `limits.json`, `limits-form.html` (new field on the limits
+page, defaulting to 10) and the operator skill all carry the same value, and a test keeps them
+agreeing.
+
+The README roadmap line proposing a ~25 %/15 % warning is **removed**, not renumbered around: it was
+the loudest of the disagreeing voices.
+
+### Added
+- `tests/test_limits_form.py` — 20 checks. `limits-form.html` generates the entire contract in the
+  browser, and nothing tested it: an edit to `build()` could drop `power.max_percent`, or add a config
+  field (like this one) that the next regeneration silently loses. The test runs the page's own
+  JavaScript in node against a small DOM stub, then asserts the output parses, still carries every key
+  the engine reads, that the engine's own `load_limits`/`apply_limits` honour its ceiling and
+  per-channel caps (and that a command line still cannot raise it), and that the form and the shipped
+  file agree on the battery threshold. Skips cleanly where node is absent.
+
+### Verified
+- Run under node v22 with a DOM stub: 12 generated channel controls found, output valid, default
+  battery threshold 10, engine reads a 10 % ceiling from it, per-channel caps round-trip.
+
+---
+
 ## v3.2.5 — 2026-09-15
 
 ### Fixed — the primary tool could not run at all on macOS

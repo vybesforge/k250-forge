@@ -5,6 +5,10 @@
   "_profile_note": "SHIPPED DEFAULT, deliberately timid: 10% ceiling, 5% start. A floor for a stranger's first session, not a recommendation. Re-derive your own numbers slowly on your own body and pad placement, then write your own copy (limits.local.json) and drive with --limits.",
   "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device; its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so the same figure is a different sensation and a different risk. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE a scene; never renegotiate mid-scene. The wearer's stop word and the box's hardware kill switch override everything, including this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
   "stop_word": "red",
+  "battery": {
+    "report_below_percent": 10,
+    "note": "NOT a limit -- a reporting rule for whoever is driving. The pack idles in the 20-30% band during bench work, so a charge figure above this says nothing useful; mention it at or below this, or if the box drops off BLE and low charge is the plausible cause. It has gone flat mid-scene before; this is the threshold for caring, not a safety limit."
+  },
   "power": {
     "max_percent": 10,
     "default_percent": 5,
