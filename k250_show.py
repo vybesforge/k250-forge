@@ -83,7 +83,7 @@ SETLISTS = {
     ("38. POWER SWEEP+     (rise, dwell w/ speed drift, fall, rest)", "power_sweep_rich", 35, 50, 60, None, 2500, 20),
 ],
 "scene1": [
-    # femdom escalation: build -> tease -> take it away
+    # escalation: build -> tease -> take it away
     ("A. SWITCHBACK   (climb buzzy, snap-back is heavy beats)", "switchback", 30, 46, 50, None),
     ("B. SWEEP DROP   (climb, sit at the top, HARD drop)",      "sweep_drop", 38, 38, 45, None, 2500, 13),
     ("C. COOLDOWN     (beats in the band, then MA=0 hum)",      "cooldown",   26, 44, 45, None),
@@ -113,14 +113,13 @@ SETLISTS = {
     ("C. SWEEP DROP   (climb, sit, HARD drop -- at 58 flat)",  "sweep_drop", 58, 58, 40, None, 2500, 13),
 ],
 "scene6": [
-    # long steady hold: the character moves, the level doesn't, no resolution.
-    ("A. SWEEP @42 flat (steady level, character moving)",  "speed_sweep", 42, 42, 70, None, 2500, 13),
+    # long steady hold: the character moves, the level doesn't. No resolution.
+    ("A. SWEEP @42 flat (steady level, character moving)",   "speed_sweep", 42, 42, 70, None, 2500, 13),
     ("B. RATION         (bursts 45-52, then long silences)",    "ration",      45, 52, 55, None, 2500, 20),
     ("C. COOLDOWN       (low hum to finish, 22-36)",            "cooldown",    22, 36, 45, None),
 ],
 "scene7": [
-    # long hold with nobody reporting: land it safely.
-    # No escalation with nobody reporting. Ceiling stays 55.
+    # long hold with nobody reporting: no escalation, land it safely. Ceiling stays 55.
     ("A. SWEEP DROP  (climb, sit, HARD drop -- at 48 flat)",  "sweep_drop", 48, 48, 45, None, 2500, 13),
     ("B. HIGH SWEEP  (40<->54 crossing, axes out of phase)",  "high_sweep", 40, 54, 60, None, 2500, 20),
     ("C. DREAD       (long near-nothing, then ONE heavy beat)","dread",     42, 52, 55, None, 2500, 20),
@@ -129,8 +128,8 @@ SETLISTS = {
 "faves": [
     # the three that worked best, in order: sweep, hard drop, switchback
     ("A. SWEEP @38 flat   (steady level, character moving)", "speed_sweep", 38, 38, 40, None, 2500, 13),
-    ("B. SWEEP DROP @38   (climb, sit, HARD drop)","sweep_drop", 38, 38, 45, None, 2500, 13),
-    ("C. SWITCHBACK       (snap-back is heavy beats)","switchback", 30, 46, 45, None),
+    ("B. SWEEP DROP @38   (climb, sit, HARD drop)",          "sweep_drop", 38, 38, 45, None, 2500, 13),
+    ("C. SWITCHBACK       (snap-back is heavy beats)",       "switchback", 30, 46, 45, None),
 ],
 "serve2": [
     # higher and steady, with the second axis moving. Cap 55.

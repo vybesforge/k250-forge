@@ -3,7 +3,7 @@
 import asyncio, json
 from bleak import BleakClient, BleakScanner
 
-ADDR = "AA:BB:CC:11:22:33"
+ADDR = "AA:BB:CC:11:22:33"   # placeholder; find() matches on name/UUID
 CHR  = "086e0001-7935-0d3a-ca91-bfb0c8c34043"
 
 READ_REQ = {"AC":"","PW":"","MA":"","GP":"","PA":"","CA":"","MP":"","SB":"","BC":"","CS":"","FV":"","ER":"0"}

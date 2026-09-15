@@ -3,7 +3,9 @@
 Reverse-engineered from the konnector.com web app (public JS).
 """
 
-ADDR = "AA:BB:CC:11:22:33"          # random static LE address
+ADDR = "AA:BB:CC:11:22:33"          # placeholder: a random static LE address that
+                                        # changes on power-cycle. Do not record or hardcode
+                                        # it — `find()` matches on name or service UUID.
 NAME = "Kx250-4S"                   # advertised name
 SVC = "086e0000-7935-0d3a-ca91-bfb0c8c34043"
 CHR = "086e0001-7935-0d3a-ca91-bfb0c8c34043"

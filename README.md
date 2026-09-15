@@ -1,12 +1,12 @@
 # k250-forge
 
-**Current release: v3.2.15** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.16** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
 the hardware without being able to exceed limits the wearer agreed to.
 
-Everything here was verified against real hardware (firmware `v1.08--18c4987-250114-01hGMT`),
+Everything here was measured against real hardware (firmware `v1.08--18c4987-250114-01hGMT`),
 one pattern at a time, with the box's own LCD as the witness.
 
 ---
@@ -23,10 +23,9 @@ wanted and creeping up over an evening, watching what happened. Never open a ses
 you've only read here.
 
 **Percentages do not transfer between pad placements.** This is the one that actually hurts people.
-Skin sensitivity varies enormously by site: outer skin on limbs and torso is far less sensitive
-than others, by a wide margin. **38% on a forearm and
-38% on a far more sensitive site are not the same sensation and not the same risk.** Every calibration figure
-below comes from one body, one placement. If you strap pads somewhere else,
+Skin sensitivity varies enormously by site — far more than most people expect. **38 % on a forearm
+and 38 % on a far more sensitive site are not the same sensation and not the same risk.** The
+figures below come from one placement on one body. If you strap pads somewhere else,
 **you are starting again from zero.** Re-derive your own numbers, slowly, on yourself.
 
 **Hard stops, no exceptions:**
@@ -99,7 +98,7 @@ and no AI in the loop.
 | **Advertised name** | **`Kx250-4S`** — note it is *not* "k250". Match on this. |
 | **Service UUID** | `086e0000-7935-0d3a-ca91-bfb0c8c34043` (advertised — the most reliable filter) |
 | **Characteristic** | `086e0001-7935-0d3a-ca91-bfb0c8c34043` (read / write / notify) |
-| **Address** | a **random static** LE address, e.g. `AA:BB:CC:11:22:33` — **it changes on power-cycle.** Never hardcode it; `find()` matches address *or* service UUID *or* name, and the UUID is the durable one. |
+| **Address** | a **random static** LE address (it looks like any MAC, e.g. `AA:BB:CC:11:22:33`) — **it changes on power-cycle.** Never hardcode it; `find()` matches address *or* service UUID *or* name, and the UUID is the durable one. |
 | **Signal** | roughly −50 dBm within a couple of metres. If you see it at −90, you're too far. |
 
 **The box only advertises when it's awake and sitting on Options → "Remote App Control"**
@@ -165,7 +164,8 @@ on that characteristic.
 must write *after* any `PA` change, and always writing means never having to special-case it. It's
 also what the official app does. Cost is nothing; it's belt-and-braces, not a requirement of the
 box. (An earlier version of this file claimed a specific failure where a single power write went
-missing and left 55 seconds silent. **That claim is retracted** — the operator has never seen it
+missing and left 55 seconds silent. **That claim is retracted** — no dropped write has ever been
+observed here
 happen, and the real cause of that run was the pattern reset plus a driver that didn't re-send.)
 
 Also: the box gates channel selection on plug detection (`AC` writes to an unplugged channel are
@@ -205,14 +205,15 @@ sensation changes completely. That's the trick this box has that most e-stim rig
 
 What testing settled, in the order it turned out to matter:
 
-- **Flat 38% with speed sweeping 0↔25 over ~13 s is the favourite motion.** Sweep period 8–20 s;
-  4 s is too brisk to sit in.
+- **A flat level with the speed axis sweeping 0↔25 over ~13 s is the motion this box does best.**
+  Sweep periods of 8–20 s sit well; 4 s is too brisk.
 - **The hard drop is the money moment:** speed `25 → 0` in **one step**, not a glide. Sit at the top
   for a few seconds first; the landing lands harder.
 - **Slow beats need more power** to feel equal — compensate upward as `MA` rises.
 - **Cooldown** = `MA=0` at ~⅓ of base power: a low hum that just sits there. It's a landing, not
   a gap.
-- **Pleasure band ≈ 35–50%.** Above that reads as pain — wanted sometimes, but deliberate.
+- **These are starting points, not transferable numbers** — see the placement note above and in
+  `limits.json`.
 - Compositions beat single motions: `arc` = sweep ×2 → climb/sit/hard-drop → cooldown hum → sweep
   hotter.
 
@@ -529,7 +530,7 @@ and the ceiling clamping works identically whether or not anyone ever tips.
 
 ## Versions
 
-Current release: **v3.2.15** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.16** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,

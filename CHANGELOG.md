@@ -6,6 +6,33 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.16 — 2026-09-15
+
+### Changed — personal detail removed from the docs, the comments and the code
+
+This repo described its own testing in more detail than a public project should. Removed:
+
+- **Session narratives.** The setlist comments in `k250_show.py` read as a session narrative. They now describe the *shape* of each
+  set (staged escalation, long hold with nobody reporting, denial set) with the engineering intent
+  intact and the people out of it.
+- **One person's verdicts.** Pattern notes were attributed to an individual and written as their
+  personal favourites. The docstrings and tables now say which patterns worked and why, in neutral
+  terms.
+- **A name.** It was in the engine's docstrings, the setlists and `FINDINGS.md`.
+- **The box's actual BLE address**, in five files. A random static address is not identifying for long
+  — it changes on power-cycle — but it was still this device's address, so it is a placeholder now.
+  `find()` matches on name or service UUID anyway, which is the durable route.
+- **Anatomy in the safety text.** The placement warning is the most important paragraph in the repo
+  and it still says percentages do not transfer between sites; it no longer names specific ones.
+
+Kept deliberately: the calibration figures, the working power band, the sweep periods and the pattern
+vocabulary. Those are the useful part, and the README now frames them as observations from one
+placement rather than as numbers to copy.
+
+Credit for the call: the repo's owner read it as a stranger would and said it was too personal.
+
+---
+
 ## v3.2.15 — 2026-09-15
 
 ### Added — a tip cup, and the line in the README
@@ -21,7 +48,7 @@ ever tips.
 
 Credit where due: the funding button is the one thing in this repo I could not verify from the
 machine — Ko-fi sits behind Cloudflare and answers `403` to anything that isn't a browser, and the
-headless browser gets the interstitial too. The page's existence was confirmed by its owner instead.
+headless browser gets the interstitial too. That one was confirmed out-of-band rather than from here.
 
 ---
 

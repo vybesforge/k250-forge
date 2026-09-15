@@ -3,7 +3,7 @@
 import asyncio, traceback
 from bleak import BleakScanner, BleakClient
 
-TARGET_ADDR = "AA:BB:CC:11:22:33"
+TARGET_ADDR = "AA:BB:CC:11:22:33"   # placeholder; use None to scan by name
 
 def name_match(d):
     n = (getattr(d, "name", None) or "")

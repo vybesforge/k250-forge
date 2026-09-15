@@ -3,7 +3,7 @@
   "version": 2,
   "profile": "conservative-default",
   "_profile_note": "SHIPPED DEFAULT, deliberately timid: 10% ceiling, 5% start. A floor for a stranger's first session, not a recommendation. Re-derive your own numbers slowly on your own body and pad placement, then write your own copy (limits.local.json) and drive with --limits.",
-  "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device; its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so the same figure is a different sensation and a different risk. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE a scene; never renegotiate mid-scene. The wearer's stop word and the box's hardware kill switch override everything, including this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
+  "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device; its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, so the same figure is a different sensation and a different risk. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE a scene; never renegotiate mid-scene. The wearer's stop word and the box's hardware kill switch override everything, including this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
   "stop_word": "red",
   "battery": {
     "report_below_percent": 10,
@@ -57,7 +57,7 @@
         "slew": null
       }
     },
-    "per_channel_note": "Different channels sit on different skin, so one global ceiling is the wrong shape -- a cap that is right for a thigh is wrong for a tip. Set any field here to override the global for that channel; null means use the global. Example: {\"1\":{\"power\":50,\"frequency\":2500,\"slew\":25},\"2\":{\"power\":20,\"frequency\":1200,\"slew\":10}}"
+    "per_channel_note": "Different channels sit on different skin, so one global ceiling is the wrong shape -- a cap that is right for one placement is wrong for another. Set any field here to override the global for that channel; null means use the global. Example: {\"1\":{\"power\":50,\"frequency\":2500,\"slew\":25},\"2\":{\"power\":20,\"frequency\":1200,\"slew\":10}}"
   },
   "session": {
     "max_duration_s": 1800,

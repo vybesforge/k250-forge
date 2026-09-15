@@ -5,8 +5,8 @@ Saved 2026-09-14. Device physically attached to the Precision 5810; webcam point
 ## 1. The device
 - **Kink K250-4S E-Stim Power Box** (Kink Store / Red System Ventures LLC; kinkstore.com).
   4 independent bipolar e-stim channels, 4 knobs, touchscreen, USB-C charging, "upgradable firmware".
-- BLE advertises as **`Kx250-4S`** — MAC `AA:BB:CC:11:22:33` (random/static LE address),
-  RSSI ≈ −50 at this box. Device is powered on and advertising when the LCD is on.
+- BLE advertises as **`Kx250-4S`** — random/static LE address (it changes on power-cycle, so it is
+  not something to record), RSSI ≈ −50 at this box. Device is powered on and advertising when the LCD is on.
 - **Radio SoC: Nordic nRF52840** — carried module is a Raytac MDBT50Q; FCC ID **`SH6MDBT50`**
   (grantee SH6 = Raytac; MDBT50Q series is nRF52840, BLE 5.4). Good news: nRF52840 = 1 MB flash,
   SWD debug, well-documented toolchain.
@@ -149,9 +149,9 @@ Tooling (all in the working directory — the repo root if you cloned it, all sp
 - `k250_play.py <pattern> --base --peak --secs --hardcap` — pattern engine.
 - `k250_show.py --set tour|new --hardcap N` — plays a setlist in ONE connection with gaps.
 
-Pattern notes from testing: **edge** (hovers under, then pushes over) = real favourite;
-**climb** (sawtooth, snaps back) = a lot of fun; **tide** = really good; **stutter** =
-good but "very difficult to concentrate" — *keep it*, it has its place. `trap` ran fine
+Pattern notes from testing: **edge** (hovers under, then pushes over) got used most;
+**climb** (sawtooth, snaps back) and **tide** both landed; **stutter** is intense and
+hard to settle into, but it has its place. `trap` ran fine
 (escalating 25→40% with unpredictable dead zones). New this session: **verge** (edge's push
 arrives in thump mode), **groove** (MA pinned 1/s, power surging on the beat),
 **switchback** (climb whose snap-back is three heavy beats, not relief).
@@ -170,20 +170,20 @@ Design pattern "beats" around it and have the operator flip by hand. `SB` is rea
 - **The hard drop is the money moment:** `MA` going 25 → 0 in ONE step (not a glide). Both the
   staircase wrapping around and the deliberate `sweep_drop` hit it. Sitting at the top before
   the drop makes the landing better.
-- **Pleasure power band ≈ 35-50%.** Above ~50% reads as pain — which is sometimes wanted, so
-  `pain_edge` deliberately steps 6-10% above the window for 1.5-3 s and falls back.
+- **The working power band ≈ 35-50 %.** Above ~50 % reads as pain, which is sometimes wanted, so
+  `pain_edge` deliberately steps 6-10 % above the window for 1.5-3 s and falls back.
 - **Compositions win over single motions:** `arc` = sweep ×2 → climb/sit/hard drop → cooldown hum
   (`MA=0` at ~72% of base power) → sweep hotter. Holds up across repeats; runs to 50% fine.
-- Pattern verdicts worth keeping: **edge/verge** and **switchback** = favourites; **climb**, **tide**,
-  **speed_sweep** = really good; **stutter** = "very difficult to concentrate" but KEEP IT;
-  **groove/metronome** = boring (fixed beat, needs more power); **creep** = the bug case below.
+- Worth keeping: **edge/verge**, **switchback**, **climb**, **tide**, **speed_sweep**; **stutter**
+  (intense but good); **groove/metronome** felt flat (fixed beat, needs more power); **creep** is the
+  bug case below.
 
 ## 7. Next steps
 1. **Confirm write path** with a benign setting change and eyes on the LCD (webcam) —
    then it's "controlled over BLE".
-2. Wrap `k250lib.py` into a bridge for our stack (like the Coyote bridge) so the AI can drive
+2. Wrap `k250lib.py` into a bridge (the same pattern used for the Coyote box) so an AI can drive
    power/pattern/MA per channel; add safety caps (MP level) and a hard stop.
-3. Firmware recovery attempts (later, per the operator): the image is encrypted on the wire; options are
+3. Firmware recovery attempts (later, if anyone takes it on): the image is encrypted on the wire; options are
    (a) SWD dump of the nRF52840 (open case, check APPROTECT), (b) reverse the bootloader crypto,
    (c) craft our own DFU image and see if the box enforces only the version bytes. Also mine the
    APK for the DFU implementation.

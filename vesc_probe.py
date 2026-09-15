@@ -3,7 +3,7 @@
 import asyncio
 from bleak import BleakClient, BleakScanner
 
-ADDR = "AA:BB:CC:11:22:33"
+ADDR = "AA:BB:CC:11:22:33"   # placeholder
 CHR  = "086e0001-7935-0d3a-ca91-bfb0c8c34043"
 
 def crc16(buf: bytes) -> int:

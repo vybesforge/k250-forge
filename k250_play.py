@@ -69,7 +69,7 @@ class Player:
     def cap_for(self, ch: int, kind: str, fallback):
         """Per-channel limit, else the global one. `ch` is 0-based; limits.json
         keys channels 1-4. Different channels are on different skin -- a cap that
-        is right for a thigh is wrong for a tip."""
+        is right for one placement is wrong for another."""
         c = (self.channel_caps or {}).get(str(ch + 1)) or {}
         v = c.get(kind)
         return fallback if v is None else v
@@ -231,11 +231,8 @@ class Player:
             ch = self.channels[0]
             await self.select(ch)
         else:
-            # Hold ONE channel for a window, then rotate. the operator, 2026-09-15:
-            # "select one channel and command it, then go to the other channel
-            # and command it -- going back and forth does not look like it will
-            # work well." Flip-flopping every tick also halves each channel's
-            # update rate and fragments the power stream.
+            # Hold ONE channel for a window, then rotate. Flip-flopping every tick
+            # halves each channel's update rate and fragments the power stream.
             now = time.time()
             need_rotate = (self._ch is None
                            or self._ch not in self.channels
@@ -256,7 +253,7 @@ class Player:
         p = self._slew_ch(ch, p)
 
         # Skip the write if the box already holds this exact value on this channel.
-        # The box PERSISTS PW (the operator, verified): it does not need re-sending, and
+        # The box PERSISTS PW (verified on the box): it does not need re-sending, and
         # those redundant frames are what make its own LCD churn while driving.
         # This halves the frame rate on flat-power patterns.
         #
@@ -373,7 +370,7 @@ async def p_dice(pl: Player, base: float, peak: float, secs: float):
 
 
 async def p_edge(pl: Player, base: float, peak: float, secs: float):
-    """Hover just under a level, then push over it for a beat. """
+    """Hover just under a level, then push over it for a beat."""
     t0 = time.time()
     while time.time() - t0 < secs and not pl.stop:
         await pl.hold(random.uniform(4, 7), base)
@@ -632,7 +629,7 @@ async def p_sweep_hold_zero(pl: Player, base: float, peak: float, secs: float):
 
 async def p_speed_sweep(pl: Player, base: float, peak: float, secs: float):
     """SPEED SWEEP: power held flat, MA sine-sweeps 0 <-> ma_top continuously.
-    Same power the whole time — only the speed axis moves. """
+    Same power the whole time — only the speed axis moves."""
     period = pl.sweep_period
     t0 = time.time()
     while time.time() - t0 < secs and not pl.stop:
