@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.12** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.13** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -289,6 +289,10 @@ into `~/.local/bin`, and writes a conservative `limits.local.json`.
   so just don't `pip install bleak` system-wide first — if you already tried, that error is the reason.
 - `install.sh` is bash and needs **bash 3.2 or newer** (any distro's default; on Alpine:
   `apk add bash python3 python3-venv`). The tools themselves are the same on any of them.
+- **Headless is fine.** There is no GUI and no desktop session anywhere in this: the tools speak BLE
+  over BlueZ and print text. This repo is developed against a box driven from a headless Linux
+  server. (The only desktop-ish thing in it is `limits-form.html`, which is a plain file you open
+  wherever you like.)
 
 ### macOS
 
@@ -297,8 +301,13 @@ git clone https://github.com/vybesforge/K250-forge.git && cd K250-forge
 ./install.sh
 ```
 
-macOS needs no extra packages — `bleak` uses CoreBluetooth. Two gotchas:
+macOS needs no extra packages — `bleak` uses CoreBluetooth — **but you do need Python 3.10 or
+newer**, and that is the one thing macOS will not have out of the box. Three gotchas:
 
+- **`python3` on macOS is often Xcode's 3.9**, which is below `bleak`'s floor, so `install.sh` stops
+  with instructions rather than half-installing. Fix: `brew install python@3.12`, then either put it
+  first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer as
+  `PATH="$(brew --prefix)/bin:$PATH" ./install.sh`.
 - **Grant Bluetooth permission** to whatever app runs the commands (Terminal, iTerm, your editor).
   The prompt appears once on first scan; if it was dismissed, re-enable it in
   System Settings → Privacy & Security → Bluetooth.
@@ -319,6 +328,10 @@ py -3 -m venv venv
 ```
 
 - `bleak` uses the WinRT Bluetooth stack — **no extra drivers**.
+- **Check which Python `py -3` means.** It picks your newest Python 3, and if that is 3.9 or older the
+  `pip install bleak` below fails with a version error that reads like a network problem
+  (`bleak` needs 3.10+). `py -0p` lists what you have; with several installed, name it:
+  `py -3.12 -m venv venv`.
 - Turn **Bluetooth on** and make sure the box is awake before scanning.
 - `install.sh` is a bash script and won't run natively. Call the engine directly — **it reads
   `limits.json` itself**, so the ceiling and the session budget apply here exactly as they do
@@ -341,6 +354,9 @@ py -3 -m venv venv
 - **What doesn't:** the shell wrappers in `bin/` (they're bash) and `k250_ctl.py` (it drives a FIFO,
   which Windows doesn't have — it tells you that and exits, rather than throwing). Neither is needed:
   the engine and the stop tool are the whole contract, and both enforce limits themselves.
+- **Verified on Windows on real hardware** (Sep 2026): the install, the engine, the limits contract,
+  and driving the box over BLE — the same patterns that run on macOS and Linux. The one branch not
+  exercised there is the stop tool's *process-kill* line.
 - Git Bash / WSL works too, and `install.sh` will run there.
 
 ### All platforms — the two rules that catch everyone
@@ -492,7 +508,7 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.12** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.13** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,

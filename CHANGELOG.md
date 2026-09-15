@@ -6,6 +6,28 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.13 — 2026-09-15
+
+### Changed — the install notes for all three platforms, after actually running on all three
+
+Every platform section was rewritten against what the installs actually do now, not what they did
+when they were written:
+
+- **macOS:** the section said "no extra packages" and left out the one thing that will stop a Mac
+  user — the stock `python3` is often Xcode's **3.9**, below `bleak`'s 3.10 floor. It now says so, with
+  the `brew install python@3.12` fix and the `PATH` ordering that makes `install.sh` pick it up.
+- **Windows:** `py -3` takes your *newest* Python 3, which may still be 3.9 — the failure looks like
+  a network error. Now documented, with `py -0p` and `py -3.12 -m venv venv`.
+- **Linux:** added that it runs **headless** — no desktop session anywhere in the toolchain, which is
+  how this repo is actually driven (a box on a headless server).
+- **Windows is now field-verified:** the install, the engine, the limits contract and driving the box
+  over BLE on real hardware. The only branch unexercised there is the stop tool's process-kill line.
+
+The v3.2.12 entry below is left as written, with a dated note, because that is what was known when it
+shipped.
+
+---
+
 ## v3.2.12 — 2026-09-15
 
 ### Fixed — three test bugs found by the first real run on Windows
@@ -29,10 +51,16 @@ The pattern is the same as every other finding in this project: the thing lying 
 the engine.
 
 ### Windows status, stated precisely
-- Verified on real hardware-adjacent Windows: clone, venv, `pip install bleak`, engine import,
-  `--list` (35 patterns), `--limits-show`, session budget.
+- Verified on real hardware: clone, venv, `pip install bleak`, engine import, `--list` (35 patterns),
+  `--limits-show`, session budget.
 - **Not** verified there: BLE I/O — `k250_status.py` reaching the box, and the stop tool's
   process-kill path with a pattern running. No claim is made about those.
+
+> **Update, later the same day:** the Windows box went on to find the box over BLE and drive it —
+> real hardware, real patterns — so the BLE half of that gap is closed. The docs above are left as
+> written because that is what was known when this version shipped; what remains unexercised on
+> Windows is only the stop tool's `killed pattern pid N` line (the `PW=0` stop path is the same code
+> everywhere, and is verified).
 
 ### Verified
 - All eight suites pass on Linux after the changes (and the three touched suites are the ones the
