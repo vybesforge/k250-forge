@@ -136,7 +136,7 @@ Control map, confirmed live against the LCD (2026-09-14/15):
 |---|---|---|---|
 | Power Multiplier | `PW` | 0..10000 = 0..100% | the *only* continuous control in Manual mode |
 | Multi Adjust | `MA` | 0..10000 | **frequency**: `0` = highest/buzziest, `5000` (~50%) ≈ **1 thump/sec**, max = slowest thump |
-| Pattern | `PA` | 4-name array | **changing it zeroes PW and MA** — re-send power after every change |
+| Pattern | `PA` | 4-name array | per-channel pattern name; setting it leaves `PW`/`MA` alone |
 | Max power | `MP` | 5..100 | system cap, shows as `L-05..L-100`; applies even when output keys look dead |
 
 Tooling (all in `~/k250/`, all speak **percent** and multiply by 100 internally):

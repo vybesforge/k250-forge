@@ -148,13 +148,13 @@ class Player:
         await asyncio.sleep(0.04)
 
     async def w(self, p: float):
-        """Write power. ALWAYS writes — no dedupe/cache.
+        """Write power.
 
-        Do NOT reintroduce a "skip if unchanged" cache here: a pattern that
-        held power flat while walking MA wrote PW exactly once and the box went
-        silent for the whole run (operator felt nothing for 55 s), while an
-        identical level re-sent periodically stayed alive. Treat PW as
-        something the box must be told repeatedly.
+        The box HOLDS `PW` once set — it doesn't need re-sending on a timer, and
+        a `MA`/`PA` write doesn't clear it. (An earlier note here claimed the box
+        had to be told repeatedly; that was a misread of a run that failed for
+        other reasons.) Kept unconditional anyway: it's cheap, and since `PW` is
+        never read back it doubles as a safety net.
 
         Multi-channel: PW applies to the SELECTED channel, so when more than
         one channel is live we select-and-write each in turn. Every pattern
@@ -211,14 +211,18 @@ class Player:
         """Set Multi Adjust (frequency). MA=0 = buzziest, MA=5000 ~= 2 thump/s,
         MA=10000 ~= 1 thump/s (period ~= MA/10000 seconds).
 
-        IMPORTANT: any setting-level write (MA/PA) can zero PW on the box, so
-        drop the power cache and force the next tick to re-send it."""
+        The box holds MA and PW independently — writing MA does not clear PW
+        (an earlier note claimed it did; that was a misread)."""
         v = str(int(max(0, min(value, 10000))))
         if getattr(self, "_ma", None) == v:
             return
         self._ma = v
-        self.last = None            # force PW re-send after the MA change
         await self.k.send({"MA": v})
+        # Let a setting-level write land before a power write follows it: a PW
+        # sent ~40ms after an MA has been observed to be dropped entirely,
+        # leaving the box silent for a whole pattern. The box HOLDS settings
+        # fine (set 40% and it stays at 40%); it is the write that can go missing.
+        await asyncio.sleep(0.08)
 
 
 # ---------------------------------------------------------------- patterns
