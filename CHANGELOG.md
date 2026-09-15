@@ -6,6 +6,34 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2 — 2026-09-15
+
+### Fixed — a real hole in the safety contract
+
+**The limits file was only enforced by the bash wrapper.** `k250_play.py` never read `limits.json`
+at all, and its `--hardcap` defaulted to `100` — no ceiling. Mac and Linux go through
+`bin/k250-scene`, so they were capped; **Windows has no bash**, and the documented entry point there
+is `python k250_play.py ...`, which was therefore uncapped. The README's claim that the safety lives
+in the tool rather than the prompt was, for Windows, false.
+
+The engine now reads the limits file itself (`limits.local.json`, then `limits.json`, next to the
+script, else `$K250_LIMITS` or `--limits PATH`) and applies the same rule the wrapper does: **a
+command-line ceiling can only lower the file's, never raise it.** The session budget is enforced on
+the direct path too, reserving the time up front; the wrapper sets `K250_WRAPPED=1` so the ledger is
+not charged twice (verified: a run whose engine wall time was ~22 s moved the ledger 24 s).
+
+Verified live on the real box: a direct call asking for `--hardcap 90` clamped to the file's 50 %,
+and the box finished at zero.
+
+### Added
+- `tests/test_limits_enforcement.py` — 12 checks: the file wins over the command line, `--slew 0`
+  cannot lift a file cap, a file value of 0 still means "unlimited", `null` per-channel fields are
+  dropped, no-file falls back to the command line, and the session budget refuses a run that *would*
+  exceed it (which it initially did not — it checked the budget before reserving, so the last run
+  could overshoot; caught by this test).
+
+---
+
 ## v3.1 — 2026-09-15
 
 ### Changed

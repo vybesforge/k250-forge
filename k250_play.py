@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import json
 import os
+import subprocess
 import math
 import random
 import signal
@@ -920,13 +921,118 @@ PATTERNS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Limits + session: enforced in the ENGINE, not only in the bash wrapper.
+#
+# bin/k250-scene reads limits.json and passes the ceiling down, which left the
+# contract silently absent anywhere the wrapper can't run -- most obviously
+# Windows, where there is no bash and the documented entry point is
+# `python k250_play.py ...`, whose --hardcap defaulted to 100: no limit at all.
+# The engine now reads the same file itself. A command-line ceiling can only
+# make things STRICTER, never looser: the file is the contract.
+# ---------------------------------------------------------------------------
+
+def find_limits(explicit=None):
+    here = os.path.dirname(os.path.abspath(__file__))
+    for c in (explicit, os.environ.get("K250_LIMITS"),
+              os.path.join(here, "limits.local.json"), os.path.join(here, "limits.json")):
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def load_limits(path):
+    if not path:
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"WARNING: could not read limits file {path} ({e}) -- "
+              f"continuing with command-line limits only", file=sys.stderr)
+        return None
+
+
+def _cap(a, b):
+    """The stricter of two optional limits. None = unspecified, 0 = unlimited."""
+    vals = [x for x in (a, b) if x]
+    if vals:
+        return min(vals)
+    return 0.0 if (a == 0 or b == 0) else None
+
+
+def apply_limits(a, lim):
+    """Merge the limits file into the CLI args. The file is the contract and the
+    command line may only tighten it."""
+    if not lim:
+        return (a.hardcap if a.hardcap is not None else 100.0), (a.max_rate or 0.0), \
+               a.ma_top, a.channel_caps
+
+    f_power = (lim.get("power") or {}).get("max_percent")
+    f_freq = (lim.get("frequency") or {}).get("max")
+    f_slew = (lim.get("slew") or {}).get("max_percent_per_second")
+
+    hard = float(f_power) if f_power is not None else 100.0
+    if a.hardcap is not None:
+        hard = min(float(a.hardcap), hard)
+
+    rate = _cap(a.max_rate, f_slew)
+    freq = _cap(a.ma_top, f_freq)
+    if freq is None:
+        freq = 2500.0
+
+    caps = {}
+    for ch, spec in ((lim.get("channels") or {}).get("per_channel") or {}).items():
+        if isinstance(spec, dict):
+            caps[str(ch)] = {k: v for k, v in spec.items() if v is not None}
+    if a.channel_caps:
+        try:
+            for ch, spec in json.loads(a.channel_caps).items():
+                caps.setdefault(str(ch), {}).update(
+                    {k: v for k, v in (spec or {}).items() if v is not None})
+        except Exception:
+            pass
+    caps = {k: v for k, v in caps.items() if v}     # drop channels with nothing set
+    return hard, (rate or 0.0), freq, (json.dumps(caps) if caps else "")
+
+
+def session_reserve(here, max_s, seconds):
+    """Enforce the session budget on the direct path too. Reserves the time up
+    front (conservative: an interrupted run still counts). The wrapper does this
+    itself, so it sets K250_WRAPPED=1 to avoid double-counting."""
+    script = os.path.join(here, "k250_session.py")
+    if not os.path.isfile(script):
+        return True
+    # Ask the ledger whether this run would push the session PAST the budget, by
+    # checking against (budget - what we are about to use). Checking against the
+    # full budget instead would let the last run overshoot it.
+    r = subprocess.run([sys.executable, script, "check",
+                        "--max", str(max(0.0, max_s - seconds)), "--dir", here],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"SESSION BUDGET: a {seconds:.0f}s run would take this session past the "
+              f"agreed {max_s:.0f}s.\n"
+              f"  Options: stop for now (the budget resets after 15 quiet minutes) · raise "
+              f"session.max_duration_s in limits.json · or start a fresh session deliberately "
+              f"with k250-scene --reset-session.", file=sys.stderr)
+        return False
+    subprocess.run([sys.executable, script, "add", "--seconds", str(seconds), "--dir", here],
+                   capture_output=True, text=True)
+    return True
+
+
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("pattern")
     ap.add_argument("--base", type=float, default=18.0)
     ap.add_argument("--peak", type=float, default=26.0)
     ap.add_argument("--secs", type=float, default=30.0)
-    ap.add_argument("--hardcap", type=float, default=100.0)
+    ap.add_argument("--hardcap", type=float, default=None,
+                    help="power ceiling. The limits file is the real ceiling; "
+                         "a value here can only LOWER it, never raise it")
+    ap.add_argument("--limits", default=None,
+                    help="path to limits.json (default: limits.local.json or "
+                         "limits.json next to this script, else $K250_LIMITS)")
     ap.add_argument("--frequency", type=float, default=None,
                     help="apex of the FREQUENCY axis (Multi Adjust / MA). "
                          "0 = fastest buzz, 2500 typical, 10000 = 1 thump/s")
@@ -948,6 +1054,26 @@ async def main():
     if a.pattern not in PATTERNS:
         print("patterns:", ", ".join(PATTERNS))
         return 2
+
+    # The limits file is the contract; this can only make it stricter.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    lim_path = find_limits(a.limits)
+    lim = load_limits(lim_path)
+    a.hardcap, a.max_rate, a.ma_top, a.channel_caps = apply_limits(a, lim)
+    # In the wrapper the same figures were already printed from the same file, so
+    # only announce them on the direct path (e.g. Windows).
+    if not os.environ.get("K250_WRAPPED"):
+        print(f"limits : {lim_path or '(none — no limits file found)'}")
+        print(f"         power ceiling {a.hardcap:g}%   frequency {a.ma_top:g}   "
+              f"slew {(a.max_rate or 0):g}%/s")
+        if not lim_path:
+            print("         pass --limits PATH or set K250_LIMITS — without a file the "
+                  "command line is the only ceiling", file=sys.stderr)
+
+    if not os.environ.get("K250_WRAPPED") and not os.environ.get("K250_IGNORE_SESSION"):
+        max_s = float(((lim or {}).get("session") or {}).get("max_duration_s", 1800) or 1800)
+        if not session_reserve(_here, max_s, a.secs + 5):
+            return 1
 
     dev = await find()
     if dev is None:

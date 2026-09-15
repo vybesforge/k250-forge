@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.1** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -299,15 +299,18 @@ py -3 -m venv venv
 
 - `bleak` uses the WinRT Bluetooth stack — **no extra drivers**.
 - Turn **Bluetooth on** and make sure the box is awake before scanning.
-- `install.sh` is a bash script and won't run natively. Call the engine directly instead of using the
-  `k250-scene` wrapper:
+- `install.sh` is a bash script and won't run natively. Call the engine directly — **it reads
+  `limits.json` itself**, so the ceiling and the session budget apply here exactly as they do
+  through the wrapper (a command-line `--hardcap` can only lower the file's ceiling):
 
 ```powershell
-.\venv\Scripts\python k250_play.py speed_sweep --base 5 --secs 60 --hardcap 5
+.\venv\Scripts\python k250_play.py speed_sweep --base 5 --secs 60
 .\venv\Scripts\python k250_stop.py
 .\venv\Scripts\python k250_status.py
 ```
 
+  It looks for `limits.local.json`, then `limits.json`, next to the script — or wherever
+  `--limits PATH` / the `K250_LIMITS` environment variable points.
 - Git Bash / WSL works too, and `install.sh` will run there.
 
 ### All platforms — the two rules that catch everyone
@@ -357,7 +360,7 @@ connect, drive, and stop the box without guessing:
 | Understand the device, and connect to it | **Finding the box** above, and `FINDINGS.md` — the full log, including the dead ends |
 | Talk to it correctly (frames, keys, the 0..10000 scale) | **The protocol** section, and `k250_codec.py` |
 | Know what it must never do | `limits.json` → `safety.hard_stops`, plus **Why the limits file exists** |
-| Drive it | `k250-scene <pattern> --base N --secs N` — the ceiling is **clamped in code**, not requested politely |
+| Drive it | `k250-scene <pattern> --base N --secs N` — the ceiling is **clamped in code**, not requested politely. On Windows, where the wrapper can't run, the engine does the same clamping itself |
 | Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
 | See what's connected | `k250-status` |
 | See what patterns exist | `k250_play.py` → the `PATTERNS` dict |
@@ -456,11 +459,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.1** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
-release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1` — so an
-old version is never lost and never in your way:
+release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
+`v3.2` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags
