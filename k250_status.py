@@ -19,7 +19,11 @@ PATTERNS = ["Climb", "Combo", "Intense", "Manual", "Orgasm",
 async def main():
     dev = await find()
     if dev is None:
-        print("K250 NOT FOUND — is the box awake and on Remote App Control?")
+        print("K250 NOT FOUND — it only advertises when awake and on the right screen.\n"
+              "  1. press any knob ~1 s to power it on (side LED glows red)\n"
+              "  2. tap the gear/settings icon, top-left\n"
+              "  3. tap the remote-control icon on the right\n"
+              "  4. then run k250-status again")
         return 1
 
     async with BleakClient(dev, timeout=25) as cl:
