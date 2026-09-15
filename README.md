@@ -230,6 +230,8 @@ k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
+tests/test_pattern_change.py  regression: a PA change must clear the frequency cache
+                              and seed slew to zero (run it with venv/bin/python)
 ```
 
 ## Install
