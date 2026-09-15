@@ -41,7 +41,13 @@
         padding:13px 17px;margin-top:16px;font-size:14px;color:#cfe0cb}
   /* compact per-channel grid: 4 rows, 3 sliders each, no scrolling */
   .pcgrid{display:grid;grid-template-columns:64px 1fr 1fr 1fr;gap:6px 12px;align-items:center}
-  .pchead{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+  .pchead{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+          position:relative;cursor:help;border-bottom:1px dotted var(--mut);padding-bottom:1px}
+  .pchead:hover::after{content:attr(data-tip);position:absolute;left:0;bottom:150%;z-index:20;
+    width:275px;background:#0e1519;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+    font-size:12.5px;line-height:1.5;text-transform:none;letter-spacing:0;color:#c8d2d8;
+    font-weight:400;box-shadow:0 10px 26px rgba(0,0,0,.55);pointer-events:none;white-space:normal}
+  .pchead.right:hover::after{left:auto;right:0}
   .pcch{display:flex;align-items:center;gap:7px;font-size:13.5px;color:#c3ced5;cursor:pointer}
   .pcch input{accent-color:var(--acc);width:15px;height:15px}
   .pcsl{display:flex;align-items:center;gap:8px}
@@ -95,8 +101,10 @@
       same skin — a cap that's right for a thigh is wrong for a tip. Channels with nothing plugged in can't be
       driven anyway; the box refuses them.</p>
     <div class="pcgrid">
-      <div class="pchead">channel</div><div class="pchead">Power</div>
-      <div class="pchead">Frequency</div><div class="pchead">Slew</div>
+      <div class="pchead">channel</div>
+      <div class="pchead" data-tip="The level, 0-100%. This is a CEILING, not a target — the engine refuses to write above it, whoever is driving. Per channel, because the same percentage is a different sensation on different skin. Start low and build.">Power</div>
+      <div class="pchead" data-tip="Not the level — the CHARACTER (the box calls it Multi Adjust). 0 = fast buzz, higher = slower, heavier thumps. 10000 is about one beat a second. Power can sit dead still while this moves, and the sensation changes completely — that is the whole trick of this box.">Frequency</div>
+      <div class="pchead right" data-tip="How fast power is allowed to move, in % per second — separate from how high it goes. Low is smooth and gliding; high lets it snap and chop. 0 = no limit. A safe ceiling reached in one jump can still hurt: this is the limit that stops that.">Slew</div>
       <div class="pcrow" id="pcrows" style="display:contents"></div>
     </div>
   </div>
