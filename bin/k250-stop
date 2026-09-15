@@ -19,7 +19,7 @@ else
   done
   SELF="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd -P)/$(basename "$SELF")"
 fi
-HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/k250}")"
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/K250-forge}")"
 DIR="${K250_DIR:-$HERE}"
 PY="${K250_PY:-$DIR/venv/bin/python}"
 [ -x "$PY" ] || {

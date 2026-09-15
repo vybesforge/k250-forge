@@ -2,11 +2,11 @@
 """K250-4S live controller — one persistent BLE link, driven from a FIFO.
 
 Start (background):
-  cd ~/k250 && venv/bin/python k250_ctl.py > /tmp/k250_ctl.log 2>&1 &
-Drive it:
-  printf '%s\n' '{"PW":"10"}' > ~/k250/ctl.fifo
-  printf '%s\n' read         > ~/k250/ctl.fifo     # force a read-all
-  printf '%s\n' quit         > ~/k250/ctl.fifo     # zero output + disconnect
+  <repo>/venv/bin/python k250_ctl.py > /tmp/k250_ctl.log 2>&1 &
+Drive it (the FIFO sits next to this script):
+  printf '%s\n' '{"PW":"10"}' > <repo>/ctl.fifo
+  printf '%s\n' read         > <repo>/ctl.fifo     # force a read-all
+  printf '%s\n' quit         > <repo>/ctl.fifo     # zero output + disconnect
 
 Every written object is followed by an automatic read-all so we can see
 whether the box actually LATCHED the value or just echoed the raw key.
@@ -22,7 +22,7 @@ from k250_codec import CHR, READ_ALL
 
 from k250_ble import K250, find
 
-FIFO = os.path.expanduser("~/k250/ctl.fifo")
+FIFO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ctl.fifo")
 T0 = time.time()
 
 

@@ -1,6 +1,6 @@
 """Regression: a pattern change must force frequency + slew state to be re-sent."""
-import asyncio, sys, time
-sys.path.insert(0, '/home/user/k250')
+import asyncio, os, sys, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from k250_play import Player
 
 

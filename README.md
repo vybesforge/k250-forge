@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.1** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -246,9 +246,14 @@ k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
-tests/test_pattern_change.py  regression: a PA change must clear the frequency cache
-                              and seed slew to zero (run it with venv/bin/python)
+tests/                        four suites, all runnable from any clone:
+  test_pattern_change.py        regression: a PA change must clear the frequency cache
+                                and seed slew to zero
+  test_limits_enforcement.py    the limits file beats the command line, on every entry point
+  test_write_policy.py          redundant power writes are skipped, but never unsafely
+  test_portability.py           nothing shipped points at the author's machine
 ```
+Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
 ## Install
 
@@ -259,8 +264,8 @@ dependency, and it speaks to each platform's native Bluetooth stack.
 ### Linux
 
 ```bash
-git clone https://github.com/vybesforge/k250-forge
-cd k250-forge
+git clone https://github.com/vybesforge/K250-forge.git
+cd K250-forge
 ./install.sh
 ```
 
@@ -274,7 +279,7 @@ into `~/.local/bin`, and writes a conservative `limits.local.json`.
 ### macOS
 
 ```bash
-git clone https://github.com/vybesforge/k250-forge && cd k250-forge
+git clone https://github.com/vybesforge/K250-forge.git && cd K250-forge
 ./install.sh
 ```
 
@@ -291,8 +296,8 @@ macOS needs no extra packages — `bleak` uses CoreBluetooth. Two gotchas:
 In PowerShell, in the folder you want:
 
 ```powershell
-git clone https://github.com/vybesforge/k250-forge
-cd k250-forge
+git clone https://github.com/vybesforge/K250-forge.git
+cd K250-forge
 py -3 -m venv venv
 .\venv\Scripts\pip install bleak
 ```
@@ -459,11 +464,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.1** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

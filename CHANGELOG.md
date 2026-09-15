@@ -6,6 +6,45 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.1 — 2026-09-15
+
+### Fixed — found by an agent doing a clean checkout on macOS
+
+**`tests/test_pattern_change.py` could not run for anyone but the author.** Line 3 was
+`sys.path.insert(0, '/home/<user>/k250')` — a literal path into the author's home directory. On that
+box it worked; on a fresh clone on macOS, Windows or another Linux box it raised
+`ModuleNotFoundError: k250_play`. The README tells a stranger to run it with `venv/bin/python`, and
+it failed for every one of them, every time.
+
+The sting is *which* test it was: the only regression guard for the pattern-change rule — the rule
+this changelog calls out as the one that used to silently zero channels — was the one test that
+never actually ran outside the author's machine. The two suites written after it use the portable
+idiom (`os.path.dirname(os.path.dirname(os.path.abspath(__file__)))`), so this was a stale file left
+behind by a newer pattern, not a design choice. Now fixed to match.
+
+**Repo and clone names disagreed on case.** The GitHub repo is `K250-forge`; the README said
+`git clone …/k250-forge && cd k250-forge`. On macOS's case-insensitive filesystem both spellings
+work — so the author's symlinks pointed at `~/k250-forge` while a clone made from the canonical URL
+was `~/K250-forge`. It would break on any case-sensitive volume, and it read wrong to anyone
+browsing. The README now uses the canonical `K250-forge.git` on all three platforms, and the wrapper
+fallback paths match.
+
+**`FINDINGS.md` §6 was titled with an absolute path** into the author's box, and two later lines
+instructed `cd ~/k250`. Genericised, with a note that the recon assets are not in the repo and the
+paths in that section are relative to the author's working directory.
+
+### Added
+- `tests/test_portability.py` — 6 checks that this class of bug cannot come back: no `/home/<user>`
+  or `/Users/<user>` path in any shipped `.py`/`.sh`/wrapper, every test self-locates via `__file__`,
+  the wrappers resolve their own location, and the package imports from wherever it was cloned.
+  It caught the first version of itself (its own docstring quoted the bad line) — which is the point.
+
+### Verified
+- All four suites pass from a clean copy of the tree with no venv of its own, run with a python from
+  a different clone entirely — i.e. the actual condition the feedback described.
+
+---
+
 ## v3.2 — 2026-09-15
 
 ### Fixed — a real hole in the safety contract

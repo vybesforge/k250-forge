@@ -64,7 +64,7 @@ def main():
     ap.add_argument("cmd", choices=["check", "add", "show", "reset"])
     ap.add_argument("--max", type=float, default=1800.0)
     ap.add_argument("--seconds", type=float, default=0.0)
-    ap.add_argument("--dir", default=os.path.expanduser("~/k250"))
+    ap.add_argument("--dir", default=os.path.dirname(os.path.abspath(__file__)))
     a = ap.parse_args()
     now = time.time()
     s = load(a.dir)

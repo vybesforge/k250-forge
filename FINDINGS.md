@@ -103,7 +103,11 @@ App write flow: debounce 300 ms; writes flagged "sync" are followed 100 ms later
 - Web routes: `/your-device/Kinky-Box` (control) · `/update-kinky-box` and
   `/your-device/Kinky-Box-Update` (DFU UI).
 
-## 6. Assets saved in /home/user/k250/
+## 6. Recon assets (author's box)
+
+These were captured on the machine the protocol was reverse-engineered from and are **not** in this
+repo — they're listed so the record is complete and so anyone repeating the work knows what they're
+looking for. Paths in this section are relative to that working directory, not this repo:
 ```
 manual.txt, manual_mb.html, manualpage.html      # user manual (txt + google-doc html)
 konnector/*.js  +  konnector/pretty/*.js         # all konnector.com web-app chunks (raw + beautified)
@@ -121,7 +125,7 @@ extract.py, beautify.py, fetch_missing.py, fw_analyze.py   # tooling
 ## 6b. Runbook (resume here)
 1. **Wake the box**: press any knob ~1 s (side LED glows red). Keep it charging —
    the last state read said `BC:12` (battery low-ish) and it dropped off BLE shortly after.
-2. `cd ~/k250 && venv/bin/python k250_ble.py read`  → expect a `STATE: {...}` JSON line.
+2. `cd <working dir> && venv/bin/python k250_ble.py read`  → expect a `STATE: {...}` JSON line.
 3. Benign write check: `venv/bin/python k250_ble.py set AC=1` then `set AC=0`
    (AC = selected channel tab only, no output). Avoid PW/MA until we deliberately test output.
 4. Screen check: `ffmpeg -y -f v4l2 -input_format yuyv422 -video_size 1920x1080 -i /dev/video0
@@ -139,7 +143,7 @@ Control map, confirmed live against the LCD (2026-09-14/15):
 | Pattern | `PA` | 4-name array | per-channel pattern name; setting it leaves `PW`/`MA` alone |
 | Max power | `MP` | 5..100 | system cap, shows as `L-05..L-100`; applies even when output keys look dead |
 
-Tooling (all in `~/k250/`, all speak **percent** and multiply by 100 internally):
+Tooling (all in the working directory — the repo root if you cloned it, all speak **percent** and multiply by 100 internally):
 - `k250_ctl.py` — live controller holding the link open, driven via `ctl.fifo` (`{"PW":"3000"}`,
   `read`, `w0 <json>`, `stream <json> <secs> <ms>`, `quit`). Auto read-all after every write.
 - `k250_play.py <pattern> --base --peak --secs --hardcap` — pattern engine.
