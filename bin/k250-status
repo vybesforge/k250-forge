@@ -8,11 +8,14 @@
 SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
 HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/k250}")"
 DIR="${K250_DIR:-$HERE}"
-[ -x "$DIR/venv/bin/python" ] 2>/dev/null || true
-if [ ! -x "${K250_PY:-${DIR:-$HOME/k250}/venv/bin/python}" ]; then
-  echo "note: no venv found — run ./install.sh, or set K250_PY" >&2
-  PY="$(command -v python3)"
-else
-  PY="${K250_PY:-${DIR:-$HOME/k250}/venv/bin/python}"
-fi
-exec "$PY" "${K250_DIR:-${DIR:-$HOME/k250}}/k250_status.py"
+PY="${K250_PY:-$DIR/venv/bin/python}"
+[ -x "$PY" ] || {
+  if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
+    echo "note: no venv here, using system python3 (bleak found)" >&2
+    PY="$(command -v python3)"
+  else
+    echo "k250: no venv and no bleak available — run ./install.sh first." >&2
+    exit 1
+  fi
+}
+exec "$PY" "$DIR/k250_status.py"

@@ -56,7 +56,9 @@ async def main():
         print(f"  battery      : {state.get('BC', '?')}%")
         print(f"  max power lvl: {state.get('MP', '?')}  (L-{state.get('MP', '?')})")
         print(f"  speed (MA)   : {state.get('MA', '?')}")
-        print(f"  selected ch  : {int(state.get('AC', 0)) + 1 if str(state.get('AC', 0)).isdigit() else state.get('AC')}")
+        ac = state.get("AC")
+        ac_txt = "none selected (no channel plugged)" if str(ac) in ("-1", "") else f"channel {int(ac) + 1}"
+        print(f"  selected ch  : {ac_txt}")
         pa = state.get("PA")
         if isinstance(ca, list):
             live = [i + 1 for i, s in enumerate(ca) if str(s).strip().lower() != "unplugged"]

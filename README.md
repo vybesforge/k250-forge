@@ -98,7 +98,16 @@ and no AI in the loop.
 **The box only advertises when it's awake and sitting on Options → "Remote App Control"**
 (the button the manual says to press when pairing with the companion app). Asleep, screen off, or
 on any other screen, it is invisible — a scan that finds nothing is almost always this and not a
-code problem. Wake it by pressing any knob for about a second; the side LED glows red.
+code problem.
+
+**On the device, to make it discoverable:**
+
+1. Press any knob for about a second to **power it on** — the side LED glows red.
+2. Tap the **gear / settings icon in the top-left corner** to open the Options screen.
+3. Tap the **remote-control icon on the right-hand side.**
+4. That's it — the box is now advertising and `k250-status` will find it.
+
+Wake it the same way if it's gone to sleep mid-session; the screen going off stops the radio.
 
 **What it looks like:** a small black handheld box, four knobs along the front, a colour touchscreen,
 four output jacks on the side for the channel cables, USB-C for charging (charge-only — it does not
