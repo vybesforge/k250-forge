@@ -249,14 +249,17 @@ whole structure; there's nothing to build and no server to run.
 | control | what it is | limit in `limits.json` |
 |---|---|---|
 | **Power** | the level | `power.max_percent` (enforced in code) |
-| **Multi Adjust** | the *character* — fast buzz → slow heavy thump. Not the level | `speed.max` |
-| **Movement** | how fast power may change — smooth glides vs snappy/chop | `movement.max_percent_per_second` |
+| **Frequency** | the *character* — fast buzz → slow heavy thump. Not the level (Multi Adjust / MA) | `frequency.max` |
+| **Slew** | how fast the power dial may move — smooth glides vs snappy/chop | `slew.max_percent_per_second` |
 
-The third one is the least obvious and the easiest to get wrong. A ceiling that's perfectly safe
-can still hurt you if it's reached in one jump, so movement is limited separately from level. (The
-box's own screen labels the second control "Multi Adjust" and the app calls it "speed" internally
-— it's one control. The third physical slider, **SO / Smooth Operator**, is *not* in the BLE
-protocol at all, so it can only be set by hand.)
+All three can also be set **per channel** (`channels.per_channel`) — different channels sit on
+different skin, so one global ceiling is the wrong shape. `null` means "use the global".
+
+Naming note: the box labels the second control **Multi Adjust**, and the companion app calls it
+`speed` internally — which is misleading, since it changes *character*, not how fast anything
+moves. This project calls it **Frequency** and reserves **Slew** for the rate of change. (The
+third physical slider, **SO / Smooth Operator**, is *not* in the BLE protocol at all, so it can
+only be set by hand.)
 
 ## Roadmap / ideas
 
