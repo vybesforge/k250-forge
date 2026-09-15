@@ -3,56 +3,76 @@
   "version": 2,
   "profile": "conservative-default",
   "_profile_note": "SHIPPED DEFAULT, deliberately timid: 10% ceiling, 5% start. A floor for a stranger's first session, not a recommendation. Re-derive your own numbers slowly on your own body and pad placement, then write your own copy (limits.local.json) and drive with --limits.",
-
   "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device; its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so the same figure is a different sensation and a different risk. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE a scene; never renegotiate mid-scene. The wearer's stop word and the box's hardware kill switch override everything, including this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
-
   "stop_word": "red",
-
   "power": {
     "max_percent": 10,
     "default_percent": 5,
-    "pleasure_band": [5, 10],
+    "pleasure_band": [
+      5,
+      10
+    ],
     "note": "The level. Never above max_percent. Below the pleasure band is dull, above it reads as pain -- which can be wanted, but deliberately. Raise max_percent only on an explicit, spoken request from the wearer."
   },
-
   "frequency": {
     "max": 2500,
     "note": "Multi Adjust (MA). NOT a level and NOT a rate of change -- it is the CHARACTER: low = fast buzz, high = slow heavy thumps. It is a beat period, roughly MA/10000 seconds, so 2500 ~= several beats a second and 10000 ~= 1 beat/s. (The companion app calls this control 'speed' internally, which is misleading; the box labels it Multi Adjust.) Slow beats deliver less average energy, so patterns often raise power as frequency rises."
   },
-
   "slew": {
     "max_percent_per_second": 25,
     "note": "How fast the POWER dial is allowed to move. Low = smooth glides, high = snappy/chop, 0 = unlimited. This is not the same limit as the ceiling: a safe ceiling reached in one jump still hurts, so slew is limited separately. Power only -- frequency steps stay instant because several patterns depend on them."
   },
-
   "channels": {
     "mode": "auto",
-    "allowed": [1, 2, 3, 4],
+    "allowed": [
+      1,
+      2,
+      3,
+      4
+    ],
     "note": "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live.",
     "per_channel": {
-      "1": { "power": null, "frequency": null, "slew": null },
-      "2": { "power": null, "frequency": null, "slew": null },
-      "3": { "power": null, "frequency": null, "slew": null },
-      "4": { "power": null, "frequency": null, "slew": null }
+      "1": {
+        "power": null,
+        "frequency": null,
+        "slew": null
+      },
+      "2": {
+        "power": null,
+        "frequency": null,
+        "slew": null
+      },
+      "3": {
+        "power": null,
+        "frequency": null,
+        "slew": null
+      },
+      "4": {
+        "power": null,
+        "frequency": null,
+        "slew": null
+      }
     },
     "per_channel_note": "Different channels sit on different skin, so one global ceiling is the wrong shape -- a cap that is right for a thigh is wrong for a tip. Set any field here to override the global for that channel; null means use the global. Example: {\"1\":{\"power\":50,\"frequency\":2500,\"slew\":25},\"2\":{\"power\":20,\"frequency\":1200,\"slew\":10}}"
   },
-
   "session": {
     "max_duration_s": 1800,
     "max_duration_s_ceiling": 14400,
-    "require_wearer_able_to_speak": true,
     "note": "max_duration_s is ENFORCED: k250-scene keeps a session ledger and refuses to start once the budget is used up (a new session begins after 15 quiet minutes). Default 30 min; the form allows up to 4 hours (14400 s). To deliberately start a fresh session anyway: k250-scene --reset-session. If the wearer can't report (asleep, gagged, alone, not typing), do NOT raise power -- hold the ceiling and prefer longer over harder."
   },
-
   "safety": {
-    "no_mains_power": true,
-    "skin_check_after": true,
-    "loops_loose": true,
-    "no_chest_or_cross_heart_path": true,
-    "note": "no_mains_power is the device manual's own rule: do not play while connected to mains power."
+    "hard_stops_acknowledged": true,
+    "hard_stops": [
+      "never a pad path across the chest or through the heart",
+      "never on broken, irritated or numb skin, or anywhere they can't feel it",
+      "never while plugged into mains power",
+      "only on someone who can speak or signal, and who can be seen by whoever is in the room",
+      "loops and pads kept loose -- circulation at the electrode is what causes real injury",
+      "stop if it burns rather than stings, or if the skin doesn't settle back to normal",
+      "if the wearer says they feel nothing, believe them: hold the ceiling and go longer, not harder"
+    ],
+    "note": "One acknowledgement covers the whole hard_stops list above -- that is the point of it. It replaces the old per-rule booleans (no_mains_power, loops_loose, no_chest_or_cross_heart_path, skin_check_after): four ticks for one decision was duplication, not safety. If this is false, whoever generated the file did not confirm the rules."
   },
-
   "physical_kill_switch": {
     "device": "hold any knob on the box for 2 seconds -> powers off",
     "note": "Give this to whoever is physically present. It works without any software, network, or AI in the loop."
