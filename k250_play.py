@@ -86,6 +86,28 @@ class Player:
         self._ch_last[ch] = (p, now)
         return p
 
+    async def set_pattern(self, pa_list):
+        """Write `PA` — and invalidate everything the change makes untrue.
+
+        A PATTERN CHANGE ZEROES that channel's power AND frequency. So after one:
+
+        * drop the frequency cache (`_ma`), or `ma()` will skip re-sending and
+          leave the box sitting at 0 while the driver believes it is set;
+        * clear the per-channel slew accumulators, or the limiter thinks power is
+          still up at the old level and refuses to climb from zero.
+
+        Power itself recovers on its own because `w()` always writes — which is
+        the real reason it writes every tick. Used by `prepare_channels()` and by
+        anything that changes the wave pattern mid-run."""
+        await self.k.send({"PA": pa_list})
+        self._ma = None
+        # The box is now at ZERO on every channel, so seed the slew state with
+        # zero rather than clearing it -- clearing lets the next write pass
+        # through unclamped, which would jump straight to the target and defeat
+        # the slew limit entirely.
+        self._ch_last = {ch: (0.0, time.time()) for ch in self.channels}
+        await asyncio.sleep(0.2)
+
     def _slew(self, p: float) -> float:
         """Limit how fast POWER may move, in percent per second.
 
@@ -162,8 +184,7 @@ class Player:
                 changed.append(i + 1)
                 fixed[i] = pattern
         if changed:
-            await self.k.send({"PA": fixed})
-            await asyncio.sleep(0.5)
+            await self.set_pattern(fixed)
             print(f"   set channels {changed} to '{pattern}' "
                   f"(blank = refuses power; patterned = the box's own generator "
                   f"runs on top of ours)", flush=True)
