@@ -72,6 +72,18 @@ def main():
     checks.append(("no dependency version-attr introspection", not ver_offenders,
                    "; ".join(ver_offenders) or "clean"))
 
+    # 1c. POSIX-only APIs must be guarded, since Windows is a documented platform. `os.mkfifo`
+    #     exists on POSIX only; calling it unguarded is an AttributeError on Windows.
+    posix_only = {"os.mkfifo": 'hasattr(os, "mkfifo")'}
+    posix_bad = []
+    for path in sources:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+        for call, guard in posix_only.items():
+            if call in src and guard not in src:
+                posix_bad.append(f"{rel(path)}: {call} without {guard}")
+    checks.append(("POSIX-only APIs are guarded", not posix_bad, "; ".join(posix_bad) or "clean"))
+
     # 2. every test resolves the package relative to itself, not by literal path
     tests_dir = os.path.join(ROOT, "tests")
     if os.path.isdir(tests_dir):

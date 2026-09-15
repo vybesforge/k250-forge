@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.7** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.8** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -246,16 +246,18 @@ k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
-tests/                        seven suites, all runnable from any clone:
+tests/                        eight suites, all runnable from any clone:
   test_pattern_change.py        regression: a PA change must clear the frequency cache
                                 and seed slew to zero
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
   test_write_policy.py          redundant power writes are skipped, but never unsafely
-  test_portability.py           nothing shipped points at the author's machine
+  test_portability.py           nothing shipped points at the author's machine; POSIX-only
+                                calls are guarded; the shipped skill still has both rules
   test_wrapper_cli.py           the wrapper tools work from any cwd, and fail loudly
   test_shell_compat.py          no bash-4-only syntax; arrays guarded for macOS's bash 3.2
   test_limits_form.py           limits-form.html still generates a contract the engine reads
                                 (needs node; skips cleanly without it)
+  test_stop_parsers.py          k250-stop finds the right processes on POSIX and Windows
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
 ```
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
@@ -323,6 +325,13 @@ py -3 -m venv venv
 
   It looks for `limits.local.json`, then `limits.json`, next to the script — or wherever
   `--limits PATH` / the `K250_LIMITS` environment variable points.
+- **What else works natively:** `k250_show.py` (setlists) and `k250_status.py` / `k250_stop.py`, as
+  above. `k250_stop.py` kills a running pattern with PowerShell's `Get-CimInstance Win32_Process`
+  before zeroing the pads — and if it cannot list processes it says so, rather than reporting a clean
+  stop it did not achieve.
+- **What doesn't:** the shell wrappers in `bin/` (they're bash) and `k250_ctl.py` (it drives a FIFO,
+  which Windows doesn't have — it tells you that and exits, rather than throwing). Neither is needed:
+  the engine and the stop tool are the whole contract, and both enforce limits themselves.
 - Git Bash / WSL works too, and `install.sh` will run there.
 
 ### All platforms — the two rules that catch everyone
@@ -474,11 +483,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.7** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.8** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6`, `v3.2.7` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6`, `v3.2.7`, `v3.2.8` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

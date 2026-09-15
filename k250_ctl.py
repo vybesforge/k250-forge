@@ -31,6 +31,11 @@ def log(*a):
 
 
 async def main():
+    if not hasattr(os, "mkfifo"):
+        log("k250_ctl.py needs a FIFO, which Windows does not have.")
+        log("  Use the pattern engine directly instead: python k250_play.py <pattern> --base N --secs N")
+        log("  (it reads limits.json itself, so the ceiling still applies).")
+        return 1
     if not os.path.exists(FIFO):
         os.mkfifo(FIFO)
     fd = os.open(FIFO, os.O_RDONLY | os.O_NONBLOCK)

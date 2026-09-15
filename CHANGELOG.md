@@ -6,6 +6,42 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.8 — 2026-09-15
+
+### Fixed — two Windows gaps on the path the README tells Windows users to take
+
+Neither was reachable from macOS or Linux, and neither showed up in a clean-checkout audit, because
+the Windows route is *python directly* — no wrapper, no bash — and the tests all ran the wrapper.
+
+**`k250_stop.py` failed silently on Windows.** Before zeroing the pads it kills any running pattern
+so nothing re-sends power; it found them with `ps -eo pid,comm,args`, which does not exist on
+Windows. The whole thing sat inside `except Exception: return` — no kill, no message, and the tool
+still reported a clean stop. That is the worst way for a stop to fail. It now lists processes per
+platform (PowerShell `Get-CimInstance Win32_Process` on Windows, `ps` on POSIX) and **says so when it
+cannot list them**, instead of continuing as if nothing were running. The macOS branch is fixed too:
+`comm` there is `Python`, and the filter was case-sensitive, so it never matched a pattern.
+
+**`k250_ctl.py` threw on Windows.** It drives a FIFO, and `os.mkfifo` does not exist there — an
+`AttributeError` traceback for a tool someone might reasonably try. It now explains that Windows has
+no FIFO and points at the engine, which is the equivalent tool.
+
+Also: a guard for the class. `tests/test_portability.py` now checks that POSIX-only calls
+(`os.mkfifo`) never appear unguarded, since Windows is a documented platform.
+
+### Added
+- `tests/test_stop_parsers.py` — 13 checks. Neither platform's listing can be run on the other, so
+  the decision logic is factored into pure functions and tested against captured `ps` output (Linux
+  and macOS shapes) and PowerShell output: finds patterns, never kills itself, ignores an unrelated
+  python, ignores a `grep` that merely mentions the engine. The "cannot list processes" path is real:
+  point it at a command that does not exist and it must return a reason, not silence.
+
+### Verified
+- Live on the real box: `k250-stop` exercised the new listing path end to end — no patterns running,
+  `PW=0 written to channels [1]`, exit 0.
+- All eight suites pass.
+
+---
+
 ## v3.2.7 — 2026-09-15
 
 ### Fixed — a test that only passed on a machine that never used the box
