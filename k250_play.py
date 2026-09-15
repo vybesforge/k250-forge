@@ -56,6 +56,35 @@ class Player:
         self._last_t = None
         self.channel_window = 0.4     # seconds to hold one channel before rotating
         self._last_rotate = 0.0
+        self.channel_caps = {}        # {"1": {"power":50,"speed":2500,"sway":25}, ...}
+        self._ch_last = {}            # per-channel slew state
+
+    def cap_for(self, ch: int, kind: str, fallback):
+        """Per-channel limit, else the global one. `ch` is 0-based; limits.json
+        keys channels 1-4. Different channels are on different skin -- a cap that
+        is right for a thigh is wrong for a tip."""
+        c = (self.channel_caps or {}).get(str(ch + 1)) or {}
+        v = c.get(kind)
+        return fallback if v is None else v
+
+    def _slew_ch(self, ch: int, p: float) -> float:
+        rate = self.cap_for(ch, "slew", self.max_rate) or 0.0
+        if rate <= 0:
+            return p
+        now = time.time()
+        prev = self._ch_last.get(ch)
+        if prev is None:
+            self._ch_last[ch] = (p, now)
+            return p
+        lp, lt = prev
+        dt = max(now - lt, 1e-6)
+        allowed = rate * dt
+        if p > lp + allowed:
+            p = lp + allowed
+        elif p < lp - allowed:
+            p = lp - allowed
+        self._ch_last[ch] = (p, now)
+        return p
 
     def _slew(self, p: float) -> float:
         """Limit how fast POWER may move, in percent per second.
@@ -160,33 +189,36 @@ class Player:
         one channel is live we select-and-write each in turn. Every pattern
         therefore drives all plugged channels without knowing about them."""
         p = max(0.0, min(p, self.hardcap))
-        p = self._slew(p)
-        v = pct(p)
 
-        # Single channel: just drive it.
+        # Pick the channel we're writing to.
         if len(self.channels) <= 1:
-            await self.select(self.channels[0])
-            await self.k.send({"PW": v})
-            return
+            ch = self.channels[0]
+            await self.select(ch)
+        else:
+            # Hold ONE channel for a window, then rotate. the operator, 2026-09-15:
+            # "select one channel and command it, then go to the other channel
+            # and command it -- going back and forth does not look like it will
+            # work well." Flip-flopping every tick also halves each channel's
+            # update rate and fragments the power stream.
+            now = time.time()
+            need_rotate = (self._ch is None
+                           or self._ch not in self.channels
+                           or (now - self._last_rotate) > self.channel_window)
+            if need_rotate:
+                idx = 0 if self._ch not in self.channels else (
+                    (self.channels.index(self._ch) + 1) % len(self.channels))
+                self._last_rotate = now
+                await self.select(self.channels[idx])
+                # a freshly selected channel may hold a stale speed setting
+                if self._ma is not None:
+                    await self.k.send({"MA": self._ma})
+            ch = self._ch if self._ch in self.channels else self.channels[0]
 
-        # Multiple channels: hold ONE channel for a window, then rotate.
-        # Hold ONE channel for a window, then rotate. Flip-flopping every tick
-        # other channel and command it -- going back and forth does not look
-        # like it will work well." Flip-flopping every tick also halves each
-        # channel's update rate and fragments the power stream.
-        now = time.time()
-        need_rotate = (self._ch is None
-                       or self._ch not in self.channels
-                       or (now - self._last_rotate) > self.channel_window)
-        if need_rotate:
-            idx = 0 if self._ch not in self.channels else (
-                (self.channels.index(self._ch) + 1) % len(self.channels))
-            self._last_rotate = now
-            await self.select(self.channels[idx])
-            # a freshly selected channel may hold a stale speed setting
-            if self._ma is not None:
-                await self.k.send({"MA": self._ma})
-        await self.k.send({"PW": v})
+        # Clamp and rate-limit for THIS channel. Different channels can sit on
+        # very different skin, so a single global ceiling is the wrong shape.
+        p = max(0.0, min(p, self.cap_for(ch, "power", self.hardcap)))
+        p = self._slew_ch(ch, p)
+        await self.k.send({"PW": pct(p)})
 
     async def hold(self, secs: float, p: float, tick: float = 0.1):
         end = time.time() + secs
@@ -207,13 +239,21 @@ class Player:
         whole composition must check this or they overshoot the requested time."""
         return self.deadline is not None and time.time() > self.deadline
 
-    async def ma(self, value: float):
-        """Set Multi Adjust (frequency). MA=0 = buzziest, MA=5000 ~= 2 thump/s,
-        MA=10000 ~= 1 thump/s (period ~= MA/10000 seconds).
+    def ma_cap(self) -> float:
+        """Highest frequency allowed across the live channels (MA value)."""
+        if not self.channels:
+            return self.ma_top
+        return min(self.cap_for(ch, "frequency", self.ma_top) for ch in self.channels)
 
-        The box holds MA and PW independently — writing MA does not clear PW
-        (an earlier note claimed it did; that was a misread)."""
-        v = str(int(max(0, min(value, 10000))))
+    async def ma(self, value: float):
+        """Set FREQUENCY (the box calls it Multi Adjust; the app calls it 'speed',
+        which is misleading -- it changes character, not how fast anything moves).
+
+        MA is a beat period: 0 = fastest buzz, 5000 ~= 2 beats/s, 10000 = 1 beat/s
+        (period ~= MA/10000 seconds).
+
+        The box holds MA and PW independently — writing MA does not clear PW."""
+        v = str(int(max(0, min(value, self.ma_cap()))))
         if getattr(self, "_ma", None) == v:
             return
         self._ma = v
@@ -840,13 +880,24 @@ async def main():
     ap.add_argument("--peak", type=float, default=26.0)
     ap.add_argument("--secs", type=float, default=30.0)
     ap.add_argument("--hardcap", type=float, default=100.0)
-    ap.add_argument("--ma-top", type=float, default=2500.0,
-                    help="apex of the speed axis (MA value, 2500 = '25')")
+    ap.add_argument("--frequency", type=float, default=None,
+                    help="apex of the FREQUENCY axis (Multi Adjust / MA). "
+                         "0 = fastest buzz, 2500 typical, 10000 = 1 thump/s")
+    ap.add_argument("--slew", type=float, default=None,
+                    help="SLEW: how fast the POWER dial may move, percent per second "
+                         "(0 = unlimited; low = smooth glides, high = snappy/chop)")
     ap.add_argument("--sweep-period", type=float, default=8.0,
-                    help="seconds per full speed sweep")
-    ap.add_argument("--max-rate", type=float, default=0.0,
-                    help="max POWER movement in percent per second (0 = unlimited)")
+                    help="seconds per full frequency sweep")
+    ap.add_argument("--channel-caps", type=str, default="",
+                    help='JSON per-channel limits, e.g. '
+                         '\'{"1":{"power":50,"frequency":2500,"speed":25}}\'')
+    ap.add_argument("--ma-top", type=float, default=None, help="alias of --frequency")
+    ap.add_argument("--max-rate", type=float, default=None, help="alias of --speed")
     a = ap.parse_args()
+    a.ma_top = a.frequency if a.frequency is not None else (
+        a.ma_top if a.ma_top is not None else 2500.0)
+    a.max_rate = a.slew if a.slew is not None else (
+        a.max_rate if a.max_rate is not None else 0.0)
     if a.pattern not in PATTERNS:
         print("patterns:", ", ".join(PATTERNS))
         return 2
@@ -869,6 +920,12 @@ async def main():
         pl.ma_top = a.ma_top
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
+        if a.channel_caps:
+            try:
+                pl.channel_caps = json.loads(a.channel_caps)
+                log(f"per-channel caps: {pl.channel_caps}")
+            except Exception as e:
+                log(f"ignoring bad --channel-caps ({e})")
         live = await pl.prepare_channels()
         log(f"live channels: {[c + 1 for c in live]}")
         pl.deadline = time.time() + a.secs

@@ -58,29 +58,37 @@ import json, sys
 try:
     d = json.load(open(sys.argv[1]))
 except Exception as e:
-    print(f"ERROR", file=sys.stderr)
-    print(f"could not read limits file: {e}", file=sys.stderr)
+    print("could not read limits file: %s" % e, file=sys.stderr)
     sys.exit(1)
-p = d.get("power", {})
-mv = d.get("movement", {})
-sp = d.get("speed", {})
-print(p.get("max_percent", 50), p.get("default_percent", 38), d.get("stop_word", "red"),
-      mv.get("max_percent_per_second", 0), sp.get("max", 2500))
+p  = d.get("power", {})
+fq = d.get("frequency", d.get("speed", {}))        # 'speed' = older name for MA
+sl = d.get("slew", d.get("movement", {}))          # 'movement' = older name for slew
+fmax = fq.get("max", 2500)
+smax = sl.get("max_percent_per_second", sl.get("percent_per_second", 0))
+pc = (d.get("channels") or {}).get("per_channel") or {}
+pc = {k: {kk: vv for kk, vv in (v or {}).items() if vv is not None}
+      for k, v in pc.items()}
+pc = {k: v for k, v in pc.items() if v}
+print("|".join([str(p.get("max_percent", 50)), str(p.get("default_percent", 5)),
+                str(d.get("stop_word", "red")), str(smax), str(fmax),
+                json.dumps(pc)]))
 EOF
 )
-CAP=$(echo "$READ" | cut -d' ' -f1)
-DEF=$(echo "$READ" | cut -d' ' -f2)
-STOP=$(echo "$READ" | cut -d' ' -f3)
-RATE=$(echo "$READ" | cut -d' ' -f4)
-SMAX=$(echo "$READ" | cut -d' ' -f5)
+CAP=$(echo "$READ" | cut -d'|' -f1)
+DEF=$(echo "$READ" | cut -d'|' -f2)
+STOP=$(echo "$READ" | cut -d'|' -f3)
+RATE=$(echo "$READ" | cut -d'|' -f4)
+FMAX=$(echo "$READ" | cut -d'|' -f5)
+PCAPS=$(echo "$READ" | cut -d'|' -f6-)
 
 if [ "$1" = "--limits-show" ]; then
-  echo "limits file   : $LIMITS"
-  echo "power ceiling : ${CAP}%   (engine will not write above this)"
-  echo "start level   : ${DEF}%"
-  echo "dial movement : ${RATE}%/second  (0 = unlimited)"
-  echo "multi adjust  : up to ${SMAX}   (frequency / character)"
+  echo "limits file : $LIMITS"
+  echo "POWER ceiling : ${CAP}%   (engine will not write above this)"
+  echo "POWER start   : ${DEF}%"
+  echo "FREQUENCY max : ${FMAX}   (MA / Multi Adjust -- character, not level)"
+  echo "SLEW max      : ${RATE}%/second  (how fast power may move; 0 = unlimited)"
   echo "stop word     : $STOP"
+  echo "per-channel   : ${PCAPS:- (none -- all channels use the global limits)}"
   exit 0
 fi
 
@@ -109,19 +117,43 @@ else
 fi
 EFF=$(printf '%.0f' "$EFF")
 
-# Multi Adjust: the limits file caps it too (frequency / character)
+# FREQUENCY: the limits file caps it too (MA / Multi Adjust -- the character)
 MA_TOP=""
 for i in "${!FWD[@]}"; do
-  if [ "${FWD[$i]}" = "--ma-top" ]; then MA_TOP="${FWD[$((i+1))]}"; fi
+  case "${FWD[$i]}" in
+    --frequency|--ma-top) MA_TOP="${FWD[$((i+1))]}" ;;
+  esac
 done
 if [ -z "$MA_TOP" ]; then
-  EFF_MA="$SMAX"
+  EFF_FREQ="$FMAX"
 else
-  EFF_MA=$("$PY" -c "print(min(float('$MA_TOP'), float('$SMAX')))")
+  EFF_FREQ=$("$PY" -c "print(min(float('$MA_TOP'), float('$FMAX')))")
 fi
-EFF_MA=$(printf '%.0f' "$EFF_MA")
+EFF_FREQ=$(printf '%.0f' "$EFF_FREQ")
 
-echo "limits: $(basename "$LIMITS")  power_cap=${CAP}%  effective=${EFF}%  movement=${RATE}%/s  ma_cap=${EFF_MA}  stop_word=${STOP}" >&2
+# SLEW: a caller may ask for a gentler power movement, never a harsher one
+SLW=""
+for i in "${!FWD[@]}"; do
+  case "${FWD[$i]}" in
+    --slew|--speed|--max-rate) SLW="${FWD[$((i+1))]}" ;;
+  esac
+done
+if [ -z "$SLW" ]; then
+  EFF_SLEW="$RATE"
+elif [ "$RATE" = "0" ]; then
+  EFF_SLEW="$SLW"
+else
+  EFF_SLEW=$("$PY" -c "print(min(float('$SLW'), float('$RATE')))")
+fi
+EFF_SLEW=$(printf '%.0f' "$EFF_SLEW")
+
+EXTRA=()
+if [ -n "$PCAPS" ] && [ "$PCAPS" != "{}" ]; then
+  EXTRA+=(--channel-caps "$PCAPS")
+fi
+
+echo "limits: $(basename "$LIMITS")  POWER<${EFF}%  FREQUENCY<${EFF_FREQ}  SLEW=${EFF_SLEW}%/s  stop=${STOP}" >&2
+if [ ${#EXTRA[@]} -gt 0 ]; then echo "        per-channel: ${PCAPS}" >&2; fi
 [ -x "$PY" ] || {
   if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
     echo "note: no venv here, using system python3 (bleak found)" >&2
@@ -131,4 +163,4 @@ echo "limits: $(basename "$LIMITS")  power_cap=${CAP}%  effective=${EFF}%  movem
     exit 1
   fi
 }
-exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --max-rate "$RATE" --ma-top "$EFF_MA"
+exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --slew "$EFF_SLEW" --frequency "$EFF_FREQ" "${EXTRA[@]}"

@@ -1,10 +1,10 @@
 {
-  "_comment": "K250-4S driving limits. This file is the safety contract between the human wearing the electrodes and whatever AI/human is driving the box. The engine REFUSES to write power above power.max_percent -- it is enforced in code, not by good intentions. Generate a copy with limits-form.html or edit by hand.",
-  "version": 1,
+  "_comment": "K250-4S driving limits. Three controls: POWER (level), FREQUENCY (MA / Multi Adjust -- the character: buzz vs thump), SLEW (how fast the power dial may move). All three are enforced in code. Anything set to null falls back to the global value.",
+  "version": 2,
   "profile": "conservative-default",
-  "_profile_note": "This is the SHIPPED DEFAULT and it is deliberately timid: 10% ceiling, 5% start. It is a floor for a stranger's first session, not a recommendation. Your own comfortable numbers will be personal to your body and your pad placement -- re-derive them slowly, then write your own profile copy (e.g. limits.local.json) and drive with --limits. Do not just raise this file because a session got exciting.",
+  "_profile_note": "SHIPPED DEFAULT, deliberately timid: 10% ceiling, 5% start. A floor for a stranger's first session, not a recommendation. Re-derive your own numbers slowly on your own body and pad placement, then write your own copy (limits.local.json) and drive with --limits.",
 
-  "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device and its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD -- never open a session at a figure read from someone else's notes. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so 38% on a forearm and 38% on a far more sensitive site are neither the same sensation nor the same risk. All calibration in this repo is from ONE body and ONE placement; use another site and you start again from zero. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE the scene; do not renegotiate mid-scene. The wearer's stop word and the hardware kill switch override everything, including this file.",
+  "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device; its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so the same figure is a different sensation and a different risk. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE a scene; never renegotiate mid-scene. The wearer's stop word and the box's hardware kill switch override everything, including this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
 
   "stop_word": "red",
 
@@ -12,37 +12,36 @@
     "max_percent": 10,
     "default_percent": 5,
     "pleasure_band": [5, 10],
-    "note": "The reference setup's comfortable band was 35-50%, but that is ONE body and ONE placement -- for many people 10% is a great deal. Start at the bottom of your own experience, not someone else's. Above the pleasure band reads as pain, which can be wanted but must be deliberate. Raise max_percent only on an explicit, spoken request from the wearer, and never mid-scene."
+    "note": "The level. Never above max_percent. Below the pleasure band is dull, above it reads as pain -- which can be wanted, but deliberately. Raise max_percent only on an explicit, spoken request from the wearer."
   },
 
-  "speed": {
-    "max": 25,
-    "note": "Multi Adjust. 0 = fastest buzz, 25 = slow heavy thump. Period in seconds ~= value/10000. Usable band for most work is 0-25; past ~35 it thins out. (The box labels this 'Multi Adjust'; the app calls it 'speed' internally -- it is ONE control, and it changes CHARACTER, not level.)"
+  "frequency": {
+    "max": 2500,
+    "note": "Multi Adjust (MA). NOT a level and NOT a rate of change -- it is the CHARACTER: low = fast buzz, high = slow heavy thumps. It is a beat period, roughly MA/10000 seconds, so 2500 ~= several beats a second and 10000 ~= 1 beat/s. (The companion app calls this control 'speed' internally, which is misleading; the box labels it Multi Adjust.) Slow beats deliver less average energy, so patterns often raise power as frequency rises."
   },
 
-  "movement": {
+  "slew": {
     "max_percent_per_second": 25,
-    "note": "How fast POWER is allowed to move -- the dial movement, the third control. Low = smooth glides, high = snappy/chop. 0 = unlimited. This is NOT the same limit as the ceiling: a safe ceiling reached in one jump still hurts. Only power is rate-limited; frequency jumps stay instant because several patterns depend on them."
-  },
-
-  "pattern_notes": {
-    "sweet_spots": {
-      "sweep_flat_power_percent": 38,
-      "sweep_period_seconds": [8, 20],
-      "hard_drop": "speed 25 -> 0 in one step, not a glide"
-    }
+    "note": "How fast the POWER dial is allowed to move. Low = smooth glides, high = snappy/chop, 0 = unlimited. This is not the same limit as the ceiling: a safe ceiling reached in one jump still hurts, so slew is limited separately. Power only -- frequency steps stay instant because several patterns depend on them."
   },
 
   "channels": {
     "mode": "auto",
     "allowed": [1, 2, 3, 4],
-    "note": "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live."
+    "note": "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live.",
+    "per_channel": {
+      "1": { "power": null, "frequency": null, "slew": null },
+      "2": { "power": null, "frequency": null, "slew": null },
+      "3": { "power": null, "frequency": null, "slew": null },
+      "4": { "power": null, "frequency": null, "slew": null }
+    },
+    "per_channel_note": "Different channels sit on different skin, so one global ceiling is the wrong shape -- a cap that is right for a thigh is wrong for a tip. Set any field here to override the global for that channel; null means use the global. Example: {\"1\":{\"power\":50,\"frequency\":2500,\"slew\":25},\"2\":{\"power\":20,\"frequency\":1200,\"slew\":10}}"
   },
 
   "session": {
     "max_duration_s": 600,
     "require_wearer_able_to_speak": true,
-    "note": "If the wearer cannot report (asleep, gagged, alone, not typing), do NOT raise power. Hold the ceiling and prefer longer over harder."
+    "note": "If the wearer can't report (asleep, gagged, alone, not typing), do NOT raise power. Hold the ceiling and prefer longer over harder."
   },
 
   "safety": {
@@ -50,7 +49,7 @@
     "skin_check_after": true,
     "loops_loose": true,
     "no_chest_or_cross_heart_path": true,
-    "note": "no_mains_power is the device manual's own rule: do not play while connected to mains power. loops_loose = circulation at the pads is the one thing that can genuinely injure."
+    "note": "no_mains_power is the device manual's own rule: do not play while connected to mains power."
   },
 
   "physical_kill_switch": {

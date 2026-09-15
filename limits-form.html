@@ -96,8 +96,8 @@
   </div>
 
   <div class="card">
-    <h2>2 · Multi Adjust <span style="text-transform:none;color:var(--mut);font-weight:400">— the character</span></h2>
-    <p class="hint">Not the level — the <i>feel</i>. Low is a fast buzz. High is slow, heavy thumps.
+    <h2>2 · Frequency <span style="text-transform:none;color:var(--mut);font-weight:400">— Multi Adjust</span></h2>
+    <p class="hint">Not the level — the <i>character</i>. Low is a fast buzz, high is slow heavy thumps.
       The same power feels completely different across this range, which is the whole trick of the box.</p>
     <div class="ctrl">
       <div class="top"><label for="smax">Highest setting allowed</label><span class="num" id="smaxV">25</span></div>
@@ -107,14 +107,39 @@
   </div>
 
   <div class="card">
-    <h2>3 · Movement <span style="text-transform:none;color:var(--mut);font-weight:400">— how the dial moves</span></h2>
+    <h2>3 · Slew <span style="text-transform:none;color:var(--mut);font-weight:400">— how fast the dial moves</span></h2>
     <p class="hint">How fast power is allowed to change. Low is smooth, gliding, gradual; high lets it
       snap and chop. A safe ceiling reached in one jump can still hurt — this is the limit that stops that.</p>
     <div class="ctrl">
-      <div class="top"><label for="rate">Dial movement</label><span class="num" id="rateV">25%/s</span></div>
+      <div class="top"><label for="rate">Slew limit</label><span class="num" id="rateV">25%/s</span></div>
       <input type="range" id="rate" min="0" max="100" value="25">
       <div class="ends"><span>0 — instant (no limit)</span><span>100 — very smooth</span></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>4 · Per channel <span style="text-transform:none;color:var(--mut);font-weight:400">— optional</span></h2>
+    <p class="hint">Different channels sit on different skin, so one global ceiling is the wrong shape — a
+      cap that's right for a thigh is wrong for a tip. Leave a box empty to use the global limit above.</p>
+    <div style="display:grid;grid-template-columns:auto repeat(3,1fr);gap:8px 10px;align-items:center;font-size:13.5px">
+      <div style="color:var(--mut);font-size:12px">channel</div>
+      <div style="color:var(--mut);font-size:12px">Power %</div>
+      <div style="color:var(--mut);font-size:12px">Frequency</div>
+      <div style="color:var(--mut);font-size:12px">Slew %/s</div>
+      <div>1</div><input type="number" id="pc1_power" min="0" max="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc1_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc1_slew" min="0" max="100" placeholder="—" style="width:100%">
+      <div>2</div><input type="number" id="pc2_power" min="0" max="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc2_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc2_slew" min="0" max="100" placeholder="—" style="width:100%">
+      <div>3</div><input type="number" id="pc3_power" min="0" max="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc3_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc3_slew" min="0" max="100" placeholder="—" style="width:100%">
+      <div>4</div><input type="number" id="pc4_power" min="0" max="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc4_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
+      <input type="number" id="pc4_slew" min="0" max="100" placeholder="—" style="width:100%">
+    </div>
+    <div class="ends" style="margin-top:10px"><span>Frequency: 0 = buzz · 2500 ≈ several beats/s · 10000 = 1 beat/s</span><span></span></div>
   </div>
 
   <div class="card">
@@ -145,6 +170,22 @@
 <script>
 const $ = id => document.getElementById(id);
 
+function perChannel(){
+  const out = {};
+  for (let c = 1; c <= 4; c++){
+    const p = $('pc'+c+'_power').value.trim();
+    const f = $('pc'+c+'_freq').value.trim();
+    const s = $('pc'+c+'_slew').value.trim();
+    if (p === '' && f === '' && s === '') { out[c] = null; continue; }
+    out[c] = {
+      power:     p === '' ? null : Number(p),
+      frequency: f === '' ? null : Number(f),
+      slew:      s === '' ? null : Number(s)
+    };
+  }
+  return out;
+}
+
 function read(){
   const cap = +$('cap').value, def = Math.min(+$('def').value, cap);
   $('capV').textContent = cap + '%';
@@ -168,16 +209,20 @@ function build(){
       default_percent: v.def,
       note: "Never above max_percent. Raise it only on an explicit, spoken request from the wearer, and never mid-scene."
     },
-    speed: {
+    frequency: {
       max: v.smax,
-      note: "Multi Adjust — the character, not the level. 0 = fastest buzz, higher = slower heavier thumps (period in seconds ~= value/10000)."
+      note: "Multi Adjust (MA). The CHARACTER, not the level and not a rate of change: 0 = fastest buzz, higher = slower heavier thumps. Period in seconds ~= value/10000, so 10000 = 1 beat/s. (The companion app calls this 'speed' internally; the box labels it Multi Adjust.)"
     },
-    movement: {
+    slew: {
       max_percent_per_second: v.rate,
-      note: "How fast POWER may change — smooth glides vs snappy/chop. 0 = no limit. Power only; frequency steps stay instant."
+      note: "How fast POWER is allowed to move -- smooth glides vs snappy/chop. 0 = no limit. Distinct from the ceiling: a safe ceiling reached in one jump still hurts. Power only; frequency steps stay instant."
     },
-    channels: { mode:"auto", allowed:[1,2,3,4],
-      note:"auto = drive whatever the box reports as plugged in. Unplugged channels are refused by the box." },
+    channels: {
+      mode: "auto",
+      allowed: [1, 2, 3, 4],
+      per_channel: perChannel(),
+      per_channel_note: "Optional per-channel overrides. Different channels sit on different skin, so one global ceiling is the wrong shape. null = use the global limit."
+    },
     session: { max_duration_s:+$('dur').value, require_wearer_able_to_speak:$('speak').checked },
     safety: {
       no_mains_power:$('mains').checked,
@@ -193,6 +238,9 @@ function build(){
 }
 
 ['cap','def','smax','rate'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
+const pcIds = [];
+for (let c = 1; c <= 4; c++) pcIds.push('pc'+c+'_power', 'pc'+c+'_freq', 'pc'+c+'_slew');
+pcIds.forEach(i => $(i).addEventListener('input', () => { $('out').value = build(); }));
 $('stop').addEventListener('input', () => $('out').value = build());
 $('regen').onclick = () => { $('out').value = build(); };
 $('copy').onclick = async () => {
