@@ -6,6 +6,40 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.12 — 2026-09-15
+
+### Fixed — three test bugs found by the first real run on Windows
+
+The engine, the limits contract and the command surface all worked on Windows on first contact. Three
+suites went red, and every one of them was a mistake in a test:
+
+- **`test_write_policy.py` asserted a wall-clock count.** `writes >= 10` for "1.0 s at 0.1 s ticks" is
+  an assumption about the clock: Windows' ~15.6 ms timer granularity gives about 9 iterations in a
+  nominal second, so a test about the write *policy* failed because of the platform's timer. It now
+  counts the ticks the loop actually ran and asserts against those — verified timing-independent
+  (10 ticks → 10 writes, 4 → 4, 1 → 1).
+- **`test_stop_parsers.py` patched the wrong command.** The "cannot list processes" case replaced the
+  POSIX listing command, so on Windows the check ran the real PowerShell listing and was vacuous.
+  It now patches whichever command the running platform would use.
+- **`test_wrapper_cli.py` compared raw path strings.** Under Git Bash the wrapper reports `/c/Users/…`
+  while Python thinks `C:\Users\…` — two checks failed on a difference that does not exist on disk.
+  Paths are normalised before comparison.
+
+The pattern is the same as every other finding in this project: the thing lying was the test, never
+the engine.
+
+### Windows status, stated precisely
+- Verified on real hardware-adjacent Windows: clone, venv, `pip install bleak`, engine import,
+  `--list` (35 patterns), `--limits-show`, session budget.
+- **Not** verified there: BLE I/O — `k250_status.py` reaching the box, and the stop tool's
+  process-kill path with a pattern running. No claim is made about those.
+
+### Verified
+- All eight suites pass on Linux after the changes (and the three touched suites are the ones the
+  Windows run flagged).
+
+---
+
 ## v3.2.11 — 2026-09-15
 
 ### Fixed — the last wrapper-only inspection command

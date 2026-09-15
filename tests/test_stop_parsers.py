@@ -60,15 +60,17 @@ def main():
     checks.append(("windows: never kills itself", MINE not in win, win))
     checks.append(("windows: finds exactly two", len(win) == 2, win))
 
-    # a listing that cannot be done must be reported, not swallowed
-    saved = S.PS_POSIX
+    # a listing that cannot be done must be reported, not swallowed. Patch whichever command the
+    # RUNNING platform would use: patching PS_POSIX only meant that on Windows this happily ran the
+    # real PowerShell listing and returned a real (empty) result, so the check was vacuous there.
+    saved = (S.PS_POSIX, S.PS_WINDOWS)
     try:
-        S.PS_POSIX = ["k250-command-that-does-not-exist"]
+        S.PS_POSIX = S.PS_WINDOWS = ["k250-command-that-does-not-exist"]
         pids, why = S.player_pids()
         checks.append(("unlistable processes -> empty list", pids == [], pids))
         checks.append(("unlistable processes -> a reason, not silence", bool(why), why or "None"))
     finally:
-        S.PS_POSIX = saved
+        S.PS_POSIX, S.PS_WINDOWS = saved
 
     # and on this platform the real listing works
     pids, why = S.player_pids()

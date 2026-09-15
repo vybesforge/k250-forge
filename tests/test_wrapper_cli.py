@@ -18,6 +18,7 @@ Read-only: this test only ever runs `--list` and `--limits-show`, never the engi
 Run: venv/bin/python tests/test_wrapper_cli.py
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -69,6 +70,18 @@ def snapshot(root):
                 continue
             out[os.path.relpath(p, root)] = (st.st_size, st.st_mtime_ns)
     return out
+
+
+def norm_path(p):
+    """Compare paths across the layer the wrapper runs under. Under Git Bash / MSYS the wrapper
+    reports MSYS-style paths (/c/<user>/k250/…) while Python thinks in C:\\<user>\\k250\\…, so a raw
+    string comparison fails on a difference that does not exist on disk."""
+    p = (p or "").strip().strip('"').strip("'")
+    m = re.match(r"^/([A-Za-z])/(.*)$", p)
+    if m:
+        p = f"{m.group(1)}:/{m.group(2)}"
+    p = os.path.normpath(p.replace("\\", "/"))
+    return p.lower() if os.name == "nt" else p
 
 
 def changes(before, after):
@@ -136,7 +149,7 @@ def main():
                 reported = line.split(":", 1)[1].strip()
         checks.append(("--limits-show exits 0", r4.returncode == 0, ""))
         checks.append(("--limits-show names the limits file it actually used",
-                       reported == os.path.join(clone, "limits.json"),
+                       norm_path(reported) == norm_path(os.path.join(clone, "limits.json")),
                        reported or "(no path printed)"))
         checks.append(("--limits-show reports the ceiling",
                        "POWER ceiling" in r4.stdout, ""))
@@ -163,7 +176,7 @@ def main():
                        (r5.stderr.strip().splitlines() or [""])[-1]))
         for label in ("limits file ", "POWER ceiling ", "POWER start ", "stop word "):
             checks.append((f"engine and wrapper agree on: {label.strip()}",
-                           field(r5.stdout, label) == field(r4.stdout, label),
+                           norm_path(field(r5.stdout, label)) == norm_path(field(r4.stdout, label)),
                            f"{field(r5.stdout, label)!r} vs {field(r4.stdout, label)!r}"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

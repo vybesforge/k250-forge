@@ -19,23 +19,39 @@ class StubBox:
 
 
 async def flat_power_writes(refresh, secs=1.0):
+    """(power writes sent, ticks the loop actually ran).
+
+    Counting ticks instead of assuming them is the point: this used to assert `writes >= 10` for a
+    nominal 1.0s at 0.1s ticks, which is a wall-clock assumption — on Windows the timer granularity
+    (~15.6 ms) means 1.0s is about 9 iterations, so the check failed there for a reason that had
+    nothing to do with the write policy. The invariant is about the loop: with refresh=0 the power
+    value goes out on essentially every tick it runs, whatever the platform's clock does.
+    """
     os.environ["K250_PW_REFRESH"] = str(refresh)
     box = StubBox()
     pl = Player(box, 100)
     pl.channels = [0]
     await pl.set_pattern(["Manual"])
     box.sent.clear()
+
+    ticks = {"n": 0}
+    real_w = pl.w
+
+    async def counting_w(p):
+        ticks["n"] += 1
+        return await real_w(p)
+
+    pl.w = counting_w
     await pl.hold(secs, 30.0, tick=0.1)     # flat power for `secs`
-    return len(box.pw())
+    return len(box.pw()), ticks["n"]
 
 
 async def main():
-    ticks = 10                              # 1.0s at 0.1s ticks
-    every_tick = await flat_power_writes(0, 1.0)
-    keepalive = await flat_power_writes(2.0, 1.0)
-    print(f"flat power over {ticks} ticks:")
-    print(f"  refresh=0 (old behaviour)  : {every_tick} power writes")
-    print(f"  refresh=2s (new default)   : {keepalive} power write(s)")
+    every_tick, ticks_a = await flat_power_writes(0, 1.0)
+    keepalive, ticks_b = await flat_power_writes(2.0, 1.0)
+    print(f"flat power, {ticks_a} / {ticks_b} ticks actually run:")
+    print(f"  refresh=0 (old behaviour)  : {every_tick} power writes  (was {ticks_a} ticks)")
+    print(f"  refresh=2s (new default)   : {keepalive} power write(s)  (was {ticks_b} ticks)")
 
     # the safety net: an unchanged value must still be re-sent eventually
     os.environ["K250_PW_REFRESH"] = "0.4"
@@ -66,8 +82,11 @@ async def main():
     print(f"re-sent after pattern change : {n_same} -> {n_after} writes "
           f"({'yes' if n_after > n_same else 'NO'})")
 
-    ok = (every_tick >= ticks and keepalive <= 2 and refreshed >= 2
+    ok = (every_tick >= ticks_a - 1 and keepalive <= 2 and refreshed >= 2
           and n_same == n_before and n_after > n_same)
+    if not ok:
+        print(f"\n  (refresh=0: {every_tick} of {ticks_a} ticks — expected every tick but one)")
+        print(f"   refresh=2s: {keepalive} writes — expected at most 2)")
     print("\nWRITE POLICY:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
