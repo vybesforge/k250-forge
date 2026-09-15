@@ -180,6 +180,31 @@ ln -sf "$PWD"/k250-scene "$PWD"/k250-stop "$PWD"/k250-status ~/.local/bin/
 
 `limits-form.html` opens in any browser — no server, no build step.
 
+## Roadmap / ideas
+
+Things worth building next, in rough order of usefulness:
+
+1. **A browser UI for the box** — one page, no build step: pick a pattern, set base/peak/seconds,
+   hit go, with a big STOP button. The whole engine already speaks plain arguments, so this is a
+   thin wrapper over `k250-scene`. Pair it with `limits-form.html` (already done) and a stranger
+   can drive the box safely without reading a line of Python.
+2. **A pattern generator, not just a pattern list.** The real finding of this project is that
+   power and speed are *two* axes, and that the interesting feelings come from how they move
+   relative to each other. A small composer — "power: flat / climb / drop, speed: sweep / hold /
+   step, over N seconds" — would generate far more patterns than anyone wants to hand-write, and
+   the vocabulary already exists in `k250_play.py`.
+3. **Multi-channel verification.** The engine already reads `CA` and drives only plugged channels;
+   it has never been tested with more than one channel live. Different patterns per channel
+   (`PA` is a per-channel array) is designed and untested.
+4. **A session log.** Timestamped record of what was run and at what numbers — partly for
+   reproducibility, mostly because "what did we do last time" is the hardest question to answer
+   afterwards.
+5. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops
+   loose, no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
+
+Not worth doing: chasing the encrypted firmware, or trying to drive the Reverse Polarity switch
+over BLE. It isn't in the protocol.
+
 ## Status / honest gaps
 
 - **Multi-channel: unverified.** The engine reads `CA` and drives only plugged channels, and
