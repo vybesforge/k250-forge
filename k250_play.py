@@ -54,6 +54,8 @@ class Player:
         self.max_rate = 0.0           # max POWER change, percent per second (0 = unlimited)
         self._last_p = None
         self._last_t = None
+        self.channel_window = 0.4     # seconds to hold one channel before rotating
+        self._last_rotate = 0.0
 
     def _slew(self, p: float) -> float:
         """Limit how fast POWER may move, in percent per second.
@@ -103,6 +105,41 @@ class Player:
             self.channels = [0]
         return self.channels
 
+    async def prepare_channels(self, pattern: str = "Manual"):
+        """Make every live channel drivable, and OURS, before we drive it.
+
+        Two verified reasons:
+
+        1. A channel whose pattern slot is blank REJECTS power outright -- the box
+           echoes `{"PW": 0}` no matter what you send. Channel 2 was exactly this:
+           CA said Active, PA said "      ", and every power write came back zero.
+        2. Operator note (2026-09-15): set every channel to **Manual** before driving it.
+           In a patterned mode the box is running its own generator and we're
+           writing power into that; in Manual there's no competing waveform, so
+           what we write is what happens. We own the pattern, not the box.
+
+        Returns the list of live channel indices."""
+        ca = await self.read_state("CA")
+        pa = await self.read_state("PA")
+        if isinstance(ca, list):
+            self.channels = [i for i, s in enumerate(ca)
+                             if str(s).strip().lower() != "unplugged"] or [0]
+        if not isinstance(pa, list):
+            return self.channels
+        fixed = list(pa)
+        changed = []
+        for i in self.channels:
+            if str(fixed[i]).strip() != pattern:
+                changed.append(i + 1)
+                fixed[i] = pattern
+        if changed:
+            await self.k.send({"PA": fixed})
+            await asyncio.sleep(0.5)
+            print(f"   set channels {changed} to '{pattern}' "
+                  f"(blank = refuses power; patterned = the box's own generator "
+                  f"runs on top of ours)", flush=True)
+        return self.channels
+
     async def select(self, ch: int):
         if getattr(self, "_ch", None) == ch:
             return
@@ -125,9 +162,31 @@ class Player:
         p = max(0.0, min(p, self.hardcap))
         p = self._slew(p)
         v = pct(p)
-        for ch in self.channels:
-            await self.select(ch)
+
+        # Single channel: just drive it.
+        if len(self.channels) <= 1:
+            await self.select(self.channels[0])
             await self.k.send({"PW": v})
+            return
+
+        # Multiple channels: hold ONE channel for a window, then rotate.
+        # Hold ONE channel for a window, then rotate. Flip-flopping every tick
+        # other channel and command it -- going back and forth does not look
+        # like it will work well." Flip-flopping every tick also halves each
+        # channel's update rate and fragments the power stream.
+        now = time.time()
+        need_rotate = (self._ch is None
+                       or self._ch not in self.channels
+                       or (now - self._last_rotate) > self.channel_window)
+        if need_rotate:
+            idx = 0 if self._ch not in self.channels else (
+                (self.channels.index(self._ch) + 1) % len(self.channels))
+            self._last_rotate = now
+            await self.select(self.channels[idx])
+            # a freshly selected channel may hold a stale speed setting
+            if self._ma is not None:
+                await self.k.send({"MA": self._ma})
+        await self.k.send({"PW": v})
 
     async def hold(self, secs: float, p: float, tick: float = 0.1):
         end = time.time() + secs
@@ -806,7 +865,7 @@ async def main():
         pl.ma_top = a.ma_top
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
-        live = await pl.detect_channels()
+        live = await pl.prepare_channels()
         log(f"live channels: {[c + 1 for c in live]}")
         pl.deadline = time.time() + a.secs
 

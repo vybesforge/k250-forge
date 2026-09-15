@@ -149,6 +149,24 @@ Also: the box gates channel selection on plug detection (`AC` writes to an unplu
 silently refused), it stops advertising when asleep or off the *Remote App Control* screen, and
 the Reverse Polarity Switch is **box-only** — it does not exist in the BLE protocol.
 
+### Multi-channel — verified 2026-09-15
+
+The engine drives every channel the box reports as live (`CA`), and this now works on two channels
+simultaneously. Three rules make it work, all learned the hard way:
+
+1. **A channel with a blank pattern REFUSES power.** The box echoes `{"PW": 0}` no matter what you
+   send. `CA` will happily say `Active` while `PA` holds `"      "` for that channel — active
+   electrode, nothing to run, no output. Give it a pattern first.
+2. **Set every channel to `Manual` before driving it.** In a patterned mode the box runs its own
+   generator and your power writes go *into* that; in Manual nothing competes, so what you write is
+   what happens. You own the pattern, not the box.
+3. **Rotate channels in windows, don't flip-flop.** Hold one channel for ~0.4 s, then move to the
+   next. Rapid per-tick switching halves each channel's update rate and fragments the power stream.
+
+**Expect the box's own screen to wig out while you drive it** — tab jumping, top bar smearing, the
+green active indicator flickering. Every `AC` write moves the box's selected tab, so its UI is
+literally chasing the driver. Cosmetic, and a useful confirmation that writes are landing.
+
 ## The two axes — this is the whole instrument
 
 Power is level. `MA` is **character**: `0` = fast buzz, `25` = slow heavy thump, and the period in
@@ -257,9 +275,11 @@ over BLE. It isn't in the protocol.
 
 ## Status / honest gaps
 
-- **Multi-channel: unverified.** The engine reads `CA` and drives only plugged channels, and
-  `PW` is per-selected-channel, so it *should* drive all four — but only one channel has ever had
-  pads on it. Different patterns per channel (`PA` is a per-channel array) is designed, untested.
+- **Multi-channel: verified on two channels (2026-09-15).** The engine reads `CA` and drives only
+  plugged channels; `PW` is per-selected-channel, so it selects each in turn in ~0.4 s windows.
+  Two preconditions are mandatory: every live channel needs a **pattern** (blank refuses power
+  outright) and should be set to **Manual** so the box isn't running its own generator underneath.
+  Different patterns per channel (`PA` is a per-channel array) is now the only untested part.
 - `SB` / `CS` semantics unknown. Reverse Polarity is not reachable over BLE.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
 
