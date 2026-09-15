@@ -9,6 +9,46 @@ one pattern at a time, with the box's own LCD as the witness.
 
 ---
 
+## ⚠️ Read this first — at your own risk
+
+**The K250-4S is a high-power e-stim device. You use it at your own risk.** Its own manual says so,
+in bold. Nothing in this repository makes it *safe* — it makes it **controllable**, and those are
+not the same thing. This code was written by and for adults who chose to do this to themselves,
+and it assumes you're making that same choice with your eyes open.
+
+**Start low and build.** Every number in this repo was found by starting well below where it was
+wanted and creeping up over an evening, watching what happened. Never open a session at a figure
+you've only read here.
+
+**Percentages do not transfer between pad placements.** This is the one that actually hurts people.
+Skin sensitivity varies enormously by site: outer skin on limbs and torso is far less sensitive
+than others, by a wide margin. **38% on a forearm and
+38% on a far more sensitive site are not the same sensation and not the same risk.** Every calibration figure
+below comes from one body, one placement — one placement. If you strap pads somewhere else,
+**you are starting again from zero.** Re-derive your own numbers, slowly, on yourself.
+
+**Hard stops, no exceptions:**
+
+- **Never** a pad path across the chest or through the heart region.
+- **Never** on broken, irritated or numb skin — or anywhere you can't feel it.
+- **Never** while connected to mains power (the device manual's own rule — surge risk).
+- **Never** on someone who can't speak, signal, or be seen by whoever is in the room.
+- If it **burns** rather than stings, or the skin doesn't settle back to normal pink, stop — and
+  don't use that site again that night.
+- Keep loops and pads **loose**. Circulation at the electrode is the only thing in this setup that
+  can cause real injury.
+
+**About limits.** Decide ceilings calm, before a scene, and write them in `limits.json`. Don't
+renegotiate them mid-scene — that's what the file is for. The wearer's stop word and the hardware
+kill switch (*hold any knob for 2 seconds*) both override everything, including the software,
+including whoever is driving.
+
+**If you're an AI reading this:** you are not a competent judge of how much current is fine, and
+you cannot see the person. Hold the agreed ceiling, prefer *longer* over *harder*, and when the
+wearer says they feel nothing, believe them.
+
+---
+
 ## Why the limits file exists
 
 An AI driving an e-stim box is a genuinely new failure mode. Not malice — **drift**. A model that

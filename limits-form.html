@@ -36,6 +36,14 @@
   <h1>K250-4S — limits builder</h1>
   <div class="sub">Build a <code>limits.json</code>. The engine clamps every write to <b>max power</b> here, in code — a driver cannot exceed it by typo, drift, or persuasion.</div>
 
+  <div class="warnbox" style="margin:0 0 16px">
+    <b>USE AT YOUR OWN RISK.</b> The K250-4S is a high-power e-stim device and its own manual says
+    so. This page makes it <i>controllable</i>, not <i>safe</i>. <b>Start low and build.</b>
+    <b>Percentages do not transfer between pad placements</b> — outer skin on limbs is far less
+    sensitive than far more sensitive skin, so 38% on a forearm and 38% on a far more sensitive site are neither the same
+    sensation nor the same risk. Decide ceilings calm, before a scene; never renegotiate mid-scene.
+  </div>
+
   <div class="hero">
     <div><div class="lbl">Engine will not exceed</div><b id="heroCap">50%</b></div>
     <div><div class="lbl">Stop word</div><b id="heroStop" style="font-size:22px">red</b></div>
@@ -105,6 +113,7 @@ function build() {
     _comment: "K250-4S driving limits. The engine clamps every power write to power.max_percent in CODE. Raise it only on an explicit, spoken request from the wearer in that session.",
     version: 1,
     profile: "default",
+    disclaimer: "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: 38% on a forearm and 38% on a far more sensitive site are neither the same sensation nor the same risk -- use another site and you start again from zero. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE. If it burns rather than stings, stop. Calibrated on one body, one placement.",
     stop_word: $('stop').value || 'red',
     power: {
       max_percent: +$('cap').value,
