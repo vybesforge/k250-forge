@@ -18,6 +18,7 @@ Safety: every run ends with PW=0, SIGINT sends PW=0 immediately, and a hard
 import argparse
 import asyncio
 import json
+import os
 import math
 import random
 import signal
@@ -58,6 +59,11 @@ class Player:
         self._last_rotate = 0.0
         self.channel_caps = {}        # {"1": {"power":50,"speed":2500,"sway":25}, ...}
         self._ch_last = {}            # per-channel slew state
+        self._pw_sent = {}            # per-channel (value, timestamp) of the last PW write
+        # Seconds before an unchanged power value is re-sent anyway as a safety
+        # net. Keeps the box's LCD quiet without ever leaving it silently stale.
+        # 0 = write power on every tick (the old behaviour).
+        self.pw_refresh = float(os.environ.get("K250_PW_REFRESH", "2.0"))
 
     def cap_for(self, ch: int, kind: str, fallback):
         """Per-channel limit, else the global one. `ch` is 0-based; limits.json
@@ -96,9 +102,10 @@ class Player:
         * clear the per-channel slew accumulators, or the limiter thinks power is
           still up at the old level and refuses to climb from zero.
 
-        Power itself recovers on its own because `w()` always writes — which is
-        the real reason it writes every tick. Used by `prepare_channels()` and by
-        anything that changes the wave pattern mid-run."""
+        Power itself recovers because this method drops the power-write cache, so
+        the next `w()` always sends it — the zeroing case is handled explicitly
+        rather than by re-sending power on every tick. Used by `prepare_channels()`
+        and by anything that changes the wave pattern mid-run."""
         await self.k.send({"PA": pa_list})
         self._ma = None
         # The box is now at ZERO on every channel, so seed the slew state with
@@ -106,6 +113,7 @@ class Player:
         # through unclamped, which would jump straight to the target and defeat
         # the slew limit entirely.
         self._ch_last = {ch: (0.0, time.time()) for ch in self.channels}
+        self._pw_sent = {}   # the box is at zero power now: force the next PW write
         await asyncio.sleep(0.2)
 
     def _slew(self, p: float) -> float:
@@ -198,16 +206,19 @@ class Player:
         await asyncio.sleep(0.04)
 
     async def w(self, p: float):
-        """Write power. Always writes — deliberately, but not because the box needs it.
+        """Write power. Skips the write when the box already holds this value.
 
         The box HOLDS `PW` once set: no re-sending on a timer, and an `MA` write
-        doesn't clear it. What DOES zero it is a **pattern change (`PA`)** — so
-        after any pattern change the power must be re-sent, and writing
-        unconditionally means never having to special-case that. Cheap, and it's
-        what the official app does too. (Two earlier notes here claimed the box
-        had to be told power repeatedly, and that a power write could go missing
-        and silence a pattern. Both are retracted — the operator has never seen
-        either, and the run behind them failed because the pattern changed.)
+        doesn't clear it. What DOES zero it is a **pattern change (`PA`)** — and
+        `set_pattern()` drops this cache to force the next write, so that case is
+        covered explicitly rather than by brute force.
+
+        Sending it unconditionally was insurance against a "dropped write" that
+        never happened (retracted) — and it cost a redundant frame on every tick,
+        which is what makes the box's own LCD churn while a pattern runs. A
+        keepalive (`pw_refresh`, default 2 s) still re-sends an unchanged value, so
+        if anything ever does zero the power silently, the pattern self-heals
+        instead of running silent. `K250_PW_REFRESH=0` restores write-every-tick.
 
         Multi-channel: PW applies to the SELECTED channel, so when more than
         one channel is live we select-and-write each in turn. Every pattern
@@ -242,7 +253,23 @@ class Player:
         # very different skin, so a single global ceiling is the wrong shape.
         p = max(0.0, min(p, self.cap_for(ch, "power", self.hardcap)))
         p = self._slew_ch(ch, p)
-        await self.k.send({"PW": pct(p)})
+
+        # Skip the write if the box already holds this exact value on this channel.
+        # The box PERSISTS PW (the operator, verified): it does not need re-sending, and
+        # those redundant frames are what make its own LCD churn while driving.
+        # This halves the frame rate on flat-power patterns.
+        #
+        # A keepalive still goes out every `pw_refresh` seconds, because PW is
+        # never read back: if something we don't know about ever zeroes it, the
+        # pattern self-heals within the keepalive rather than running silent.
+        # K250_PW_REFRESH=0 restores the old write-every-tick behaviour.
+        v = pct(p)
+        now = time.time()
+        last = self._pw_sent.get(ch)
+        if last is not None and last[0] == v and (now - last[1]) < self.pw_refresh:
+            return
+        self._pw_sent[ch] = (v, now)
+        await self.k.send({"PW": v})
 
     async def hold(self, secs: float, p: float, tick: float = 0.1):
         end = time.time() + secs

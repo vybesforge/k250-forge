@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.0** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.1** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -424,11 +424,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.0** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.1** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
-release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0` — so an old
-version is never lost and never in your way:
+release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1` — so an
+old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

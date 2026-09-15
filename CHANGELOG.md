@@ -6,6 +6,36 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.1 — 2026-09-15
+
+### Changed
+- **Power is no longer re-sent on every tick.** The box persists `PW`, and only a **pattern change**
+  zeroes it — so writing it ~5×/s was redundant traffic, and those frames are part of what makes the
+  box's own LCD churn while a pattern runs. A write now goes out only when the value changes, plus a
+  keepalive every 2 s so a silent reset would still self-heal. `K250_PW_REFRESH=0` restores the old
+  write-every-tick behaviour. `set_pattern()` drops the cache, so the one case that genuinely zeroes
+  power still forces a re-send.
+
+### Added
+- `tests/test_write_policy.py` — flat power is written once, the keepalive fires, an unchanged value
+  is skipped, and a pattern change forces a re-send.
+
+### Measured on the real box (`speed_sweep --base 10 --secs 20`, one channel live)
+
+| | before | after |
+|---|---|---|
+| `AC` writes — the ones that move the box's selected tab | 1 | 0–1 |
+| power writes | 62 | **9** |
+| total BLE frames | 140 | 149 |
+
+**The honest read:** the traffic *moved*, it did not shrink — with no write on every tick the loop
+runs about twice as fast, so `MA` writes roughly doubled. What makes the screen jump is the `AC`
+writes, and those are 0–1 per run because `select()` only writes when the channel actually changes.
+The power-write change is still right (fewer redundant frames, and the semantics now match the
+hardware), but it is not the thing that calms the display.
+
+---
+
 ## v3.0 — 2026-09-15
 
 Session budget, the limits-page rebuild, and several safety corrections.
