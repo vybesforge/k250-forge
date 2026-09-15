@@ -373,6 +373,31 @@ the whole design. Two rules any skill must carry, in the skill itself:
 The session budget is enforced the same way: `k250_session.py` refuses to start once
 `session.max_duration_s` is spent, whoever is asking.
 
+### Give this to your agent
+
+The repo is written so an agent can pick it up cold. Point it at the folder — or the clone — and
+hand it this:
+
+```text
+Read README.md in this repo. Follow the Install section for this OS, then the First steps
+section. Read limits.json before driving anything. Use k250-status to check the box is
+awake, k250-scene to run a pattern, and k250-stop to stop. The stop word is "red".
+
+Never exceed the ceiling in limits.json. It is enforced in the code — do not work around it.
+If I say I feel nothing, stop and check the electrodes; never add power. One BLE connection
+at a time.
+```
+
+Two things worth knowing about this arrangement:
+
+- **The agent does not need to be trusted, because the ceiling is not in its hands.** It clamps in
+  `limits.json` no matter what the agent asks for. That is the point of shipping a limits file
+  rather than a paragraph of good intentions.
+- **Nothing here is a skill that a harness auto-loads.** An agent gets this by *reading* the README
+  and following it — so if your agent can browse a repo and run shell commands, this is enough. If
+  you want it as a loadable skill, the **For an AI agent** table above is the material; the two
+  rules at the end of it are the parts that must survive the port.
+
 ## The three controls
 
 | control | what it is | limit in `limits.json` |
