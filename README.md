@@ -24,7 +24,7 @@ you've only read here.
 Skin sensitivity varies enormously by site: outer skin on limbs and torso is far less sensitive
 than others, by a wide margin. **38% on a forearm and
 38% on a far more sensitive site are not the same sensation and not the same risk.** Every calibration figure
-below comes from one body, one placement — one placement. If you strap pads somewhere else,
+below comes from one body, one placement. If you strap pads somewhere else,
 **you are starting again from zero.** Re-derive your own numbers, slowly, on yourself.
 
 **Hard stops, no exceptions:**
@@ -79,7 +79,7 @@ and no AI in the loop.
 - **No mains power.** The device manual says don't play while connected to mains power.
 - **Loops/pads loose.** Circulation at the pads is the only thing in this setup that can
   genuinely injure. Pink that fades is fine; white, pinched, or marked is a stop.
-- **No pad path across the chest.** No current through the heart.
+- **No pad path across the chest.** This setup has no current path through the heart.
 - **Skin check after every session.** Not optional, and it's the one thing software can't see.
 - One BLE connection at a time. Every pattern zeroes on exit, on SIGINT, and on SIGTERM.
 
