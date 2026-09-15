@@ -145,7 +145,11 @@
   <div class="card">
     <h2>Session &amp; safety</h2>
     <div class="row"><label for="stop">Stop word</label><input type="text" id="stop" value="red" style="width:150px"></div>
-    <div class="row"><label for="dur">Longest single session (seconds)</label><input type="number" id="dur" value="600" min="30" max="7200" style="width:120px"></div>
+    <div class="row"><label for="dur">Longest single session (minutes)</label>
+      <input type="range" id="durm" min="5" max="240" step="5" value="30" style="flex:1;accent-color:var(--acc)">
+      <div class="num" id="durmV" style="flex:0 0 110px;text-align:right">30 min</div></div>
+    <p class="hint" style="margin-top:-4px">Enforced, not advisory: the tools keep a session ledger and refuse to start
+      once the budget is used. Up to 240 minutes. A fresh session begins after 15 quiet minutes, or with <code>--reset-session</code>.</p>
     <div class="chk"><input type="checkbox" id="mains" checked><span>Never while plugged into mains power — the manual's own rule.</span></div>
     <div class="chk"><input type="checkbox" id="loops" checked><span>Loops and pads kept loose. Circulation at the electrode is the one thing here that can cause real injury.</span></div>
     <div class="chk"><input type="checkbox" id="chest" checked><span>No pad path across the chest or through the heart.</span></div>
@@ -193,7 +197,9 @@ function read(){
   $('smaxV').textContent = Math.round(+$('smax').value / 100);
   const r = +$('rate').value;
   $('rateV').textContent = r === 0 ? 'no limit' : r + '%/s';
-  return {cap, def, smax:+$('smax').value, rate:r};
+  const dm = +$('durm').value;
+  $('durmV').textContent = dm >= 60 ? `${Math.floor(dm/60)}h${dm%60 ? ' '+(dm%60)+'m' : ''}` : dm + ' min';
+  return {cap, def, smax:+$('smax').value, rate:r, durm:dm};
 }
 
 function build(){
@@ -223,7 +229,9 @@ function build(){
       per_channel: perChannel(),
       per_channel_note: "Optional per-channel overrides. Different channels sit on different skin, so one global ceiling is the wrong shape. null = use the global limit."
     },
-    session: { max_duration_s:+$('dur').value, require_wearer_able_to_speak:$('speak').checked },
+    session: { max_duration_s: +$('durm').value * 60,
+               max_duration_s_ceiling: 14400,
+               require_wearer_able_to_speak:$('speak').checked },
     safety: {
       no_mains_power:$('mains').checked,
       loops_loose:$('loops').checked,
@@ -237,7 +245,7 @@ function build(){
   }, null, 2);
 }
 
-['cap','def','smax','rate'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
+['cap','def','smax','rate','durm'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
 const pcIds = [];
 for (let c = 1; c <= 4; c++) pcIds.push('pc'+c+'_power', 'pc'+c+'_freq', 'pc'+c+'_slew');
 pcIds.forEach(i => $(i).addEventListener('input', () => { $('out').value = build(); }));

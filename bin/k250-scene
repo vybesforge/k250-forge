@@ -28,6 +28,7 @@ if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
   DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.local.json}"
   [ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.json}"
 fi
+DIR="${K250_DIR:-$HERE}"          # where the session ledger and helper live
 
 if [ $# -eq 0 ]; then
   exec "$PY" "$PLAY" --help
@@ -71,7 +72,8 @@ pc = {k: {kk: vv for kk, vv in (v or {}).items() if vv is not None}
 pc = {k: v for k, v in pc.items() if v}
 print("|".join([str(p.get("max_percent", 50)), str(p.get("default_percent", 5)),
                 str(d.get("stop_word", "red")), str(smax), str(fmax),
-                json.dumps(pc)]))
+                json.dumps(pc),
+                str((d.get("session") or {}).get("max_duration_s", 1800))]))
 EOF
 )
 CAP=$(echo "$READ" | cut -d'|' -f1)
@@ -79,7 +81,8 @@ DEF=$(echo "$READ" | cut -d'|' -f2)
 STOP=$(echo "$READ" | cut -d'|' -f3)
 RATE=$(echo "$READ" | cut -d'|' -f4)
 FMAX=$(echo "$READ" | cut -d'|' -f5)
-PCAPS=$(echo "$READ" | cut -d'|' -f6-)
+PCAPS=$(echo "$READ" | cut -d'|' -f6-6)
+SESS=$(echo "$READ" | cut -d'|' -f7)
 
 if [ "$1" = "--limits-show" ]; then
   echo "limits file : $LIMITS"
@@ -89,15 +92,21 @@ if [ "$1" = "--limits-show" ]; then
   echo "SLEW max      : ${RATE}%/second  (how fast power may move; 0 = unlimited)"
   echo "stop word     : $STOP"
   echo "per-channel   : ${PCAPS:- (none -- all channels use the global limits)}"
+  "$PY" "$DIR/k250_session.py" show --max "$SESS" --dir "$DIR" 2>/dev/null \
+    | sed 's/^session/session       /' || true
   exit 0
 fi
 
-# strip --limits from what we forward (k250_play.py doesn't know it)
+# strip --limits / --reset-session from what we forward (the engine knows neither)
 FWD=()
+RESET=0
 skip=0
 for i in "${!args[@]}"; do
   if [ "$skip" = "1" ]; then skip=0; continue; fi
-  if [ "${args[$i]}" = "--limits" ]; then skip=1; continue; fi
+  case "${args[$i]}" in
+    --limits) skip=1; continue ;;
+    --reset-session) RESET=1; continue ;;
+  esac
   FWD+=("${args[$i]}")
 done
 
@@ -163,4 +172,25 @@ if [ ${#EXTRA[@]} -gt 0 ]; then echo "        per-channel: ${PCAPS}" >&2; fi
     exit 1
   fi
 }
-exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --slew "$EFF_SLEW" --frequency "$EFF_FREQ" "${EXTRA[@]}"
+SESS_FILE="$DIR/k250_session.py"
+if [ "$RESET" = "1" ] && [ -f "$SESS_FILE" ]; then
+  "$PY" "$SESS_FILE" reset --dir "$DIR"
+fi
+
+# Session budget: enforced, not advisory. K250_IGNORE_SESSION=1 is the
+# deliberate override (it should be a decision, not an accident).
+if [ -f "$SESS_FILE" ] && [ "${K250_IGNORE_SESSION:-0}" != "1" ]; then
+  if ! "$PY" "$SESS_FILE" check --max "$SESS" --dir "$DIR"; then
+    exit 1
+  fi
+fi
+
+START=$(date +%s)
+"$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --slew "$EFF_SLEW" --frequency "$EFF_FREQ" "${EXTRA[@]}"
+RC=$?
+END=$(date +%s)
+
+if [ -f "$SESS_FILE" ]; then
+  "$PY" "$SESS_FILE" add --seconds "$((END - START))" --max "$SESS" --dir "$DIR" || true
+fi
+exit $RC

@@ -39,9 +39,10 @@
   },
 
   "session": {
-    "max_duration_s": 600,
+    "max_duration_s": 1800,
+    "max_duration_s_ceiling": 14400,
     "require_wearer_able_to_speak": true,
-    "note": "If the wearer can't report (asleep, gagged, alone, not typing), do NOT raise power. Hold the ceiling and prefer longer over harder."
+    "note": "max_duration_s is ENFORCED: k250-scene keeps a session ledger and refuses to start once the budget is used up (a new session begins after 15 quiet minutes). Default 30 min; the form allows up to 4 hours (14400 s). To deliberately start a fresh session anyway: k250-scene --reset-session. If the wearer can't report (asleep, gagged, alone, not typing), do NOT raise power -- hold the ceiling and prefer longer over harder."
   },
 
   "safety": {
