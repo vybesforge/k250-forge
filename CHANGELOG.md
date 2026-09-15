@@ -6,6 +6,30 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.11 — 2026-09-15
+
+### Fixed — the last wrapper-only inspection command
+
+`--limits-show` was the other thing only the bash wrapper could do, so on Windows there was no way to
+read the active ceilings before running anything. The engine prints them now:
+
+```powershell
+.\venv\Scripts\python k250_play.py --limits-show
+```
+
+Same fields as the wrapper, same wording, read-only, no box needed — and printed from the same
+resolver, so which file it names is the file it will actually use.
+
+The first Windows walkthrough also showed that the engine printed the ceilings on *every* run's
+startup; that was already there, but it is not a pre-flight check, which is why this exists.
+
+### Verified
+- Engine and wrapper produce identical `limits file` / `POWER ceiling` / `POWER start` / `stop word`
+  lines, asserted field-by-field in `test_wrapper_cli.py` (now 18 checks) so the two cannot drift.
+- All eight suites pass.
+
+---
+
 ## v3.2.10 — 2026-09-15
 
 ### Fixed — Windows had no way to find out what the patterns are called

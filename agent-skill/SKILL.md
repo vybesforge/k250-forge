@@ -42,7 +42,7 @@ used while building this repo, and it is deliberately short. The repo itself —
 | check the box | `k250-status` — firmware, battery, **live channels**, pattern/speed per channel |
 | run a pattern | `k250-scene <pattern> --base N --secs N` · `k250-scene --list` for all of them |
 | stop | `k250-stop` — zeroes every channel and kills any running pattern. Exit 1 = could not reach the box: treat as unsafe and get to it physically |
-| your ceilings | `k250-scene --limits-show` |
+| your ceilings | `k250-scene --limits-show` · `python k250_play.py --limits-show` on Windows |
 | no bash (Windows) | `venv\Scripts\python k250_play.py …` — the engine reads `limits.json` itself, so the ceiling still applies |
 
 **Battery:** mention it at or below `battery.report_below_percent` in `limits.json` (10 % by default),

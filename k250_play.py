@@ -1027,6 +1027,8 @@ async def main():
                     help="one of the patterns; `--list` shows them all")
     ap.add_argument("--list", action="store_true",
                     help="print the available patterns and exit (no box needed)")
+    ap.add_argument("--limits-show", action="store_true",
+                    help="print the active ceilings from the limits file and exit (no box needed)")
     ap.add_argument("--base", type=float, default=18.0)
     ap.add_argument("--peak", type=float, default=26.0)
     ap.add_argument("--secs", type=float, default=30.0)
@@ -1057,6 +1059,34 @@ async def main():
         print(f"{len(names)} patterns:")
         for n in names:
             print("  ", n)
+        return 0
+    # Same information the bash wrapper prints, so the direct path (Windows) can check the contract
+    # without running anything. Read-only: no BLE, no box needed.
+    if a.limits_show:
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = find_limits(a.limits)
+        lim = load_limits(path) or {}
+        pow_ = lim.get("power") or {}
+        freq = lim.get("frequency") or {}
+        slew = lim.get("slew") or {}
+        pc = {k: {kk: vv for kk, vv in (v or {}).items() if vv is not None}
+              for k, v in ((lim.get("channels") or {}).get("per_channel") or {}).items()}
+        pc = {k: v for k, v in pc.items() if v}
+        print(f"limits file : {path or '(none found — pass --limits PATH or set K250_LIMITS)'}")
+        print(f"POWER ceiling : {pow_.get('max_percent', 100)}%   (engine will not write above this)")
+        print(f"POWER start   : {pow_.get('default_percent', '?')}%")
+        print(f"FREQUENCY max : {freq.get('max', 2500)}   (MA / Multi Adjust -- character, not level)")
+        print(f"SLEW max      : {slew.get('max_percent_per_second', 0)}%/second  "
+              f"(how fast power may move; 0 = unlimited)")
+        print(f"stop word     : {lim.get('stop_word', 'red')}")
+        print(f"per-channel   : {json.dumps(pc) if pc else '(none -- all channels use the global limits)'}")
+        sess = float((lim.get("session") or {}).get("max_duration_s", 1800) or 1800)
+        script = os.path.join(here, "k250_session.py")
+        if os.path.isfile(script):
+            r = subprocess.run([sys.executable, script, "show", "--max", str(sess), "--dir", here],
+                               capture_output=True, text=True)
+            if r.stdout.strip():
+                print(r.stdout.strip())
         return 0
     if not a.pattern:
         print("k250_play.py: no pattern given.", file=sys.stderr)

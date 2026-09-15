@@ -149,6 +149,22 @@ def main():
         checks.append(("any state it did write landed in the working dir",
                        all(c.startswith("session.json") for c in clone_touched),
                        ", ".join(clone_touched) or "(nothing)"))
+
+        # 5. the ENGINE's --limits-show must agree with the wrapper's: on Windows there is no
+        #    wrapper, so this is the only way to inspect the contract before running anything.
+        r5 = subprocess.run([sys.executable, os.path.join(clone, "k250_play.py"), "--limits-show"],
+                            cwd=elsewhere, capture_output=True, text=True, timeout=60)
+        def field(text, label):
+            for line in text.splitlines():
+                if line.startswith(label):
+                    return line.split(":", 1)[1].strip()
+            return ""
+        checks.append(("engine --limits-show exits 0", r5.returncode == 0,
+                       (r5.stderr.strip().splitlines() or [""])[-1]))
+        for label in ("limits file ", "POWER ceiling ", "POWER start ", "stop word "):
+            checks.append((f"engine and wrapper agree on: {label.strip()}",
+                           field(r5.stdout, label) == field(r4.stdout, label),
+                           f"{field(r5.stdout, label)!r} vs {field(r4.stdout, label)!r}"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
