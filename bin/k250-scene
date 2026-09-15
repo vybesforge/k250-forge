@@ -122,4 +122,8 @@ fi
 EFF_MA=$(printf '%.0f' "$EFF_MA")
 
 echo "limits: $(basename "$LIMITS")  power_cap=${CAP}%  effective=${EFF}%  movement=${RATE}%/s  ma_cap=${EFF_MA}  stop_word=${STOP}" >&2
+[ -x "$PY" ] || {
+  echo "note: no venv at $PY — run ./install.sh, or set K250_PY" >&2
+  PY="$(command -v python3)"
+}
 exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --max-rate "$RATE" --ma-top "$EFF_MA"
