@@ -13,15 +13,15 @@
   body{margin:0;background:var(--bg);color:var(--fg);
        font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
        -webkit-font-smoothing:antialiased}
-  .wrap{max-width:720px;margin:0 auto;padding:40px 22px 90px}
-  header{margin-bottom:28px}
-  h1{margin:0 0 6px;font-size:27px;letter-spacing:-.02em}
-  .lede{color:var(--mut);font-size:15px}
+  .wrap{max-width:760px;margin:0 auto;padding:26px 20px 70px}
+  header{margin-bottom:18px}
+  h1{margin:0 0 4px;font-size:23px;letter-spacing:-.02em}
+  .lede{color:var(--mut);font-size:14px}
   .risk{border-left:3px solid var(--warn);background:#1c1614;border-radius:0 8px 8px 0;
-        padding:14px 18px;margin:22px 0 30px;font-size:14px;color:#e8d5cd}
+        padding:12px 16px;margin:16px 0 18px;font-size:13.5px;color:#e8d5cd}
   .risk b{color:#f3b9a4}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
-        padding:20px 22px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;
+        padding:15px 18px;margin-bottom:12px}
   .card h2{margin:0 0 3px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
   .card p.hint{margin:0 0 18px;color:var(--mut);font-size:13.5px}
   .ctrl{margin:16px 0}
@@ -39,6 +39,16 @@
   .chk span{color:#c3ced5}
   .kill{border-left:3px solid var(--ok);background:#141a15;border-radius:0 8px 8px 0;
         padding:13px 17px;margin-top:16px;font-size:14px;color:#cfe0cb}
+  /* compact per-channel grid: 4 rows, 3 sliders each, no scrolling */
+  .pcgrid{display:grid;grid-template-columns:64px 1fr 1fr 1fr;gap:6px 12px;align-items:center}
+  .pchead{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+  .pcch{display:flex;align-items:center;gap:7px;font-size:13.5px;color:#c3ced5;cursor:pointer}
+  .pcch input{accent-color:var(--acc);width:15px;height:15px}
+  .pcsl{display:flex;align-items:center;gap:8px}
+  .pcsl input[type=range]{flex:1;height:18px;margin:0}
+  .pcsl .v{flex:0 0 44px;text-align:right;font-size:12px;color:var(--mut);
+           font-variant-numeric:tabular-nums}
+  .pcsl.off{opacity:.35}
   .out{margin-top:26px}
   .btns{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
   button{border:0;border-radius:9px;padding:12px 20px;font:600 14.5px inherit;cursor:pointer}
@@ -59,25 +69,26 @@
   </header>
 
   <div class="risk">
-    <b>At your own risk.</b> The K250-4S is a high-power e-stim device — its own manual says so.
-    This page makes it <i>controllable</i>, not safe. Start low and build up slowly.
-    <b>Numbers don't transfer between pad placements:</b> outer skin on arms or torso is far less
-    sensitive than far more sensitive skin, so the same percentage is a different sensation — and a different
-    risk — somewhere else.
-    <ul style="margin:11px 0 0;padding-left:20px;line-height:1.7">
-      <li><b>Never</b> a pad path across the chest or through the heart.</li>
-      <li><b>Never</b> on broken, irritated or numb skin — or anywhere you can't feel it.</li>
-      <li><b>Never</b> while plugged into mains power.</li>
-      <li><b>Never</b> on someone who can't speak, signal, or be seen by whoever is in the room.</li>
-      <li>Keep loops and pads <b>loose</b> — circulation at the electrode is the one thing here that
-        can cause real injury.</li>
-      <li>If it <b>burns rather than stings</b>, or the skin doesn't settle back to normal pink,
-        stop — and don't use that site again that night.</li>
-      <li>If you're driving someone else: when they say they feel nothing, <b>believe them</b>.
-        Hold the ceiling and go longer, not harder.</li>
-    </ul>
-    <div style="margin-top:11px">Decide your ceilings while you're calm and <b>before</b> a session.
-      Don't renegotiate them mid-scene — that's what this file is for.</div>
+    <b>At your own risk.</b> High-power e-stim device — this page makes it <i>controllable</i>, not safe.
+    <b>Start low and build.</b> Percentages don't transfer between pad placements: outer skin is far less
+    sensitive than far more sensitive skin, so the same figure is a different sensation and a different risk.
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;color:#f3b9a4">The hard stops — read once</summary>
+      <ul style="margin:9px 0 0;padding-left:20px;line-height:1.65">
+        <li><b>Never</b> a pad path across the chest or through the heart.</li>
+        <li><b>Never</b> on broken, irritated or numb skin — or anywhere you can't feel it.</li>
+        <li><b>Never</b> while plugged into mains power.</li>
+        <li><b>Never</b> on someone who can't speak, signal, or be seen by whoever is in the room.</li>
+        <li>Keep loops and pads <b>loose</b> — circulation at the electrode is the one thing here that
+          can cause real injury.</li>
+        <li>If it <b>burns rather than stings</b>, or the skin doesn't settle back to normal pink,
+          stop — and don't use that site again that night.</li>
+        <li>If you're driving someone else: when they say they feel nothing, <b>believe them</b>.
+          Hold the ceiling and go longer, not harder.</li>
+      </ul>
+      <div style="margin-top:9px">Decide your ceilings while you're calm and <b>before</b> a session.
+        Don't renegotiate mid-scene — that's what this file is for.</div>
+    </details>
   </div>
 
   <div class="card">
@@ -118,28 +129,14 @@
   </div>
 
   <div class="card">
-    <h2>4 · Per channel <span style="text-transform:none;color:var(--mut);font-weight:400">— optional</span></h2>
-    <p class="hint">Different channels sit on different skin, so one global ceiling is the wrong shape — a
-      cap that's right for a thigh is wrong for a tip. Leave a box empty to use the global limit above.</p>
-    <div style="display:grid;grid-template-columns:auto repeat(3,1fr);gap:8px 10px;align-items:center;font-size:13.5px">
-      <div style="color:var(--mut);font-size:12px">channel</div>
-      <div style="color:var(--mut);font-size:12px">Power %</div>
-      <div style="color:var(--mut);font-size:12px">Frequency</div>
-      <div style="color:var(--mut);font-size:12px">Slew %/s</div>
-      <div>1</div><input type="number" id="pc1_power" min="0" max="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc1_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc1_slew" min="0" max="100" placeholder="—" style="width:100%">
-      <div>2</div><input type="number" id="pc2_power" min="0" max="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc2_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc2_slew" min="0" max="100" placeholder="—" style="width:100%">
-      <div>3</div><input type="number" id="pc3_power" min="0" max="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc3_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc3_slew" min="0" max="100" placeholder="—" style="width:100%">
-      <div>4</div><input type="number" id="pc4_power" min="0" max="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc4_freq" min="0" max="10000" step="100" placeholder="—" style="width:100%">
-      <input type="number" id="pc4_slew" min="0" max="100" placeholder="—" style="width:100%">
+    <h2>4 · Per channel <span style="text-transform:none;color:var(--mut);font-weight:400">— optional overrides</span></h2>
+    <p class="hint" style="margin-bottom:12px">Tick a channel to override the globals for it. Different channels sit on
+      different skin — a cap that's right for a thigh is wrong for a tip. Unticked = uses the global limits above.</p>
+    <div class="pcgrid">
+      <div class="pchead">channel</div><div class="pchead">Power</div>
+      <div class="pchead">Frequency</div><div class="pchead">Slew</div>
+      <div class="pcrow" id="pcrows" style="display:contents"></div>
     </div>
-    <div class="ends" style="margin-top:10px"><span>Frequency: 0 = buzz · 2500 ≈ several beats/s · 10000 = 1 beat/s</span><span></span></div>
   </div>
 
   <div class="card">
@@ -177,17 +174,43 @@ const $ = id => document.getElementById(id);
 function perChannel(){
   const out = {};
   for (let c = 1; c <= 4; c++){
-    const p = $('pc'+c+'_power').value.trim();
-    const f = $('pc'+c+'_freq').value.trim();
-    const s = $('pc'+c+'_slew').value.trim();
-    if (p === '' && f === '' && s === '') { out[c] = null; continue; }
+    if (!$('pc'+c+'_on').checked) { out[c] = null; continue; }
     out[c] = {
-      power:     p === '' ? null : Number(p),
-      frequency: f === '' ? null : Number(f),
-      slew:      s === '' ? null : Number(s)
+      power:     +$('pc'+c+'_power').value,
+      frequency: +$('pc'+c+'_freq').value,
+      slew:      +$('pc'+c+'_slew').value
     };
   }
   return out;
+}
+
+// build the four compact channel rows (3 sliders each) into the grid
+(function buildRows(){
+  const host = document.getElementById('pcrows');
+  for (let c = 1; c <= 4; c++){
+    host.insertAdjacentHTML('beforeend', `
+      <label class="pcch"><input type="checkbox" id="pc${c}_on">ch ${c}</label>
+      <div class="pcsl off" id="pc${c}_powerWrap">
+        <input type="range" id="pc${c}_power" min="0" max="100" step="1" value="50">
+        <span class="v" id="pc${c}_powerV">50%</span></div>
+      <div class="pcsl off" id="pc${c}_freqWrap">
+        <input type="range" id="pc${c}_freq" min="0" max="10000" step="100" value="2500">
+        <span class="v" id="pc${c}_freqV">25</span></div>
+      <div class="pcsl off" id="pc${c}_slewWrap">
+        <input type="range" id="pc${c}_slew" min="0" max="100" step="1" value="25">
+        <span class="v" id="pc${c}_slewV">25</span></div>`);
+  }
+})();
+
+function syncChannel(c){
+  const on = $('pc'+c+'_on').checked;
+  ['power','freq','slew'].forEach(k => {
+    $('pc'+c+'_'+k+'Wrap').classList.toggle('off', !on);
+    $('pc'+c+'_'+k).disabled = !on;
+  });
+  $('pc'+c+'_powerV').textContent = $('pc'+c+'_power').value + '%';
+  $('pc'+c+'_freqV').textContent  = Math.round($('pc'+c+'_freq').value / 100);
+  $('pc'+c+'_slewV').textContent  = $('pc'+c+'_slew').value;
 }
 
 function read(){
@@ -246,9 +269,14 @@ function build(){
 }
 
 ['cap','def','smax','rate','durm'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
-const pcIds = [];
-for (let c = 1; c <= 4; c++) pcIds.push('pc'+c+'_power', 'pc'+c+'_freq', 'pc'+c+'_slew');
-pcIds.forEach(i => $(i).addEventListener('input', () => { $('out').value = build(); }));
+// per-channel rows: tick to enable, move to set, everything updates the preview live
+for (let c = 1; c <= 4; c++){
+  $('pc'+c+'_on').addEventListener('change', () => { syncChannel(c); $('out').value = build(); });
+  ['power','freq','slew'].forEach(k => {
+    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); $('out').value = build(); });
+  });
+  syncChannel(c);
+}
 $('stop').addEventListener('input', () => $('out').value = build());
 $('regen').onclick = () => { $('out').value = build(); };
 $('copy').onclick = async () => {

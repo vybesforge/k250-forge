@@ -147,8 +147,12 @@ on that characteristic.
    channel's power *and* frequency both drop to zero. So: **re-send power after any `PA` write.**
    That behaviour is correctly observed, repeatedly, on the box's own screen.
 3. **`PW` is never reported in a read-all.** It is only echoed when written. There is no software
-   way to confirm power is flowing — **the person wearing it is the only instrument.** If they say
+   way to confirm power is *flowing* — **the person wearing it is the only instrument.** If they say
    they feel nothing, believe them and investigate; never tell them it "should" be working.
+   **What you *can* detect is load:** `CA` reports per-channel `Active` / `Unplugged`, which is the
+   box's own continuity sense — it's why `AC` writes to an empty channel are refused, and why the
+   channels read `Unplugged` the moment the loops come off. So "is an electrode attached to this
+   channel" is answerable; current, impedance and actual delivery are not.
 4. **A channel with no pattern refuses power.** See multi-channel below: `CA` can say `Active` while
    the channel's `PA` slot is blank, and every power write comes back as `{"PW": 0}`.
 
