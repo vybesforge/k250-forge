@@ -100,6 +100,18 @@ def main():
         checks.append(("--list prints patterns", len(listed) >= 10, f"{len(listed)} patterns"))
         checks.append(("--list names no missing module", "ModuleNotFoundError" not in r.stderr, ""))
 
+        # 1b. the engine lists patterns itself -- this IS the Windows path (no bash, python direct),
+        #     and until v3.2.10 the only way to see the pattern names was the bash wrapper.
+        r1b = subprocess.run([sys.executable, os.path.join(ROOT, "k250_play.py"), "--list"],
+                             cwd=elsewhere, capture_output=True, text=True, timeout=60)
+        engine_listed = [ln.strip() for ln in r1b.stdout.splitlines() if ln.startswith("  ")]
+        checks.append(("engine --list works from a foreign cwd (the Windows route)",
+                       r1b.returncode == 0 and len(engine_listed) >= 10,
+                       f"rc={r1b.returncode}, {len(engine_listed)} patterns"))
+        checks.append(("wrapper and engine agree on the pattern list",
+                       [ln.strip() for ln in listed] == engine_listed,
+                       f"wrapper {len(listed)} vs engine {len(engine_listed)}"))
+
         # 2. --list still works from inside the clone (the old happy path)
         r2 = run(["--list"], cwd=clone, env_extra={"K250_DIR": clone})
         checks.append(("--list from inside the clone still works", r2.returncode == 0, ""))

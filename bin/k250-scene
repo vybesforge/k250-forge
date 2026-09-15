@@ -71,19 +71,10 @@ if [ $# -eq 0 ]; then
 fi
 
 if [ "$1" = "--list" ]; then
-  # `python -` puts the CALLER's cwd on sys.path[0], not this script's directory,
-  # so the import has to be told where the modules are. Without this, --list
-  # worked from inside the clone and died with ModuleNotFoundError everywhere else.
-  "$PY" - "$DIR" <<'EOF'
-import sys
-sys.path.insert(0, sys.argv[1])
-import k250_play as p
-names = sorted(p.PATTERNS)
-print(f"{len(names)} patterns:")
-for n in names:
-    print("  ", n)
-EOF
-  exit 0
+  # The engine owns the pattern list (so Windows, which has no wrapper, can ask it too).
+  # `python -` puts the CALLER's cwd on sys.path[0], not this script's directory, hence the exec
+  # of the real file rather than a heredoc import.
+  exec "$PY" "$PLAY" --list
 fi
 
 # find --limits FILE anywhere in the args (so limits can be swapped per scene)

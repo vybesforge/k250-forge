@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.9** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.10** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -220,7 +220,7 @@ What testing settled, in the order it turned out to matter:
 
 ```
 k250-scene <pattern> [--base N --peak N --secs N --hardcap N --ma-top N --sweep-period N]
-k250-scene --list                 # all patterns
+k250-scene --list                 # all patterns (same as: python k250_play.py --list)
 k250-scene --limits-show          # the active ceiling
 k250-stop                         # INSTANT STOP: kills the pattern, zeroes every live channel
 k250-status                       # read-only: battery, LIVE CHANNELS, pattern/speed per channel
@@ -325,6 +325,7 @@ py -3 -m venv venv
   through the wrapper (a command-line `--hardcap` can only lower the file's ceiling):
 
 ```powershell
+.\venv\Scripts\python k250_play.py --list                  # the 35 patterns
 .\venv\Scripts\python k250_play.py speed_sweep --base 5 --secs 60
 .\venv\Scripts\python k250_stop.py
 .\venv\Scripts\python k250_status.py
@@ -391,7 +392,7 @@ connect, drive, and stop the box without guessing:
 | Drive it | `k250-scene <pattern> --base N --secs N` — the ceiling is **clamped in code**, not requested politely. On Windows, where the wrapper can't run, the engine does the same clamping itself |
 | Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
 | See what's connected | `k250-status` |
-| See what patterns exist | `k250_play.py` → the `PATTERNS` dict |
+| See what patterns exist | `k250_play.py --list` — works on every platform, no box needed |
 
 **Put the safety in the tool, not in the prompt.** The engine clamps to `limits.json` no matter what
 a driver asks for, so an agent cannot exceed the wearer's agreed ceiling even if it tries — that is
@@ -490,11 +491,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.9** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.10** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6`, `v3.2.7`, `v3.2.8`, `v3.2.9` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1` … `v3.2.10` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

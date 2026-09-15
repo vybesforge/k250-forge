@@ -1023,7 +1023,10 @@ def session_reserve(here, max_s, seconds):
 
 async def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("pattern")
+    ap.add_argument("pattern", nargs="?",
+                    help="one of the patterns; `--list` shows them all")
+    ap.add_argument("--list", action="store_true",
+                    help="print the available patterns and exit (no box needed)")
     ap.add_argument("--base", type=float, default=18.0)
     ap.add_argument("--peak", type=float, default=26.0)
     ap.add_argument("--secs", type=float, default=30.0)
@@ -1047,12 +1050,28 @@ async def main():
     ap.add_argument("--ma-top", type=float, default=None, help="alias of --frequency")
     ap.add_argument("--max-rate", type=float, default=None, help="alias of --speed")
     a = ap.parse_args()
+    # The engine lists its own patterns. It used to be the wrapper's job, which left the documented
+    # Windows path (python directly, no bash) with no way to find out what the patterns are called.
+    if a.list:
+        names = sorted(PATTERNS)
+        print(f"{len(names)} patterns:")
+        for n in names:
+            print("  ", n)
+        return 0
+    if not a.pattern:
+        print("k250_play.py: no pattern given.", file=sys.stderr)
+        print("  python k250_play.py --list        # what you can run", file=sys.stderr)
+        print("  python k250_play.py <name> --base 5 --secs 30", file=sys.stderr)
+        return 2
     a.ma_top = a.frequency if a.frequency is not None else (
         a.ma_top if a.ma_top is not None else 2500.0)
     a.max_rate = a.slew if a.slew is not None else (
         a.max_rate if a.max_rate is not None else 0.0)
     if a.pattern not in PATTERNS:
-        print("patterns:", ", ".join(PATTERNS))
+        names = sorted(PATTERNS)
+        print(f"unknown pattern {a.pattern!r} — {len(names)} available:", file=sys.stderr)
+        for n in names:
+            print("  ", n, file=sys.stderr)
         return 2
 
     # The limits file is the contract; this can only make it stricter.

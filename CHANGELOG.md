@@ -6,6 +6,35 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.10 — 2026-09-15
+
+### Fixed — Windows had no way to find out what the patterns are called
+
+`--list` lived in the bash wrapper. The documented Windows route is the engine directly, no bash, so
+on Windows the 35 pattern names were discoverable only by reading `k250_play.py`. Passing an unknown
+pattern did print them, but as one comma-joined line, as an error.
+
+The engine now owns the list:
+
+```powershell
+.\venv\Scripts\python k250_play.py --list      # 35 patterns, no box needed
+```
+
+- The wrapper delegates to it (`exec "$PY" "$PLAY" --list`), so there is one implementation and the
+  two can't disagree — a test asserts they produce identical output.
+- No pattern at all now says what to do instead of printing usage; an unknown pattern prints the list
+  one per line, on stderr, with the name it didn't recognise.
+- Found while walking the Windows path before a real-hardware test on that platform, i.e. before it
+  cost anyone a confusing ten minutes.
+
+### Verified
+- Engine `--list` from an unrelated directory: 35 patterns, exit 0 (this is the Windows code path,
+  exercised on Linux).
+- Wrapper `--list` unchanged; `test_wrapper_cli.py` now cross-checks wrapper against engine (13 checks).
+- All eight suites pass.
+
+---
+
 ## v3.2.9 — 2026-09-15
 
 ### Fixed — the install asked for a Python that cannot install the dependency
