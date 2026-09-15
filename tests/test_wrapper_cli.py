@@ -49,6 +49,35 @@ def run(args, cwd, env_extra=None):
     )
 
 
+def snapshot(root):
+    """Every file in the tree, with size and mtime. Used to prove 'nothing was written to the repo'
+    directly, instead of inferring it from the absence of one particular filename.
+
+    The old check was `not os.path.exists(ROOT/session.json)` — a proxy that inverts on any machine
+    that has actually driven the box: a real run whose working dir was the clone leaves a ledger
+    there, so the suite failed permanently on the author's own bench while passing on a clean
+    checkout. That is the v3.2.1 class backwards: green only where nobody uses the tool.
+    """
+    out = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in {".git", "venv", "__pycache__"}]
+        for name in filenames:
+            p = os.path.join(dirpath, name)
+            try:
+                st = os.stat(p)
+            except OSError:
+                continue
+            out[os.path.relpath(p, root)] = (st.st_size, st.st_mtime_ns)
+    return out
+
+
+def changes(before, after):
+    touched = set(after) - set(before)
+    removed = set(before) - set(after)
+    modified = {p for p in set(before) & set(after) if before[p] != after[p]}
+    return sorted(touched | removed | modified)
+
+
 def main():
     if not BASH:
         print("WRAPPER CLI: SKIP — no bash on this machine (the wrappers are bash; "
@@ -83,8 +112,12 @@ def main():
         checks.append(("missing modules: says which path it looked in",
                        "k250_play.py" in r3.stderr and bad in r3.stderr, r3.stderr.strip()))
 
-        # 4. --limits-show resolves to THIS clone's limits file, read-only
+        # 4. --limits-show resolves to THIS clone's limits file, and touches nothing
+        before_repo = snapshot(ROOT)
+        before_clone = snapshot(clone)
         r4 = run(["--limits-show"], cwd=elsewhere, env_extra={"K250_DIR": clone})
+        after_repo = snapshot(ROOT)
+        after_clone = snapshot(clone)
         reported = ""
         for line in r4.stdout.splitlines():
             if line.startswith("limits file"):
@@ -95,8 +128,15 @@ def main():
                        reported or "(no path printed)"))
         checks.append(("--limits-show reports the ceiling",
                        "POWER ceiling" in r4.stdout, ""))
-        checks.append(("--limits-show did not write into the repo",
-                       not os.path.exists(os.path.join(ROOT, "session.json")), ""))
+        # not a proxy: compare the whole tree, so a pre-existing ledger is fine and any
+        # actual write — new file, or a rewritten ledger — is caught.
+        repo_touched = changes(before_repo, after_repo)
+        checks.append(("--limits-show wrote nothing into the repo",
+                       not repo_touched, ", ".join(repo_touched[:4])))
+        clone_touched = changes(before_clone, after_clone)
+        checks.append(("any state it did write landed in the working dir",
+                       all(c.startswith("session.json") for c in clone_touched),
+                       ", ".join(clone_touched) or "(nothing)"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

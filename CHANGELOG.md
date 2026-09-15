@@ -6,6 +6,37 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.7 — 2026-09-15
+
+### Fixed — a test that only passed on a machine that never used the box
+
+`tests/test_wrapper_cli.py` asserted that `--limits-show` didn't write into the repo with
+
+```python
+not os.path.exists(os.path.join(ROOT, "session.json"))
+```
+
+That is a **proxy**, not the property. `session.json` is the session ledger, and a real run whose
+working directory is the clone leaves one there — so the suite failed, permanently and reproducibly,
+on the author's own bench (where patterns run constantly) while passing on any clean checkout. Green
+only where nobody has ever driven the box: **the v3.2.1 bug inverted.** Introduced in v3.2.3 by me,
+in the same commit that added the check.
+
+Now the test snapshots the whole repo tree (path, size, mtime) before and after the `--limits-show`
+run and compares. A pre-existing ledger is fine; a new file, a rewritten ledger, or any other write
+is caught and named. It also asserts the inverse — that whatever state the run *does* touch landed in
+the configured working directory, not the repo.
+
+### Verified
+- Reproduced first: with a ledger sitting in the repo (as on the bench), the old check failed and the
+  suite exited 1.
+- Mutation-tested the replacement rather than trusting it: injecting a `touch` into the
+  `--limits-show` path makes the suite fail and name `MUTATION-PROOF`; reverting the injection
+  restores a pass. A check that cannot fail is not a check.
+- Passes both with a ledger present and on a clean tree.
+
+---
+
 ## v3.2.6 — 2026-09-15
 
 ### Added — `battery.report_below_percent`, and the noise it replaces
