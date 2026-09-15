@@ -19,6 +19,16 @@ PY=${K250_PY:-"${K250_DIR:-$HOME/k250}/venv/bin/python"}
 PLAY="${K250_DIR:-$HOME/k250}/k250_play.py"
 DEFAULT_LIMITS="${K250_LIMITS:-${K250_DIR:-$HOME/k250}/limits.json}"
 
+# resolve our own location so a clone works from anywhere (bin/ -> repo root)
+SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "$HOME/k250")"
+if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
+  PY="${K250_PY:-$HERE/venv/bin/python}"
+  PLAY="$HERE/k250_play.py"
+  DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.local.json}"
+  [ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.json}"
+fi
+
 if [ $# -eq 0 ]; then
   exec "$PY" "$PLAY" --help
 fi
@@ -52,18 +62,25 @@ except Exception as e:
     print(f"could not read limits file: {e}", file=sys.stderr)
     sys.exit(1)
 p = d.get("power", {})
-print(p.get("max_percent", 50), p.get("default_percent", 38), d.get("stop_word", "red"))
+mv = d.get("movement", {})
+sp = d.get("speed", {})
+print(p.get("max_percent", 50), p.get("default_percent", 38), d.get("stop_word", "red"),
+      mv.get("max_percent_per_second", 0), sp.get("max", 2500))
 EOF
 )
 CAP=$(echo "$READ" | cut -d' ' -f1)
 DEF=$(echo "$READ" | cut -d' ' -f2)
 STOP=$(echo "$READ" | cut -d' ' -f3)
+RATE=$(echo "$READ" | cut -d' ' -f4)
+SMAX=$(echo "$READ" | cut -d' ' -f5)
 
 if [ "$1" = "--limits-show" ]; then
-  echo "limits file : $LIMITS"
-  echo "power cap   : ${CAP}%   (engine will not write above this)"
-  echo "default pw  : ${DEF}%"
-  echo "stop word   : $STOP"
+  echo "limits file   : $LIMITS"
+  echo "power ceiling : ${CAP}%   (engine will not write above this)"
+  echo "start level   : ${DEF}%"
+  echo "dial movement : ${RATE}%/second  (0 = unlimited)"
+  echo "multi adjust  : up to ${SMAX}   (frequency / character)"
+  echo "stop word     : $STOP"
   exit 0
 fi
 
@@ -92,5 +109,17 @@ else
 fi
 EFF=$(printf '%.0f' "$EFF")
 
-echo "limits: $(basename "$LIMITS")  cap=${CAP}%  effective_hardcap=${EFF}%  stop_word=${STOP}" >&2
-exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF"
+# Multi Adjust: the limits file caps it too (frequency / character)
+MA_TOP=""
+for i in "${!FWD[@]}"; do
+  if [ "${FWD[$i]}" = "--ma-top" ]; then MA_TOP="${FWD[$((i+1))]}"; fi
+done
+if [ -z "$MA_TOP" ]; then
+  EFF_MA="$SMAX"
+else
+  EFF_MA=$("$PY" -c "print(min(float('$MA_TOP'), float('$SMAX')))")
+fi
+EFF_MA=$(printf '%.0f' "$EFF_MA")
+
+echo "limits: $(basename "$LIMITS")  power_cap=${CAP}%  effective=${EFF}%  movement=${RATE}%/s  ma_cap=${EFF_MA}  stop_word=${STOP}" >&2
+exec "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --max-rate "$RATE" --ma-top "$EFF_MA"

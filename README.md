@@ -173,12 +173,33 @@ FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
 ## Install
 
 ```bash
-python3 -m venv venv && ./venv/bin/pip install bleak
-cp limits.json limits.json.bak          # it's yours; edit it
-ln -sf "$PWD"/k250-scene "$PWD"/k250-stop "$PWD"/k250-status ~/.local/bin/
+./install.sh          # venv + bleak, links the tools into ~/.local/bin, writes limits.local.json
 ```
 
-`limits-form.html` opens in any browser — no server, no build step.
+Then edit `limits.local.json` (or regenerate it from `limits-form.html`) and:
+
+```bash
+k250-status
+k250-scene speed_sweep --base 5 --secs 60
+```
+
+**Layout:** everything lives in this one folder — the modules are flat because they import each
+other by name, and `bin/` holds the three shell tools that get symlinked onto your PATH. That's the
+whole structure; there's nothing to build and no server to run.
+
+## The three controls
+
+| control | what it is | limit in `limits.json` |
+|---|---|---|
+| **Power** | the level | `power.max_percent` (enforced in code) |
+| **Multi Adjust** | the *character* — fast buzz → slow heavy thump. Not the level | `speed.max` |
+| **Movement** | how fast power may change — smooth glides vs snappy/chop | `movement.max_percent_per_second` |
+
+The third one is the least obvious and the easiest to get wrong. A ceiling that's perfectly safe
+can still hurt you if it's reached in one jump, so movement is limited separately from level. (The
+box's own screen labels the second control "Multi Adjust" and the app calls it "speed" internally
+— it's one control. The third physical slider, **SO / Smooth Operator**, is *not* in the BLE
+protocol at all, so it can only be set by hand.)
 
 ## Roadmap / ideas
 

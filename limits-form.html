@@ -3,155 +3,195 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>K250-4S — limits builder</title>
+<title>K250 — set your limits</title>
 <style>
-  :root { --bg:#111417; --card:#181d21; --line:#2a3238; --fg:#e7edf1; --mut:#8fa0ab; --acc:#e0a45e; --warn:#e07a5f; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap { max-width:820px; margin:0 auto; padding:28px 20px 80px; }
-  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
-  .sub { color:var(--mut); margin-bottom:24px; font-size:13px; }
-  fieldset { border:1px solid var(--line); border-radius:10px; background:var(--card); margin:0 0 16px; padding:16px 18px 18px; }
-  legend { color:var(--acc); font-size:12px; text-transform:uppercase; letter-spacing:.08em; padding:0 6px; }
-  .row { display:flex; align-items:center; gap:14px; margin:12px 0; }
-  .row label { flex:0 0 220px; color:var(--mut); font-size:13px; }
-  .row .val { flex:0 0 66px; text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-  input[type=range] { flex:1; accent-color:var(--acc); }
-  input[type=text], input[type=number] { background:#0e1114; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:6px 9px; font:inherit; }
-  .chk { display:flex; gap:10px; align-items:flex-start; margin:9px 0; }
-  .chk input { margin-top:3px; accent-color:var(--acc); }
-  .chk span { font-size:13px; color:var(--mut); }
-  .warnbox { border-left:3px solid var(--warn); background:#1d1714; padding:10px 14px; border-radius:6px; font-size:13px; color:#f0d9cf; margin:14px 0 0; }
-  .hero { display:flex; gap:18px; align-items:baseline; padding:14px 18px; background:linear-gradient(180deg,#1d242a,#181d21); border:1px solid var(--line); border-radius:10px; margin-bottom:16px; }
-  .hero b { font-size:34px; font-variant-numeric:tabular-nums; color:var(--acc); }
-  .hero .lbl { color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-  textarea { width:100%; height:300px; background:#0e1114; border:1px solid var(--line); color:#cfe3ee; border-radius:8px; padding:12px; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  button { background:var(--acc); color:#1a1206; border:0; border-radius:7px; padding:10px 16px; font:600 14px inherit; cursor:pointer; margin-right:8px; }
-  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
-  .seg { color:var(--mut); font-size:12px; margin:6px 0 0; }
+  :root{
+    --bg:#0f1214; --card:#161b1e; --line:#242c31; --fg:#e9eef2; --mut:#8b9aa4;
+    --acc:#e0a45e; --ok:#7fb069; --warn:#c9705a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:40px 22px 90px}
+  header{margin-bottom:28px}
+  h1{margin:0 0 6px;font-size:27px;letter-spacing:-.02em}
+  .lede{color:var(--mut);font-size:15px}
+  .risk{border-left:3px solid var(--warn);background:#1c1614;border-radius:0 8px 8px 0;
+        padding:14px 18px;margin:22px 0 30px;font-size:14px;color:#e8d5cd}
+  .risk b{color:#f3b9a4}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:20px 22px;margin-bottom:16px}
+  .card h2{margin:0 0 3px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+  .card p.hint{margin:0 0 18px;color:var(--mut);font-size:13.5px}
+  .ctrl{margin:16px 0}
+  .ctrl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .ctrl label{font-size:14px}
+  .ctrl .num{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;color:var(--fg)}
+  input[type=range]{width:100%;accent-color:var(--acc);height:26px}
+  .ends{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:-4px}
+  .row{display:flex;gap:12px;align-items:center;margin:12px 0}
+  .row label{flex:0 0 190px;font-size:14px;color:var(--mut)}
+  input[type=text],input[type=number]{background:#0b0e10;border:1px solid var(--line);
+      color:var(--fg);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px}
+  .chk{display:flex;gap:11px;align-items:flex-start;margin:11px 0;font-size:14px}
+  .chk input{margin-top:4px;accent-color:var(--acc);width:16px;height:16px}
+  .chk span{color:#c3ced5}
+  .kill{border-left:3px solid var(--ok);background:#141a15;border-radius:0 8px 8px 0;
+        padding:13px 17px;margin-top:16px;font-size:14px;color:#cfe0cb}
+  .out{margin-top:26px}
+  .btns{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  button{border:0;border-radius:9px;padding:12px 20px;font:600 14.5px inherit;cursor:pointer}
+  .primary{background:var(--acc);color:#1b1206}
+  .ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  textarea{width:100%;height:290px;background:#0b0e10;border:1px solid var(--line);
+           border-radius:10px;padding:14px;color:#cfe3ee;
+           font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+  .save{color:var(--mut);font-size:13px;margin-top:10px}
+  code{background:#0b0e10;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>K250-4S — limits builder</h1>
-  <div class="sub">Build a <code>limits.json</code>. The engine clamps every write to <b>max power</b> here, in code — a driver cannot exceed it by typo, drift, or persuasion.</div>
+  <header>
+    <h1>K250 — set your limits</h1>
+    <div class="lede">Three controls. Decide them now, while you're calm, and they get enforced in code.</div>
+  </header>
 
-  <div class="warnbox" style="margin:0 0 16px">
-    <b>USE AT YOUR OWN RISK.</b> The K250-4S is a high-power e-stim device and its own manual says
-    so. This page makes it <i>controllable</i>, not <i>safe</i>. <b>Start low and build.</b>
-    <b>Percentages do not transfer between pad placements</b> — outer skin on limbs is far less
-    sensitive than far more sensitive skin, so 38% on a forearm and 38% on a far more sensitive site are neither the same
-    sensation nor the same risk. Decide ceilings calm, before a scene; never renegotiate mid-scene.
+  <div class="risk">
+    <b>At your own risk.</b> The K250-4S is a high-power e-stim device — its own manual says so.
+    This page makes it <i>controllable</i>, not safe. Start low and build up slowly.
+    <b>Numbers don't transfer between pad placements:</b> outer skin on arms or torso is far less
+    sensitive than far more sensitive skin, so the same percentage is a different sensation — and a different
+    risk — somewhere else.
   </div>
 
-  <div class="hero">
-    <div><div class="lbl">Engine will not exceed</div><b id="heroCap">50%</b></div>
-    <div><div class="lbl">Stop word</div><b id="heroStop" style="font-size:22px">red</b></div>
+  <div class="card">
+    <h2>1 · Power</h2>
+    <p class="hint">The level. How hard it drives, from nothing to the top of the range.</p>
+    <div class="ctrl">
+      <div class="top"><label for="cap">Hard ceiling — it can never go above this</label><span class="num" id="capV">10%</span></div>
+      <input type="range" id="cap" min="1" max="100" value="10">
+      <div class="ends"><span>1%</span><span>100%</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="top"><label for="def">Where a session starts</label><span class="num" id="defV">5%</span></div>
+      <input type="range" id="def" min="1" max="100" value="5">
+      <div class="ends"><span>1%</span><span>100%</span></div>
+    </div>
   </div>
 
-  <fieldset>
-    <legend>Power</legend>
-    <div class="row"><label>Hard ceiling — max percent</label><input type="range" id="cap" min="1" max="100" value="10"><div class="val" id="capV">10%</div></div>
-    <div class="row"><label>Starting level</label><input type="range" id="def" min="1" max="100" value="5"><div class="val" id="defV">5%</div></div>
-    <div class="row"><label>Pleasure band — low</label><input type="range" id="plo" min="0" max="100" value="5"><div class="val" id="ploV">5%</div></div>
-    <div class="row"><label>Pleasure band — high</label><input type="range" id="phi" min="0" max="100" value="10"><div class="val" id="phiV">10%</div></div>
-    <div class="seg">Above the pleasure band reads as pain. That can be wanted — but it should be a deliberate, spoken choice, not drift.</div>
-  </fieldset>
+  <div class="card">
+    <h2>2 · Multi Adjust <span style="text-transform:none;color:var(--mut);font-weight:400">— the character</span></h2>
+    <p class="hint">Not the level — the <i>feel</i>. Low is a fast buzz. High is slow, heavy thumps.
+      The same power feels completely different across this range, which is the whole trick of the box.</p>
+    <div class="ctrl">
+      <div class="top"><label for="smax">Highest setting allowed</label><span class="num" id="smaxV">25</span></div>
+      <input type="range" id="smax" min="0" max="10000" step="100" value="2500">
+      <div class="ends"><span>0 — fastest buzz</span><span>100 — slowest thump</span></div>
+    </div>
+  </div>
 
-  <fieldset>
-    <legend>Speed (Multi Adjust)</legend>
-    <div class="row"><label>Speed ceiling</label><input type="range" id="smax" min="0" max="10000" step="100" value="2500"><div class="val" id="smaxV">25</div></div>
-    <div class="seg">0 = fastest buzz · 25 = slow heavy thump · period in seconds ≈ value ÷ 10000.</div>
-  </fieldset>
+  <div class="card">
+    <h2>3 · Movement <span style="text-transform:none;color:var(--mut);font-weight:400">— how the dial moves</span></h2>
+    <p class="hint">How fast power is allowed to change. Low is smooth, gliding, gradual; high lets it
+      snap and chop. A safe ceiling reached in one jump can still hurt — this is the limit that stops that.</p>
+    <div class="ctrl">
+      <div class="top"><label for="rate">Dial movement</label><span class="num" id="rateV">25%/s</span></div>
+      <input type="range" id="rate" min="0" max="100" value="25">
+      <div class="ends"><span>0 — instant (no limit)</span><span>100 — very smooth</span></div>
+    </div>
+  </div>
 
-  <fieldset>
-    <legend>Session</legend>
-    <div class="row"><label>Max duration (seconds)</label><input type="number" id="dur" value="600" min="30" max="7200" style="width:110px"></div>
-    <div class="row"><label>Stop word</label><input type="text" id="stop" value="red" style="width:140px"></div>
-    <div class="chk"><input type="checkbox" id="speak" checked><span>Wearer must be able to speak / report. If they can't, hold the ceiling and prefer <i>longer</i> over <i>harder</i>.</span></div>
-  </fieldset>
+  <div class="card">
+    <h2>Session &amp; safety</h2>
+    <div class="row"><label for="stop">Stop word</label><input type="text" id="stop" value="red" style="width:150px"></div>
+    <div class="row"><label for="dur">Longest single session (seconds)</label><input type="number" id="dur" value="600" min="30" max="7200" style="width:120px"></div>
+    <div class="chk"><input type="checkbox" id="mains" checked><span>Never while plugged into mains power — the manual's own rule.</span></div>
+    <div class="chk"><input type="checkbox" id="loops" checked><span>Loops and pads kept loose. Circulation at the electrode is the one thing here that can cause real injury.</span></div>
+    <div class="chk"><input type="checkbox" id="chest" checked><span>No pad path across the chest or through the heart.</span></div>
+    <div class="chk"><input type="checkbox" id="skin" checked><span>Check the skin under the pads after every session.</span></div>
+    <div class="chk"><input type="checkbox" id="speak" checked><span>Whoever's wearing it must be able to speak or signal. If they can't, hold the ceiling and go longer, not harder.</span></div>
+    <div class="kill"><b>Hardware kill switch —</b> hold any knob on the box for 2 seconds and it powers
+      off. Give that to whoever is in the room. It works with no software and no network.</div>
+  </div>
 
-  <fieldset>
-    <legend>Non-negotiables</legend>
-    <div class="chk"><input type="checkbox" id="mains" checked><span>Never play while connected to mains power (device manual's own rule — surge risk).</span></div>
-    <div class="chk"><input type="checkbox" id="loops" checked><span>Loops/pads loose — circulation at the pads is the one thing that can genuinely injure.</span></div>
-    <div class="chk"><input type="checkbox" id="chest" checked><span>No pad path across the chest / through the heart.</span></div>
-    <div class="chk"><input type="checkbox" id="skin" checked><span>Skin check under the pads after every session.</span></div>
-    <div class="warnbox">Hardware kill switch: <b>hold any knob on the box for 2 seconds and it powers off.</b> Give that to whoever is in the room. It needs no software, no network, and no AI.</div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Output</legend>
-    <button id="gen">Generate limits.json</button>
-    <button class="ghost" id="dl">Download</button>
-    <button class="ghost" id="copy">Copy</button>
-    <textarea id="out" spellcheck="false"></textarea>
-    <div class="seg">Save as <code>limits.json</code> next to the tools, then: <code>k250-scene speed_sweep --base 38 --secs 90</code></div>
-  </fieldset>
+  <div class="out">
+    <div class="btns">
+      <button class="primary" id="dl">Download limits.json</button>
+      <button class="ghost" id="copy">Copy</button>
+      <button class="ghost" id="regen">Refresh preview</button>
+    </div>
+    <textarea id="out" spellcheck="false" readonly></textarea>
+    <div class="save">Save it as <code>limits.json</code> next to the tools, then run
+      <code>k250-scene speed_sweep --base 5 --secs 60</code> — the engine clamps to it automatically.</div>
+  </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const ids = ['cap','def','plo','phi','smax'];
-const one = v => Math.round(v/100);
-function sync() {
-  $('capV').textContent = $('cap').value + '%';
-  $('defV').textContent = $('def').value + '%';
-  $('ploV').textContent = $('plo').value + '%';
-  $('phiV').textContent = $('phi').value + '%';
-  $('smaxV').textContent = one($('smax').value);
-  $('heroCap').textContent = $('cap').value + '%';
-  $('heroStop').textContent = $('stop').value || '—';
-  if (+$('def').value > +$('cap').value) $('def').value = $('cap').value;
-  $('defV').textContent = $('def').value + '%';
-}
-ids.forEach(i => $(i).addEventListener('input', sync));
-$('stop').addEventListener('input', sync);
 
-function build() {
-  const o = {
-    _comment: "K250-4S driving limits. The engine clamps every power write to power.max_percent in CODE. Raise it only on an explicit, spoken request from the wearer in that session.",
+function read(){
+  const cap = +$('cap').value, def = Math.min(+$('def').value, cap);
+  $('capV').textContent = cap + '%';
+  $('defV').textContent = def + '%';
+  $('smaxV').textContent = Math.round(+$('smax').value / 100);
+  const r = +$('rate').value;
+  $('rateV').textContent = r === 0 ? 'no limit' : r + '%/s';
+  return {cap, def, smax:+$('smax').value, rate:r};
+}
+
+function build(){
+  const v = read();
+  return JSON.stringify({
+    _comment: "K250-4S driving limits. The engine refuses to write power above power.max_percent, clamps Multi Adjust to speed.max, and limits how fast power may change to movement.max_percent_per_second. Generated by limits-form.html.",
     version: 1,
-    profile: "default",
-    disclaimer: "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device. This file makes it controllable, not safe. START LOW AND BUILD. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: 38% on a forearm and 38% on a far more sensitive site are neither the same sensation nor the same risk -- use another site and you start again from zero. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE. If it burns rather than stings, stop. Calibrated on one body, one placement.",
-    stop_word: $('stop').value || 'red',
+    profile: "custom",
+    disclaimer: "USE AT YOUR OWN RISK. High-power e-stim device; this file makes it controllable, not safe. START LOW AND BUILD. Percentages DO NOT TRANSFER between pad placements. Never a pad path across the chest/heart. Never on broken, numb or irritated skin. Never while on mains power. Keep loops loose. If it burns rather than stings, stop. Decide ceilings calm and before a scene, never mid-scene. The wearer's stop word and the box's hardware kill switch override this file.",
+    stop_word: $('stop').value.trim() || 'red',
     power: {
-      max_percent: +$('cap').value,
-      default_percent: +$('def').value,
-      pleasure_band: [+$('plo').value, +$('phi').value],
-      note: "Above the pleasure band reads as pain, which can be wanted but must be deliberate."
+      max_percent: v.cap,
+      default_percent: v.def,
+      note: "Never above max_percent. Raise it only on an explicit, spoken request from the wearer, and never mid-scene."
     },
     speed: {
-      max: +$('smax').value,
-      note: "Multi Adjust. 0 = fastest buzz, max = slow heavy thump. Period seconds ~= value/10000."
+      max: v.smax,
+      note: "Multi Adjust — the character, not the level. 0 = fastest buzz, higher = slower heavier thumps (period in seconds ~= value/10000)."
     },
-    channels: { mode: "auto", allowed: [1,2,3,4],
-      note: "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused." },
-    session: {
-      max_duration_s: +$('dur').value,
-      require_wearer_able_to_speak: $('speak').checked
+    movement: {
+      max_percent_per_second: v.rate,
+      note: "How fast POWER may change — smooth glides vs snappy/chop. 0 = no limit. Power only; frequency steps stay instant."
     },
+    channels: { mode:"auto", allowed:[1,2,3,4],
+      note:"auto = drive whatever the box reports as plugged in. Unplugged channels are refused by the box." },
+    session: { max_duration_s:+$('dur').value, require_wearer_able_to_speak:$('speak').checked },
     safety: {
-      no_mains_power: $('mains').checked,
-      loops_loose: $('loops').checked,
-      no_chest_or_cross_heart_path: $('chest').checked,
-      skin_check_after: $('skin').checked
+      no_mains_power:$('mains').checked,
+      loops_loose:$('loops').checked,
+      no_chest_or_cross_heart_path:$('chest').checked,
+      skin_check_after:$('skin').checked
     },
     physical_kill_switch: {
-      device: "hold any knob on the box for 2 seconds -> powers off",
-      note: "Give this to whoever is physically present. Works with no software in the loop."
+      device:"hold any knob on the box for 2 seconds -> powers off",
+      note:"Give this to whoever is physically present. Needs no software in the loop."
     }
-  };
-  return JSON.stringify(o, null, 2);
+  }, null, 2);
 }
-$('gen').onclick = () => { $('out').value = build(); };
-$('copy').onclick = async () => { $('out').value = build(); try { await navigator.clipboard.writeText($('out').value); $('copy').textContent = 'Copied'; setTimeout(()=>$('copy').textContent='Copy',1200);} catch(e){} };
+
+['cap','def','smax','rate'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
+$('stop').addEventListener('input', () => $('out').value = build());
+$('regen').onclick = () => { $('out').value = build(); };
+$('copy').onclick = async () => {
+  $('out').value = build();
+  try { await navigator.clipboard.writeText($('out').value);
+        $('copy').textContent = 'Copied'; setTimeout(()=>$('copy').textContent='Copy',1200); } catch(e){}
+};
 $('dl').onclick = () => {
   const b = new Blob([build()], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(b); a.download = 'limits.json'; a.click();
 };
-sync(); $('out').value = build();
+read(); $('out').value = build();
 </script>
 </body>
 </html>

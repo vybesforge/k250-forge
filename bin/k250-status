@@ -5,5 +5,7 @@
 # NOTE: PW (power) is NOT reported by the box in a read-all — it is only echoed
 # when written. So "power" never appears here even while the box is running.
 # The one honest witness that power is flowing is the operator.
-exec "${K250_PY:-${K250_DIR:-$HOME/k250}/venv/bin/python}" \
-     "${K250_DIR:-$HOME/k250}/k250_status.py"
+SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/k250}")"
+DIR="${K250_DIR:-$HERE}"
+exec "${K250_PY:-$DIR/venv/bin/python}" "$DIR/k250_status.py"

@@ -157,6 +157,8 @@ async def main():
     ap.add_argument("--set", default="tour", choices=sorted(SETLISTS))
     ap.add_argument("--ma-top", type=float, default=2500.0)
     ap.add_argument("--sweep-period", type=float, default=8.0)
+    ap.add_argument("--max-rate", type=float, default=0.0,
+                    help="max POWER movement, percent per second (0 = unlimited)")
     a = ap.parse_args()
     setlist = SETLISTS[a.set]
 
@@ -177,6 +179,7 @@ async def main():
               flush=True)
 
         pl = Player(k, a.hardcap)
+        pl.max_rate = a.max_rate
 
         def abort(*_):
             pl.stop = True

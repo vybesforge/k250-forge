@@ -51,6 +51,30 @@ class Player:
         self.channels = [0]           # live channels (set by detect_channels)
         self._ch = None
         self.deadline = None          # absolute time the run must end by
+        self.max_rate = 0.0           # max POWER change, percent per second (0 = unlimited)
+        self._last_p = None
+        self._last_t = None
+
+    def _slew(self, p: float) -> float:
+        """Limit how fast POWER may move, in percent per second.
+
+        Distinct from the ceiling: a slow ceiling reached in one jump still
+        hurts. Only power is rate-limited -- frequency (MA) jumps are the
+        point of several patterns and must stay instant."""
+        if self.max_rate <= 0:
+            return p
+        now = time.time()
+        if self._last_p is None:
+            self._last_p, self._last_t = p, now
+            return p
+        dt = max(now - self._last_t, 1e-6)
+        allowed = self.max_rate * dt
+        if p > self._last_p + allowed:
+            p = self._last_p + allowed
+        elif p < self._last_p - allowed:
+            p = self._last_p - allowed
+        self._last_p, self._last_t = p, now
+        return p
 
     async def read_state(self, key: str, timeout: float = 3.0):
         """Ask the box for one key and wait for the reply. Returns None on timeout."""
@@ -99,6 +123,7 @@ class Player:
         one channel is live we select-and-write each in turn. Every pattern
         therefore drives all plugged channels without knowing about them."""
         p = max(0.0, min(p, self.hardcap))
+        p = self._slew(p)
         v = pct(p)
         for ch in self.channels:
             await self.select(ch)
@@ -756,6 +781,8 @@ async def main():
                     help="apex of the speed axis (MA value, 2500 = '25')")
     ap.add_argument("--sweep-period", type=float, default=8.0,
                     help="seconds per full speed sweep")
+    ap.add_argument("--max-rate", type=float, default=0.0,
+                    help="max POWER movement in percent per second (0 = unlimited)")
     a = ap.parse_args()
     if a.pattern not in PATTERNS:
         print("patterns:", ", ".join(PATTERNS))
@@ -778,6 +805,7 @@ async def main():
         pl = Player(k, a.hardcap)
         pl.ma_top = a.ma_top
         pl.sweep_period = a.sweep_period
+        pl.max_rate = a.max_rate
         live = await pl.detect_channels()
         log(f"live channels: {[c + 1 for c in live]}")
         pl.deadline = time.time() + a.secs

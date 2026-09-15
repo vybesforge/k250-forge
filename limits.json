@@ -17,7 +17,12 @@
 
   "speed": {
     "max": 25,
-    "note": "Multi Adjust. 0 = fastest buzz, 25 = slow heavy thump. Period in seconds ~= value/10000. Usable band for most work is 0-25; past ~35 it thins out."
+    "note": "Multi Adjust. 0 = fastest buzz, 25 = slow heavy thump. Period in seconds ~= value/10000. Usable band for most work is 0-25; past ~35 it thins out. (The box labels this 'Multi Adjust'; the app calls it 'speed' internally -- it is ONE control, and it changes CHARACTER, not level.)"
+  },
+
+  "movement": {
+    "max_percent_per_second": 25,
+    "note": "How fast POWER is allowed to move -- the dial movement, the third control. Low = smooth glides, high = snappy/chop. 0 = unlimited. This is NOT the same limit as the ceiling: a safe ceiling reached in one jump still hurts. Only power is rate-limited; frequency jumps stay instant because several patterns depend on them."
   },
 
   "pattern_notes": {

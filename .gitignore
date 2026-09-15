@@ -10,3 +10,5 @@ manual.txt
 manual*.txt
 *.bak
 *.bak.*
+limits.local.json
+limits.json.new
