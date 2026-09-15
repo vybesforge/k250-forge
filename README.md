@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.1** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.2** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -252,6 +252,7 @@ tests/                        four suites, all runnable from any clone:
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
   test_write_policy.py          redundant power writes are skipped, but never unsafely
   test_portability.py           nothing shipped points at the author's machine
+agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
 ```
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
@@ -378,6 +379,9 @@ the whole design. Two rules any skill must carry, in the skill itself:
 2. **No sensation means stop and check the loop — never more power.** A bad connection concentrates
    current into a smaller area, and that is what burns people.
 
+Both are already written that way in **[`agent-skill/SKILL.md`](agent-skill/SKILL.md)** — a
+complete, portable operator skill you can copy into your agent's skills directory as-is.
+
 The session budget is enforced the same way: `k250_session.py` refuses to start once
 `session.max_duration_s` is spent, whoever is asking.
 
@@ -401,10 +405,12 @@ Two things worth knowing about this arrangement:
 - **The agent does not need to be trusted, because the ceiling is not in its hands.** It clamps in
   `limits.json` no matter what the agent asks for. That is the point of shipping a limits file
   rather than a paragraph of good intentions.
-- **Nothing here is a skill that a harness auto-loads.** An agent gets this by *reading* the README
-  and following it — so if your agent can browse a repo and run shell commands, this is enough. If
-  you want it as a loadable skill, the **For an AI agent** table above is the material; the two
-  rules at the end of it are the parts that must survive the port.
+- **The skill is in the repo, not just described here.** [`agent-skill/SKILL.md`](agent-skill/SKILL.md)
+  is a self-contained operator skill: the two hard rules, the limits contract, the tool table and the
+  protocol traps. Copy that folder into whatever your agent auto-loads, or paste it into a system
+  prompt. An agent that can only *read* a repo still gets everything from this README — but if you
+  want it as a loadable skill, that file is the skill, and it is the same one the author drives the
+  box with.
 
 ## The three controls
 
@@ -464,11 +470,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.1** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.2** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1`, `v3.2.2` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags

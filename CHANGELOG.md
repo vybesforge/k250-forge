@@ -6,6 +6,35 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.2 — 2026-09-15
+
+### Fixed — a claim in this changelog that could not be checked
+
+v3.0 said the "feels nothing" correction had landed "in the README, and in both operator skills."
+An agent auditing a clean checkout went looking for those skills and found none — correctly, because
+they are **Hermes-profile skills on the author's operator box** (`kink-k250-ble` in the default
+profile, `pepper-k250` in another), not files in this repo. The correction genuinely is in both of
+them, verified; the changelog simply cited something a reader can never see. That is the same class
+of defect as a hardcoded path: true where it was written, unverifiable everywhere else.
+
+Two changes, so the claim is now checkable:
+
+- **`agent-skill/SKILL.md` ships in the repo** — a portable operator skill, meant to be copied into
+  an agent's skills directory. It carries the two hard rules verbatim (stop word ends everything
+  instantly; no sensation means power **down** and check the loop, never more power), the limits
+  contract, the tool table including the Windows path, and the protocol traps that look like bugs.
+  The README's "For an AI agent" section was material *for* a skill; this is the skill.
+- **The v3.0 line is corrected in place** with the note above, rather than quietly reworded. Reading
+  the changelog top to bottom should tell you what was believed and when it changed.
+
+### Verified
+- The correction really is present in both operator skills (quoted from the files, not remembered).
+- `agent-skill/SKILL.md` parses as a valid skill: name, description, version in the frontmatter, and
+  both hard rules present verbatim.
+
+---
+
+
 ## v3.2.1 — 2026-09-15
 
 ### Fixed — found by an agent doing a clean checkout on macOS
@@ -131,7 +160,11 @@ Session budget, the limits-page rebuild, and several safety corrections.
   *longer, not harder*. In practice no sensation usually means a bad connection, and more power into
   a loose or half-attached pad concentrates the current into a smaller area — that is what burns
   people. The rule now reads: **power down first, then check the loop.** Corrected on the page, in
-  the generated JSON, in the README, and in both operator skills.
+  the generated JSON, in the README, and in both operator skills *(clarification added in v3.2.2:
+  "both operator skills" meant the two Hermes-profile skills on the author's own operator box —
+  `kink-k250-ble` and `pepper-k250` — which were **never** part of this repo, so from a clone that
+  claim could not be checked at all. The portable, in-repo version of that skill is now
+  [`agent-skill/SKILL.md`](agent-skill/SKILL.md).)*
 - **Pattern changes are handled in code, not assumed away.** `set_pattern()` now drops the frequency
   cache — otherwise `ma()` skips the re-send and leaves the channel silently at its zeroed frequency
   — and seeds the slew state with zero, because clearing it let the next write pass through

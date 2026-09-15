@@ -95,6 +95,28 @@ def main():
     finally:
         sys.path[:] = saved
 
+    # 6. the shipped operator skill exists, is loadable-shaped, and still carries both hard rules.
+    #    The changelog says the rules live in the skill; a claim like that has to be checkable from a
+    #    clone, or it is the same defect as a hardcoded path.
+    skill = os.path.join(ROOT, "agent-skill", "SKILL.md")
+    if os.path.isfile(skill):
+        with open(skill, encoding="utf-8") as fh:
+            sk = fh.read()
+        frontmatter = sk.split("---")[1] if sk.startswith("---") else ""
+        keys = {line.split(":", 1)[0].strip() for line in frontmatter.splitlines() if ":" in line}
+        checks.append(("skill frontmatter has name + description",
+                       {"name", "description"} <= keys, ", ".join(sorted(keys)) or "no frontmatter"))
+        rules = {
+            "stop word ends everything": "stop word ends everything" in sk.lower(),
+            "no sensation -> power down": "never more power" in sk.lower(),
+            "ceiling is clamped in code": "clamped in code" in sk.lower(),
+        }
+        for label, ok in rules.items():
+            checks.append((f"skill carries: {label}", ok, ""))
+        checks.append(("skill names the stop file", "limits.json" in sk, ""))
+    else:
+        checks.append(("agent-skill/SKILL.md present", False, "missing"))
+
     for label, ok, note in checks:
         print(f"  {'ok  ' if ok else 'FAIL'}  {label}" + (f"  — {note}" if note else ""))
         if not ok:
