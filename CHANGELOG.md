@@ -6,6 +6,25 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.15 — 2026-09-15
+
+### Added — a tip cup, and the line in the README
+
+`.github/FUNDING.yml` with Ko-fi, which gives the repo a proper **Sponsor** button (Ko-fi is a
+first-class GitHub funding key, so it gets the logo and the right link rather than a generic custom
+URL). GitHub Sponsors slots in beside it as one added line once that account is enrolled — the two
+coexist behind the same button, which is why setting up one now is not a rework later.
+
+The README says it in the same breath as the licence, and says the important part out loud: nothing
+here is paywalled, nothing will be, and the ceiling clamping works identically whether or not anyone
+ever tips.
+
+Credit where due: the funding button is the one thing in this repo I could not verify from the
+machine — Ko-fi sits behind Cloudflare and answers `403` to anything that isn't a browser, and the
+headless browser gets the interstitial too. The page's existence was confirmed by its owner instead.
+
+---
+
 ## v3.2.14 — 2026-09-15
 
 ### Added — Apache-2.0, and a licence section that explains the choice
