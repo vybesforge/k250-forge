@@ -10,7 +10,7 @@ Two more things on the same path, both fixed here:
   * the interpreter check ran AFTER argument handling, so a missing venv surfaced as
     bash's `line 45: .../venv/bin/python: No such file or directory` instead of the
     "run ./install.sh first" message;
-  * `$HERE` silently fell back to `$HOME/K250-forge` when it could not resolve, so a
+  * `$HERE` silently fell back to `$HOME/k250-forge` when it could not resolve, so a
     wrapper could report a directory that is not the clone as if it were the truth.
 
 Read-only: this test only ever runs `--list` and `--limits-show`, never the engine.
@@ -101,7 +101,7 @@ def main():
     fails = []
     tmp = tempfile.mkdtemp(prefix="k250-cli-")
     try:
-        clone = skeleton(os.path.join(tmp, "K250-forge"))     # note the case
+        clone = skeleton(os.path.join(tmp, "k250-forge"))
         elsewhere = os.path.join(tmp, "elsewhere")
         os.makedirs(elsewhere)
 

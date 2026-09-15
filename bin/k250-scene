@@ -15,9 +15,9 @@
 # One BLE connection at a time: never run two of these at once.
 set -euo pipefail
 
-PY=${K250_PY:-"${K250_DIR:-$HOME/K250-forge}/venv/bin/python"}
-PLAY="${K250_DIR:-$HOME/K250-forge}/k250_play.py"
-DEFAULT_LIMITS="${K250_LIMITS:-${K250_DIR:-$HOME/K250-forge}/limits.json}"
+PY=${K250_PY:-"${K250_DIR:-$HOME/k250-forge}/venv/bin/python"}
+PLAY="${K250_DIR:-$HOME/k250-forge}/k250_play.py"
+DEFAULT_LIMITS="${K250_LIMITS:-${K250_DIR:-$HOME/k250-forge}/limits.json}"
 
 # resolve our own location so a clone works from anywhere (bin/ -> repo root)
 # Resolve this script's real path. `readlink -f` is GNU-only -- macOS and Git Bash
@@ -32,7 +32,7 @@ else
   done
   SELF="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd -P)/$(basename "$SELF")"
 fi
-HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "$HOME/K250-forge")"
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "$HOME/k250-forge")"
 if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
   PY="${K250_PY:-$HERE/venv/bin/python}"
   PLAY="$HERE/k250_play.py"
@@ -42,7 +42,7 @@ fi
 DIR="${K250_DIR:-$HERE}"          # where the modules, the ledger and the helper live
 
 # Bail out LOUDLY if the modules are not there. A silent fallback (`|| echo
-# "$HOME/K250-forge"` above) sends you to a directory that is not your clone and
+# "$HOME/k250-forge"` above) sends you to a directory that is not your clone and
 # then reports that path back as if it were the truth -- which is how a wrapper
 # ends up printing a lowercase path for an uppercase clone, or a path that does
 # not exist at all.

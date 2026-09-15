@@ -84,7 +84,7 @@ def run_old_bash_repo(bash, checks):
     pattern actually launches. This is the check that would have caught the bug."""
     tmp = tempfile.mkdtemp(prefix="k250-bash32-")
     try:
-        clone = os.path.join(tmp, "K250-forge")
+        clone = os.path.join(tmp, "k250-forge")
         shutil.copytree(ROOT, clone, ignore=shutil.ignore_patterns(
             ".git", "venv", "__pycache__", "session.json"))
         elsewhere = os.path.join(tmp, "elsewhere")

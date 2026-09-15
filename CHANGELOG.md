@@ -4,6 +4,42 @@ What changed, and when. Versions are git tags — `v1.0`, `v2.0`, `v3.0` — so 
 version stays readable and runnable forever with `git checkout v1.0`. Nothing is
 deleted or hidden: `main` is the current release, and the tags are the archive.
 
+One exception, written up in v3.2.18 rather than passed over: the repository was
+re-created to take personal detail out of the history that predates v3.2.16. That is the
+only time anything has been removed from this project's record, and the fact that it
+happened is part of the record.
+
+---
+
+## v3.2.18 — 2026-09-15
+
+### Changed — the repository was deleted and re-created, and the name is now lowercase
+
+Rewriting the history (v3.2.16) removed the personal detail from every *reachable* commit, but GitHub
+still served the old blobs by SHA — fetchable through the API and blob URLs, content intact. No SHA
+was discoverable from the repo (no forks, no stars, nothing linking to them), but "not discoverable"
+is not "deleted", so the repository was deleted and re-created instead.
+
+**Lossless, as it turns out:** the same 49 commits and 22 tags went into the new repo, the release
+pages were rebuilt from the same notes, and the description and topics were re-set. What went away is
+exactly what was meant to: the old objects, which die with the deleted repository rather than waiting
+on an unbounded garbage collection.
+
+**The name is now `k250-forge`, all lowercase** — what the clone instructions have always said, and
+what the working directory here has always been called. The v3.2.1 entry below describes a case
+mismatch between the repo name and the README; that mismatch is now fixed at the source rather than
+papered over in the docs, so the entry is left as written: a record of what was true then.
+
+---
+
+## v3.2.17 — 2026-09-15
+
+### Fixed — the changelog quoted what it had just removed
+
+The v3.2.16 entry described the redaction and, in doing so, repeated a couple of the phrases that had
+been taken out. Reworded. (No section was written for this one at the time — the commit message was
+the whole record, which is not the convention here, so it is written up now rather than left out.)
+
 ---
 
 ## v3.2.16 — 2026-09-15

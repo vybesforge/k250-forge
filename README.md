@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.17** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.18** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -275,8 +275,8 @@ dependency, and it speaks to each platform's native Bluetooth stack.
 ### Linux
 
 ```bash
-git clone https://github.com/vybesforge/K250-forge.git
-cd K250-forge
+git clone https://github.com/vybesforge/k250-forge.git
+cd k250-forge
 ./install.sh
 ```
 
@@ -299,7 +299,7 @@ into `~/.local/bin`, and writes a conservative `limits.local.json`.
 ### macOS
 
 ```bash
-git clone https://github.com/vybesforge/K250-forge.git && cd K250-forge
+git clone https://github.com/vybesforge/k250-forge.git && cd k250-forge
 ./install.sh
 ```
 
@@ -323,8 +323,8 @@ newer**, and that is the one thing macOS will not have out of the box. Three got
 In PowerShell, in the folder you want:
 
 ```powershell
-git clone https://github.com/vybesforge/K250-forge.git
-cd K250-forge
+git clone https://github.com/vybesforge/k250-forge.git
+cd k250-forge
 py -3 -m venv venv
 .\venv\Scripts\pip install bleak
 ```
@@ -530,7 +530,7 @@ and the ceiling clamping works identically whether or not anyone ever tips.
 
 ## Versions
 
-Current release: **v3.2.17** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.18** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
