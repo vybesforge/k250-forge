@@ -5,7 +5,18 @@
 # NOTE: PW (power) is NOT reported by the box in a read-all — it is only echoed
 # when written. So "power" never appears here even while the box is running.
 # The one honest witness that power is flowing is the operator.
-SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+# Resolve this script's real path. `readlink -f` is GNU-only -- macOS and Git Bash
+# don't have it, so fall back to a portable symlink walk (readlink alone is POSIX).
+SELF="${BASH_SOURCE[0]}"
+if readlink -f "$SELF" >/dev/null 2>&1; then
+  SELF="$(readlink -f "$SELF")"
+else
+  while [ -L "$SELF" ]; do
+    _t="$(readlink "$SELF")"
+    case "$_t" in /*) SELF="$_t" ;; *) SELF="$(dirname "$SELF")/$_t" ;; esac
+  done
+  SELF="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd -P)/$(basename "$SELF")"
+fi
 HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/k250}")"
 DIR="${K250_DIR:-$HERE}"
 PY="${K250_PY:-$DIR/venv/bin/python}"

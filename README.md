@@ -245,20 +245,126 @@ tests/test_pattern_change.py  regression: a PA change must clear the frequency c
 
 ## Install
 
+**Every platform needs:** Python **3.8+** (3.10+ recommended) with `pip` and `venv`, and working
+Bluetooth LE on the host. That's it — no app, no server, no build step. `bleak` is the only
+dependency, and it speaks to each platform's native Bluetooth stack.
+
+### Linux
+
 ```bash
-./install.sh          # venv + bleak, links the tools into ~/.local/bin, writes limits.local.json
+git clone https://github.com/vybesforge/k250-forge
+cd k250-forge
+./install.sh
 ```
 
-Then edit `limits.local.json` (or regenerate it from `limits-form.html`) and:
+`install.sh` builds a venv, installs `bleak`, symlinks `k250-scene` / `k250-stop` / `k250-status`
+into `~/.local/bin`, and writes a conservative `limits.local.json`.
+
+- Needs **BlueZ running** (`systemctl status bluetooth`) and make sure `~/.local/bin` is on your `PATH`.
+- If scanning finds nothing: `rfkill list`, then say the word — Bluetooth turned off is the usual cause.
+- **Don't run as root.** Root often can't reach BlueZ on a desktop session; your normal user can.
+
+### macOS
 
 ```bash
-k250-status
-k250-scene speed_sweep --base 5 --secs 60
+git clone https://github.com/vybesforge/k250-forge && cd k250-forge
+./install.sh
 ```
 
-**Layout:** everything lives in this one folder — the modules are flat because they import each
-other by name, and `bin/` holds the three shell tools that get symlinked onto your PATH. That's the
-whole structure; there's nothing to build and no server to run.
+macOS needs no extra packages — `bleak` uses CoreBluetooth. Two gotchas:
+
+- **Grant Bluetooth permission** to whatever app runs the commands (Terminal, iTerm, your editor).
+  The prompt appears once on first scan; if it was dismissed, re-enable it in
+  System Settings → Privacy & Security → Bluetooth.
+- `install.sh` links into `~/.local/bin`, which isn't on macOS's `PATH` by default. Add it
+  (`export PATH="$HOME/.local/bin:$PATH"`), or just call the tools as `./venv/bin/python k250_play.py …`.
+
+### Windows
+
+In PowerShell, in the folder you want:
+
+```powershell
+git clone https://github.com/vybesforge/k250-forge
+cd k250-forge
+py -3 -m venv venv
+.\venv\Scripts\pip install bleak
+```
+
+- `bleak` uses the WinRT Bluetooth stack — **no extra drivers**.
+- Turn **Bluetooth on** and make sure the box is awake before scanning.
+- `install.sh` is a bash script and won't run natively. Call the engine directly instead of using the
+  `k250-scene` wrapper:
+
+```powershell
+.\venv\Scripts\python k250_play.py speed_sweep --base 5 --secs 60 --hardcap 5
+.\venv\Scripts\python k250_stop.py
+.\venv\Scripts\python k250_status.py
+```
+
+- Git Bash / WSL works too, and `install.sh` will run there.
+
+### All platforms — the two rules that catch everyone
+
+- **One BLE connection at a time.** Don't pair the box in the OS Bluetooth settings — let the tool
+  scan and connect. If the phone app is connected, nothing here can reach it.
+- **The box only advertises when it's awake and on the right screen**: power on, tap the top-left
+  gear, then the remote-control icon on the right.
+
+## First steps
+
+Do these in order, the first time, with the wearer connected and someone's hand near the box.
+
+1. **Wake the box and enable remote control** (above). It advertises as **`Kx250-4S`**.
+2. **Check it's reachable** — battery, live channels, current pattern:
+   ```bash
+   k250-status
+   ```
+   `CA` shows `Active` for a channel with an electrode attached and `Unplugged` otherwise. That's
+   load detection, not proof that power is flowing.
+3. **Read your limits before you drive anything.** Open `limits.json`, or build one with
+   `limits-form.html`. Know three things: the power ceiling, the stop word, and the session budget.
+4. **Lowest useful first run.** With the wearer able to speak, and the physical kill switch in the
+   room:
+   ```bash
+   k250-scene speed_sweep --base 5 --secs 30
+   ```
+   5% is the shipped default start. It is meant to be barely anything — the point is to prove the
+   path works, not to be a scene.
+5. **Prove the stop works, both ways.** `k250-stop` zeroes every channel immediately and kills any
+   running pattern. Say the stop word out loud, and show everyone how to power the box off by hand
+   (hold any knob ~2 seconds). Do this *before* the first real scene.
+6. **Then build** — up only on the wearer's spoken word, and if they feel nothing, power **down**
+   and check the loop. See the hard stops.
+
+**Layout worth knowing:** everything lives in one folder — the modules are flat because they import
+each other by name, and `bin/` holds the shell tools that get symlinked onto your `PATH`. There is
+nothing to build and no server to run.
+
+## For an AI agent (or anyone writing a skill from this)
+
+Everything an agent needs is in the repo, as plain text. A skill built from this should be able to
+connect, drive, and stop the box without guessing:
+
+| to do this | read this |
+|---|---|
+| Understand the device, and connect to it | **Finding the box** above, and `FINDINGS.md` — the full log, including the dead ends |
+| Talk to it correctly (frames, keys, the 0..10000 scale) | **The protocol** section, and `k250_codec.py` |
+| Know what it must never do | `limits.json` → `safety.hard_stops`, plus **Why the limits file exists** |
+| Drive it | `k250-scene <pattern> --base N --secs N` — the ceiling is **clamped in code**, not requested politely |
+| Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
+| See what's connected | `k250-status` |
+| See what patterns exist | `k250_play.py` → the `PATTERNS` dict |
+
+**Put the safety in the tool, not in the prompt.** The engine clamps to `limits.json` no matter what
+a driver asks for, so an agent cannot exceed the wearer's agreed ceiling even if it tries — that is
+the whole design. Two rules any skill must carry, in the skill itself:
+
+1. **The stop word ends everything instantly**, with no discussion and no check-in afterwards.
+2. **No sensation means stop and check the loop — never more power.** A bad connection concentrates
+   current into a smaller area, and that is what burns people.
+
+The session budget is enforced the same way: `k250_session.py` refuses to start once
+`session.max_duration_s` is spent, whoever is asking.
 
 ## The three controls
 
