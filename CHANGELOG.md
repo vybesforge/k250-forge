@@ -6,6 +6,47 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.9 — 2026-09-15
+
+### Fixed — the install asked for a Python that cannot install the dependency
+
+The README said **Python 3.8+** and `install.sh` checked nothing. `bleak` 3.x declares
+`Requires-Python >=3.10`. So a Linux user on a distro with 3.8 or 3.9 — Ubuntu 20.04, Debian 11 —
+followed the instructions exactly and got:
+
+```
+ERROR: Could not find a version that satisfies the requirement bleak
+```
+
+which reads like a network or PyPI problem, not a version one. That is the precise class of failure
+the preflight section exists to catch, and it was the one thing the preflight didn't check.
+
+- `install.sh` now enforces a **3.10 floor** (`MIN_PY_MAJOR`/`MIN_PY_MINOR` at the top of the file,
+  checked before the venv is built) and says what to do on each platform. Verified by pointing it at
+  a stub `python3` that reports 3.9: it refuses with the explanation above and exits 1.
+- The README's requirement now reads **3.10+**, with the reason stated — it is *bleak's* floor, not a
+  preference.
+- `tests/test_portability.py` now reads the floor out of `install.sh`, compares it against the
+  installed bleak's own `Requires-Python` metadata, and asserts the README states the same number.
+  Three numbers in three places, one check.
+
+### Also, from the Linux install walk-through
+- **The venv is not a style choice.** Debian/Ubuntu/Fedora block `pip install` into the system Python
+  (PEP 668, `externally-managed-environment`); `install.sh` builds its own venv, so anyone who
+  `pip install bleak` system-wide first gets an error that looks unrelated. Now stated.
+- **bash 3.2+** is what `install.sh` and the wrappers need (any distro default; Alpine needs
+  `apk add bash python3 python3-venv`).
+- Everything else in the Linux section held up: BlueZ running, `~/.local/bin` on `PATH`, `rfkill`
+  when scanning finds nothing, and never as root.
+
+### Verified
+- Fresh end-to-end install after the change: `bleak installed (bleak 3.0.2)`, symlinked
+  `k250-scene --list` works from an unrelated directory.
+- The old-Python path: refuses, explains, exits 1.
+- All eight suites pass (portability now 16 checks).
+
+---
+
 ## v3.2.8 — 2026-09-15
 
 ### Fixed — two Windows gaps on the path the README tells Windows users to take

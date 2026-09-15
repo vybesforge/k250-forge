@@ -39,6 +39,11 @@ def shipped_sources():
                 yield os.path.join(dirpath, name)
 
 
+def readme_text():
+    with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as fh:
+        return fh.read()
+
+
 def rel(path):
     return os.path.relpath(path, ROOT)
 
@@ -83,6 +88,38 @@ def main():
             if call in src and guard not in src:
                 posix_bad.append(f"{rel(path)}: {call} without {guard}")
     checks.append(("POSIX-only APIs are guarded", not posix_bad, "; ".join(posix_bad) or "clean"))
+
+    # 1d. the Python floor install.sh enforces must match what bleak actually demands. It was 3.8
+    #     in the README and nothing in the code while bleak declared >=3.10 -- so a Linux user on a
+    #     distro with 3.8/3.9 followed the instructions and got "could not find a version that
+    #     satisfies the requirement bleak", which reads like a network problem.
+    install = os.path.join(ROOT, "install.sh")
+    if os.path.isfile(install):
+        with open(install, encoding="utf-8") as fh:
+            src = fh.read()
+        mj = re.search(r"MIN_PY_MAJOR=(\d+)", src)
+        mn = re.search(r"MIN_PY_MINOR=(\d+)", src)
+        stated = (int(mj.group(1)), int(mn.group(1))) if mj and mn else None
+        checks.append(("install.sh states a minimum Python version", stated is not None, stated or ""))
+        real = None
+        try:
+            from importlib.metadata import metadata
+            req = metadata("bleak")["Requires-Python"] or ""
+            hit = re.search(r">=\s*(\d+)\.(\d+)", req)
+            if hit:
+                real = (int(hit.group(1)), int(hit.group(2)))
+        except Exception:
+            pass
+        if real and stated:
+            checks.append((f"install.sh floor {stated[0]}.{stated[1]} >= bleak's {real[0]}.{real[1]}",
+                           stated >= real, f"{stated} vs {real}"))
+        else:
+            print("  (bleak not installed here — skipped the floor-vs-dependency check)")
+        checks.append(("README states the same floor",
+                       f"{stated[0]}.{stated[1]}" in readme_text() if stated else False,
+                       f"looking for {stated}"))
+    else:
+        checks.append(("install.sh present", False, "missing"))
 
     # 2. every test resolves the package relative to itself, not by literal path
     tests_dir = os.path.join(ROOT, "tests")

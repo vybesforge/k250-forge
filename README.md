@@ -1,6 +1,6 @@
 # k250-forge
 
-**Current release: v3.2.8** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+**Current release: v3.2.9** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
 
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
@@ -264,7 +264,9 @@ Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
 ## Install
 
-**Every platform needs:** Python **3.8+** (3.10+ recommended) with `pip` and `venv`, and working
+**Every platform needs:** Python **3.10+** (that is bleak's own floor, not our preference — 3.8 and
+3.9 will fail at `pip install bleak` with a version error that reads like a network problem), plus
+`pip` and `venv`, and working
 Bluetooth LE on the host. That's it — no app, no server, no build step. `bleak` is the only
 dependency, and it speaks to each platform's native Bluetooth stack.
 
@@ -282,6 +284,11 @@ into `~/.local/bin`, and writes a conservative `limits.local.json`.
 - Needs **BlueZ running** (`systemctl status bluetooth`) and make sure `~/.local/bin` is on your `PATH`.
 - If scanning finds nothing: `rfkill list`, then say the word — Bluetooth turned off is the usual cause.
 - **Don't run as root.** Root often can't reach BlueZ on a desktop session; your normal user can.
+- **The venv is not optional, and not a style choice.** Debian, Ubuntu and Fedora block `pip install`
+  into the system Python (PEP 668, `externally-managed-environment`). `install.sh` builds its own venv,
+  so just don't `pip install bleak` system-wide first — if you already tried, that error is the reason.
+- `install.sh` is bash and needs **bash 3.2 or newer** (any distro's default; on Alpine:
+  `apk add bash python3 python3-venv`). The tools themselves are the same on any of them.
 
 ### macOS
 
@@ -483,11 +490,11 @@ over BLE. It isn't in the protocol.
 
 ## Versions
 
-Current release: **v3.2.8** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+Current release: **v3.2.9** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
 
 You do not need to work out which copy of the code is current. `main` is always the current
 release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0`, `v3.1`,
-`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6`, `v3.2.7`, `v3.2.8` — so an old version is never lost and never in your way:
+`v3.2`, `v3.2.1`, `v3.2.2`, `v3.2.3`, `v3.2.4`, `v3.2.5`, `v3.2.6`, `v3.2.7`, `v3.2.8`, `v3.2.9` — so an old version is never lost and never in your way:
 
 ```bash
 git fetch --tags          # get the tags
