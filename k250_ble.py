@@ -60,7 +60,11 @@ async def main():
     mode = args[0]
     dev = await find()
     if dev is None:
-        print("K250 not found (is the box on and in range?)")
+        print("K250 not found.\n"
+              "  - wake the box: press any knob for ~1 second (side LED glows red)\n"
+              "  - put it on Options -> 'Remote App Control'\n"
+              "  - it advertises as 'Kx250-4S' (not 'k250'), at about -50 dBm up close\n"
+              "  - it only advertises when awake and on that screen")
         return 1
     print("found", dev.address, dev.name)
     async with BleakClient(dev, timeout=30) as cl:

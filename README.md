@@ -85,6 +85,26 @@ and no AI in the loop.
 
 ---
 
+## Finding the box
+
+| | |
+|---|---|
+| **Advertised name** | **`Kx250-4S`** — note it is *not* "k250". Match on this. |
+| **Service UUID** | `086e0000-7935-0d3a-ca91-bfb0c8c34043` (advertised — the most reliable filter) |
+| **Characteristic** | `086e0001-7935-0d3a-ca91-bfb0c8c34043` (read / write / notify) |
+| **Address** | a **random static** LE address, e.g. `AA:BB:CC:11:22:33` — **it changes on power-cycle.** Never hardcode it; `find()` matches address *or* service UUID *or* name, and the UUID is the durable one. |
+| **Signal** | roughly −50 dBm within a couple of metres. If you see it at −90, you're too far. |
+
+**The box only advertises when it's awake and sitting on Options → "Remote App Control"**
+(the button the manual says to press when pairing with the companion app). Asleep, screen off, or
+on any other screen, it is invisible — a scan that finds nothing is almost always this and not a
+code problem. Wake it by pressing any knob for about a second; the side LED glows red.
+
+**What it looks like:** a small black handheld box, four knobs along the front, a colour touchscreen,
+four output jacks on the side for the channel cables, USB-C for charging (charge-only — it does not
+enumerate as a USB device on Linux, so all control is BLE). Radio is an nRF52840 in a Raytac
+MDBT50Q. Firmware in this project's testing: `v1.08--18c4987-250114-01hGMT`.
+
 ## The protocol (what was actually reverse-engineered)
 
 Service `086e0000-7935-0d3a-ca91-bfb0c8c34043`, characteristic

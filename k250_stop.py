@@ -52,7 +52,11 @@ async def main():
 
     dev = await find()
     if dev is None:
-        print("STOP FAILED: K250 not found — box may still be energised!", flush=True)
+        print("STOP FAILED: box not reachable — IT MAY STILL BE ENERGISED!\n"
+              "  Get to it physically and hold any knob for 2 seconds to power it off.\n"
+              "  (If it was asleep it stops advertising: wake it — press a knob ~1 s — and\n"
+              "   put it on Options -> 'Remote App Control', then run k250-stop again.)",
+              flush=True)
         return 1
 
     async with BleakClient(dev, timeout=25) as cl:
