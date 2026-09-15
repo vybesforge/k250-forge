@@ -222,7 +222,13 @@ fi
 START=$(date +%s)
 # K250_WRAPPED=1: the wrapper has already read the limits file and charged the
 # session ledger, so the engine must not do either again on its own.
-K250_WRAPPED=1 "$PY" "$PLAY" "${FWD[@]}" --hardcap "$EFF" --slew "$EFF_SLEW" --frequency "$EFF_FREQ" "${EXTRA[@]}"
+#
+# ${A[@]+"${A[@]}"} -- NOT plain "${A[@]}". Under `set -u`, bash before 4.4 treats an
+# empty array expansion as an unbound variable, so `"${EXTRA[@]}"` (always empty
+# unless per-channel caps are set) killed this line on macOS's stock bash 3.2:
+# the primary tool could not run at all. FWD is non-empty in normal use but empty
+# for e.g. `k250-scene --limits foo`, so it gets the same guard.
+K250_WRAPPED=1 "$PY" "$PLAY" ${FWD[@]+"${FWD[@]}"} --hardcap "$EFF" --slew "$EFF_SLEW" --frequency "$EFF_FREQ" ${EXTRA[@]+"${EXTRA[@]}"}
 RC=$?
 END=$(date +%s)
 

@@ -6,6 +6,57 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.5 — 2026-09-15
+
+### Fixed — the primary tool could not run at all on macOS
+
+`k250-scene <pattern>` — the tool you actually drive the box with — died on macOS's stock bash
+(`/bin/bash`, **3.2.57**):
+
+```
+k250-scene: line 225: EXTRA[@]: unbound variable     exit 1
+```
+
+Under `set -u`, **bash before 4.4 treats an expansion of an empty array as an unbound variable**.
+The final line of the wrapper expanded `"${FWD[@]}"` and `"${EXTRA[@]}"`; `EXTRA` is empty whenever
+per-channel caps are unset, which is the shipped default. So the failure was not conditional — it
+was every run, on every macOS machine, with the box never touched. Bash 4.4 changed the rule, and
+this was written on bash 5, which is why it looked fine here.
+
+Both expansions now use the standard guard:
+
+```bash
+"$PY" "$PLAY" ${FWD[@]+"${FWD[@]}"} --hardcap … ${EXTRA[@]+"${EXTRA[@]}"}
+```
+
+`--list` and `--limits-show` exit before that line, which is precisely why this survived three
+rounds of "does the clone work" auditing: every check passed, and only *driving the box* failed.
+
+Credit: found by the same clean-checkout audit, on macOS, by driving the hardware rather than the
+CLI surface.
+
+### Added
+- `tests/test_shell_compat.py` — 27 checks. Static, everywhere: no unguarded `"${A[@]}"`/`"${A[*]}"`
+  in a script with `set -u`, no bash-4-only syntax (`${v,,}`, `declare -A`, `mapfile`, `&>>`, `|&`,
+  `;;&`, `[[ -v ]]`, `${v@Q}`), and every shipped shell file parses. Behavioural, when pointed at an
+  older bash (`K250_TEST_OLD_BASH=/path/to/bash`): it drives the wrapper end to end against a stub
+  python with per-channel caps both set and unset, and with the argument list empty, and asserts the
+  engine is actually reached. The docstring records how to fetch a pre-4.4 bash without touching
+  your system one.
+
+### Verified
+- Reproduced on a real **bash 3.2.39** (Ubuntu archive package, run under its own libncurses), first
+  in isolation — `A=(); f "${A[@]}"` → `A[@]: unbound variable`, exit 1 — then on the actual
+  wrapper: `line 225: EXTRA[@]: unbound variable`, exit 1, engine never invoked.
+- Confirmed the reported "safe forms" on the same binary: `${!A[@]}` and `${#A[@]}` survive an empty
+  array.
+- After the fix, on bash 3.2: a normal run reaches the engine with the full argument list
+  (`tide --base 5 --secs 5 --hardcap 50 --slew 25 --frequency 2500`), per-channel caps arrive as
+  `--channel-caps`, an empty argument list no longer aborts, and exit is 0. Same behaviour on bash 5.
+- All six suites pass, including the new one with the old bash attached.
+
+---
+
 ## v3.2.4 — 2026-09-15
 
 ### Fixed — a fresh install printed a traceback while it was working
