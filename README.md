@@ -1,5 +1,7 @@
 # k250-forge
 
+**Current release: v3.0** (2026-09-15) · [what changed](CHANGELOG.md) · [all versions](#versions)
+
 Reverse-engineered BLE control, a pattern engine, and a **safety limits contract** for the
 **Kink K250-4S** 4-channel e-stim power box — built so that a human *or an AI agent* can drive
 the hardware without being able to exceed limits the wearer agreed to.
@@ -288,14 +290,18 @@ Things worth building next, in rough order of usefulness:
    relative to each other. A small composer — "power: flat / climb / drop, speed: sweep / hold /
    step, over N seconds" — would generate far more patterns than anyone wants to hand-write, and
    the vocabulary already exists in `k250_play.py`.
-3. **Multi-channel verification.** The engine already reads `CA` and drives only plugged channels;
-   it has never been tested with more than one channel live. Different patterns per channel
-   (`PA` is a per-channel array) is designed and untested.
-4. **A session log.** Timestamped record of what was run and at what numbers — partly for
+3. **A session log.** Timestamped record of what was run and at what numbers — partly for
    reproducibility, mostly because "what did we do last time" is the hardest question to answer
    afterwards.
-5. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops
+4. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops
    loose, no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
+5. **A battery warning before a run.** The box has gone flat mid-scene twice, at around 32%. A
+   pre-flight read of `BC` that warns below ~25% and refuses below ~15% costs nothing.
+6. **A licence, and repo topics** — the owner's call, not a technical question.
+
+**Shipped since v1.0:** multi-channel verified on two channels · per-channel limits · the three
+enforced controls (power / frequency / slew) · the enforced session budget · the limits page ·
+the pattern-change fix and its regression test.
 
 Not worth doing: chasing the encrypted firmware, or trying to drive the Reverse Polarity switch
 over BLE. It isn't in the protocol.
@@ -309,5 +315,23 @@ over BLE. It isn't in the protocol.
   Different patterns per channel (`PA` is a per-channel array) is now the only untested part.
 - `SB` / `CS` semantics unknown. Reverse Polarity is not reachable over BLE.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
+
+## Versions
+
+Current release: **v3.0** (2026-09-15). What changed, and when: **[CHANGELOG.md](CHANGELOG.md)**.
+
+You do not need to work out which copy of the code is current. `main` is always the current
+release, and every earlier release is kept as a **git tag** — `v1.0`, `v2.0`, `v3.0` — so an old
+version is never lost and never in your way:
+
+```bash
+git fetch --tags          # get the tags
+git tag -l                # list the releases
+git checkout v1.0         # go back to a specific one, if you ever need to
+git checkout main         # and back to current
+```
+
+That is all version maintenance is here: tag a release, write down what changed, keep `main`
+releasable. Nothing gets deleted, and nothing gets hidden inside the repo.
 
 Licence: whatever the wearer says.
