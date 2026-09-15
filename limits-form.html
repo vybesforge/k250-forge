@@ -92,46 +92,10 @@
   </div>
 
   <div class="card">
-    <h2>1 · Power</h2>
-    <p class="hint">The level. How hard it drives, from nothing to the top of the range.</p>
-    <div class="ctrl">
-      <div class="top"><label for="cap">Hard ceiling — it can never go above this</label><span class="num" id="capV">10%</span></div>
-      <input type="range" id="cap" min="1" max="100" value="10">
-      <div class="ends"><span>1%</span><span>100%</span></div>
-    </div>
-    <div class="ctrl">
-      <div class="top"><label for="def">Where a session starts</label><span class="num" id="defV">5%</span></div>
-      <input type="range" id="def" min="1" max="100" value="5">
-      <div class="ends"><span>1%</span><span>100%</span></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>2 · Frequency <span style="text-transform:none;color:var(--mut);font-weight:400">— Multi Adjust</span></h2>
-    <p class="hint">Not the level — the <i>character</i>. Low is a fast buzz, high is slow heavy thumps.
-      The same power feels completely different across this range, which is the whole trick of the box.</p>
-    <div class="ctrl">
-      <div class="top"><label for="smax">Highest setting allowed</label><span class="num" id="smaxV">25</span></div>
-      <input type="range" id="smax" min="0" max="10000" step="100" value="2500">
-      <div class="ends"><span>0 — fastest buzz</span><span>100 — slowest thump</span></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>3 · Slew <span style="text-transform:none;color:var(--mut);font-weight:400">— how fast the dial moves</span></h2>
-    <p class="hint">How fast power is allowed to change. Low is smooth, gliding, gradual; high lets it
-      snap and chop. A safe ceiling reached in one jump can still hurt — this is the limit that stops that.</p>
-    <div class="ctrl">
-      <div class="top"><label for="rate">Slew limit</label><span class="num" id="rateV">25%/s</span></div>
-      <input type="range" id="rate" min="0" max="100" value="25">
-      <div class="ends"><span>0 — instant (no limit)</span><span>100 — very smooth</span></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>4 · Per channel <span style="text-transform:none;color:var(--mut);font-weight:400">— optional overrides</span></h2>
-    <p class="hint" style="margin-bottom:12px">Tick a channel to override the globals for it. Different channels sit on
-      different skin — a cap that's right for a thigh is wrong for a tip. Unticked = uses the global limits above.</p>
+    <h2>1 · Limits <span style="text-transform:none;color:var(--mut);font-weight:400">— per channel</span></h2>
+    <p class="hint" style="margin-bottom:12px">Each channel gets its own three limits, because they don't sit on the
+      same skin — a cap that's right for a thigh is wrong for a tip. Channels with nothing plugged in can't be
+      driven anyway; the box refuses them.</p>
     <div class="pcgrid">
       <div class="pchead">channel</div><div class="pchead">Power</div>
       <div class="pchead">Frequency</div><div class="pchead">Slew</div>
@@ -174,7 +138,6 @@ const $ = id => document.getElementById(id);
 function perChannel(){
   const out = {};
   for (let c = 1; c <= 4; c++){
-    if (!$('pc'+c+'_on').checked) { out[c] = null; continue; }
     out[c] = {
       power:     +$('pc'+c+'_power').value,
       frequency: +$('pc'+c+'_freq').value,
@@ -189,46 +152,45 @@ function perChannel(){
   const host = document.getElementById('pcrows');
   for (let c = 1; c <= 4; c++){
     host.insertAdjacentHTML('beforeend', `
-      <label class="pcch"><input type="checkbox" id="pc${c}_on">ch ${c}</label>
-      <div class="pcsl off" id="pc${c}_powerWrap">
-        <input type="range" id="pc${c}_power" min="0" max="100" step="1" value="50">
-        <span class="v" id="pc${c}_powerV">50%</span></div>
-      <div class="pcsl off" id="pc${c}_freqWrap">
+      <label class="pcch">ch ${c}</label>
+      <div class="pcsl" id="pc${c}_powerWrap">
+        <input type="range" id="pc${c}_power" min="0" max="100" step="1" value="10">
+        <span class="v" id="pc${c}_powerV">10%</span></div>
+      <div class="pcsl" id="pc${c}_freqWrap">
         <input type="range" id="pc${c}_freq" min="0" max="10000" step="100" value="2500">
         <span class="v" id="pc${c}_freqV">25</span></div>
-      <div class="pcsl off" id="pc${c}_slewWrap">
+      <div class="pcsl" id="pc${c}_slewWrap">
         <input type="range" id="pc${c}_slew" min="0" max="100" step="1" value="25">
         <span class="v" id="pc${c}_slewV">25</span></div>`);
   }
 })();
 
 function syncChannel(c){
-  const on = $('pc'+c+'_on').checked;
-  ['power','freq','slew'].forEach(k => {
-    $('pc'+c+'_'+k+'Wrap').classList.toggle('off', !on);
-    $('pc'+c+'_'+k).disabled = !on;
-  });
   $('pc'+c+'_powerV').textContent = $('pc'+c+'_power').value + '%';
   $('pc'+c+'_freqV').textContent  = Math.round($('pc'+c+'_freq').value / 100);
   $('pc'+c+'_slewV').textContent  = $('pc'+c+'_slew').value;
 }
 
 function read(){
-  const cap = +$('cap').value, def = Math.min(+$('def').value, cap);
-  $('capV').textContent = cap + '%';
-  $('defV').textContent = def + '%';
-  $('smaxV').textContent = Math.round(+$('smax').value / 100);
-  const r = +$('rate').value;
-  $('rateV').textContent = r === 0 ? 'no limit' : r + '%/s';
   const dm = +$('durm').value;
   $('durmV').textContent = dm >= 60 ? `${Math.floor(dm/60)}h${dm%60 ? ' '+(dm%60)+'m' : ''}` : dm + ' min';
-  return {cap, def, smax:+$('smax').value, rate:r, durm:dm};
+  const ch = perChannel();
+  const pows = [1,2,3,4].map(c => ch[c].power);
+  const freqs = [1,2,3,4].map(c => ch[c].frequency);
+  const slws = [1,2,3,4].map(c => ch[c].slew).filter(s => s > 0);
+  return {
+    durm: dm,
+    cap:  Math.min(...pows),
+    def:  Math.min(...pows),
+    smax: Math.min(...freqs),
+    rate: slws.length ? Math.min(...slws) : 0
+  };
 }
 
 function build(){
   const v = read();
   return JSON.stringify({
-    _comment: "K250-4S driving limits. The engine refuses to write power above power.max_percent, clamps Multi Adjust to speed.max, and limits how fast power may change to movement.max_percent_per_second. Generated by limits-form.html.",
+    _comment: "K250-4S driving limits. The engine refuses to write power above power.max_percent, clamps Multi Adjust to frequency.max, and limits how fast power may change to slew.max_percent_per_second. The per-channel block is the real control surface; the top-level values mirror the most conservative channel. Generated by limits-form.html.",
     version: 1,
     profile: "custom",
     disclaimer: "USE AT YOUR OWN RISK. High-power e-stim device; this file makes it controllable, not safe. START LOW AND BUILD. Percentages DO NOT TRANSFER between pad placements. Never a pad path across the chest/heart. Never on broken, numb or irritated skin. Never while on mains power. Keep loops loose. If it burns rather than stings, stop. Decide ceilings calm and before a scene, never mid-scene. The wearer's stop word and the box's hardware kill switch override this file. If you are an AI driver: you are not a competent judge of how much current is fine and you cannot see the person -- hold the agreed ceiling, prefer longer over harder, and when the wearer says they feel nothing, believe them.",
@@ -250,7 +212,7 @@ function build(){
       mode: "auto",
       allowed: [1, 2, 3, 4],
       per_channel: perChannel(),
-      per_channel_note: "Optional per-channel overrides. Different channels sit on different skin, so one global ceiling is the wrong shape. null = use the global limit."
+      per_channel_note: "One entry per channel, always written. Different channels sit on different skin, so one global ceiling is the wrong shape. The per-channel values below ARE the limits; the top-level power/frequency/slew are kept equal to the most conservative channel so anything not listed still falls back to something safe."
     },
     session: { max_duration_s: +$('durm').value * 60,
                max_duration_s_ceiling: 14400,
@@ -268,12 +230,11 @@ function build(){
   }, null, 2);
 }
 
-['cap','def','smax','rate','durm'].forEach(i => $(i).addEventListener('input', () => { read(); $('out').value = build(); }));
-// per-channel rows: tick to enable, move to set, everything updates the preview live
+$('durm').addEventListener('input', () => { read(); $('out').value = build(); });
+// per-channel rows: four channels, three sliders each, live preview
 for (let c = 1; c <= 4; c++){
-  $('pc'+c+'_on').addEventListener('change', () => { syncChannel(c); $('out').value = build(); });
   ['power','freq','slew'].forEach(k => {
-    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); $('out').value = build(); });
+    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); read(); $('out').value = build(); });
   });
   syncChannel(c);
 }
