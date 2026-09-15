@@ -76,6 +76,10 @@ and no AI in the loop.
   raise was asked for out loud, in the moment, by the person wearing the electrodes.
 - **If the wearer can't report, don't raise power.** Hold the ceiling and prefer *longer* over
   *harder*. A blank cheque from a non-verbal sub is not consent to escalate.
+- **Session budget, enforced.** `session.max_duration_s` (default 30 min, up to 4 h) is a real
+  limit, not a note in a file: `k250_session.py` keeps a ledger, `k250-scene` refuses to start
+  once the budget is spent, and a fresh session begins after 15 idle minutes. Starting another one
+  on purpose is `k250-scene --reset-session`. `K250_IGNORE_SESSION=1` is the deliberate override.
 - **No mains power.** The device manual says don't play while connected to mains power.
 - **Loops/pads loose.** Circulation at the pads is the only thing in this setup that can
   genuinely injure. Pink that fades is fine; white, pinched, or marked is a stop.
@@ -222,6 +226,7 @@ k250_show.py                  setlists / whole scenes
 k250_ctl.py                   persistent FIFO-driven controller
 k250_status.py                read-only status
 k250_stop.py                  panic stop (kills patterns, zeroes all channels)
+k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
