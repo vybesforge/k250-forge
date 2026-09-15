@@ -39,14 +39,44 @@ if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
   DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.local.json}"
   [ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.json}"
 fi
-DIR="${K250_DIR:-$HERE}"          # where the session ledger and helper live
+DIR="${K250_DIR:-$HERE}"          # where the modules, the ledger and the helper live
+
+# Bail out LOUDLY if the modules are not there. A silent fallback (`|| echo
+# "$HOME/K250-forge"` above) sends you to a directory that is not your clone and
+# then reports that path back as if it were the truth -- which is how a wrapper
+# ends up printing a lowercase path for an uppercase clone, or a path that does
+# not exist at all.
+if [ ! -f "$DIR/k250_play.py" ]; then
+  echo "k250: cannot find k250_play.py." >&2
+  echo "      looked in: $DIR" >&2
+  echo "      Set K250_DIR to your working directory, or run ./install.sh from your clone." >&2
+  exit 1
+fi
+
+# python, with a clear message instead of bash's 'No such file or directory'.
+# This has to happen BEFORE any argument handling: `--list` and `--limits-show`
+# need an interpreter too, and a missing venv used to surface as a raw exec error.
+[ -x "$PY" ] || {
+  if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
+    echo "note: no venv here, using system python3 (bleak found)" >&2
+    PY="$(command -v python3)"
+  else
+    echo "k250: no venv and no bleak available — run ./install.sh first." >&2
+    exit 1
+  fi
+}
 
 if [ $# -eq 0 ]; then
   exec "$PY" "$PLAY" --help
 fi
 
 if [ "$1" = "--list" ]; then
-  "$PY" - <<'EOF'
+  # `python -` puts the CALLER's cwd on sys.path[0], not this script's directory,
+  # so the import has to be told where the modules are. Without this, --list
+  # worked from inside the clone and died with ModuleNotFoundError everywhere else.
+  "$PY" - "$DIR" <<'EOF'
+import sys
+sys.path.insert(0, sys.argv[1])
 import k250_play as p
 names = sorted(p.PATTERNS)
 print(f"{len(names)} patterns:")
@@ -174,15 +204,8 @@ fi
 
 echo "limits: $(basename "$LIMITS")  POWER<${EFF}%  FREQUENCY<${EFF_FREQ}  SLEW=${EFF_SLEW}%/s  stop=${STOP}" >&2
 if [ ${#EXTRA[@]} -gt 0 ]; then echo "        per-channel: ${PCAPS}" >&2; fi
-[ -x "$PY" ] || {
-  if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
-    echo "note: no venv here, using system python3 (bleak found)" >&2
-    PY="$(command -v python3)"
-  else
-    echo "k250: no venv and no bleak available — run ./install.sh first." >&2
-    exit 1
-  fi
-}
+# (the interpreter was checked and, if needed, downgraded to system python3 right
+# after DIR was resolved -- before any of the python calls below)
 SESS_FILE="$DIR/k250_session.py"
 if [ "$RESET" = "1" ] && [ -f "$SESS_FILE" ]; then
   "$PY" "$SESS_FILE" reset --dir "$DIR"

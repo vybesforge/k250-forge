@@ -22,6 +22,15 @@ fi
 HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/K250-forge}")"
 DIR="${K250_DIR:-$HERE}"
 PY="${K250_PY:-$DIR/venv/bin/python}"
+# Missing modules must be LOUD here, not a raw exec error: this wrapper's exit
+# code is the safety signal, and "python: can't open file" is not an answer
+# anyone can act on in the moment it is needed.
+if [ ! -f "$DIR/k250_stop.py" ]; then
+  echo "k250-stop: CANNOT RUN — k250_stop.py not found in $DIR" >&2
+  echo "  The box may still be energised. Get to it physically:" >&2
+  echo "  hold any knob ~2 seconds to power it off." >&2
+  exit 1
+fi
 [ -x "$PY" ] || {
   if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
     echo "note: no venv here, using system python3 (bleak found)" >&2

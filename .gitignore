@@ -12,3 +12,4 @@ manual*.txt
 *.bak.*
 limits.local.json
 limits.json.new
+session.json

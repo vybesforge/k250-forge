@@ -20,6 +20,12 @@ fi
 HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "${K250_DIR:-$HOME/K250-forge}")"
 DIR="${K250_DIR:-$HERE}"
 PY="${K250_PY:-$DIR/venv/bin/python}"
+if [ ! -f "$DIR/k250_status.py" ]; then
+  echo "k250-status: cannot find k250_status.py." >&2
+  echo "  looked in: $DIR" >&2
+  echo "  Set K250_DIR to your working directory, or run ./install.sh from your clone." >&2
+  exit 1
+fi
 [ -x "$PY" ] || {
   if command -v python3 >/dev/null && python3 -c "import bleak" 2>/dev/null; then
     echo "note: no venv here, using system python3 (bleak found)" >&2

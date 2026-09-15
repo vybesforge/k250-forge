@@ -6,6 +6,48 @@ deleted or hidden: `main` is the current release, and the tags are the archive.
 
 ---
 
+## v3.2.3 — 2026-09-15
+
+### Fixed — `k250-scene --list` only worked from inside the clone
+
+Reported from a clean checkout: `--limits-show` worked, `--list` didn't —
+`ModuleNotFoundError: No module named 'k250_play'`. The wrapper ran the listing from a
+`python -` heredoc, and **`python -` puts the caller's cwd on `sys.path[0]`, not the wrapper's
+directory**. So `--list` worked if you happened to be standing in the working directory and died
+everywhere else. It now passes its own directory to the interpreter and inserts it into `sys.path`
+explicitly.
+
+Two more defects on the same path, found while fixing it:
+
+- **The interpreter check ran too late.** `[ -x "$PY" ]` sat *after* argument handling, i.e. after
+  the `--list` and `--limits-show` branches had already invoked python. With no venv, those now
+  gave bash's raw `line 45: .../venv/bin/python: No such file or directory` — for `--list`, yes,
+  but also potentially mid-scene. The check is now done once, immediately after the working
+  directory is resolved, before anything calls python.
+- **A failed path resolution was silent.** `HERE` fell back to `$HOME/K250-forge` when it could not
+  resolve its own location, then reported that path as though it were fact. That is how a wrapper
+  ends up naming a directory that is not your clone — the same class of bug as the hardcoded path
+  in v3.2.1, one layer down. Now every wrapper checks that the modules are actually where it says
+  they are, and **exits 1 with the path it looked in** instead of guessing. `k250-stop` says so in
+  the terms that matter: it could not run, so treat the box as still energised and switch it off by
+  hand.
+
+### Added
+- `tests/test_wrapper_cli.py` — 10 checks. Copies the tree to a temp directory, then runs
+  `--list` and `--limits-show` from a *different* directory and asserts both work and that
+  `--limits-show` names the limits file it actually read; asserts a directory with no modules exits
+  1 and says where it looked; asserts nothing is written into the repo. Read-only — it never runs
+  the engine.
+- `session.json` is now gitignored. Running the tools in a clone created untracked session state.
+
+### Verified
+- Live wrapper from `/tmp`: `k250-scene --list` → 35 patterns, exit 0 (was `ModuleNotFoundError`).
+- `K250_DIR=/tmp/nope k250-scene --list` → exits 1 and names `/tmp/nope`.
+- Repo wrapper with no venv, from `/tmp` → "run ./install.sh first", exit 1 (was a raw bash error).
+
+---
+
+
 ## v3.2.2 — 2026-09-15
 
 ### Fixed — a claim in this changelog that could not be checked
