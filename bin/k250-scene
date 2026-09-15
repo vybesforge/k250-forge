@@ -15,9 +15,9 @@
 # One BLE connection at a time: never run two of these at once.
 set -euo pipefail
 
-PY=/home/user/k250/venv/bin/python
-PLAY=/home/user/k250/k250_play.py
-DEFAULT_LIMITS=/home/user/k250/limits.json
+PY=${K250_PY:-"${K250_DIR:-$HOME/k250}/venv/bin/python"}
+PLAY="${K250_DIR:-$HOME/k250}/k250_play.py"
+DEFAULT_LIMITS="${K250_LIMITS:-${K250_DIR:-$HOME/k250}/limits.json}"
 
 if [ $# -eq 0 ]; then
   exec "$PY" "$PLAY" --help

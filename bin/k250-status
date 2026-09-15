@@ -5,4 +5,5 @@
 # NOTE: PW (power) is NOT reported by the box in a read-all — it is only echoed
 # when written. So "power" never appears here even while the box is running.
 # The one honest witness that power is flowing is the operator.
-exec /home/user/k250/venv/bin/python /home/user/k250/k250_status.py
+exec "${K250_PY:-${K250_DIR:-$HOME/k250}/venv/bin/python}" \
+     "${K250_DIR:-$HOME/k250}/k250_status.py"
