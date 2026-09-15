@@ -1,17 +1,18 @@
 {
   "_comment": "K250-4S driving limits. This file is the safety contract between the human wearing the electrodes and whatever AI/human is driving the box. The engine REFUSES to write power above power.max_percent -- it is enforced in code, not by good intentions. Generate a copy with limits-form.html or edit by hand.",
   "version": 1,
-  "profile": "default",
+  "profile": "conservative-default",
+  "_profile_note": "This is the SHIPPED DEFAULT and it is deliberately timid: 10% ceiling, 5% start. It is a floor for a stranger's first session, not a recommendation. Your own comfortable numbers will be personal to your body and your pad placement -- re-derive them slowly, then write your own profile copy (e.g. limits.local.json) and drive with --limits. Do not just raise this file because a session got exciting.",
 
   "disclaimer": "USE AT YOUR OWN RISK. The K250-4S is a high-power e-stim device and its own manual says so. This file makes it controllable, not safe. START LOW AND BUILD -- never open a session at a figure read from someone else's notes. PERCENTAGES DO NOT TRANSFER BETWEEN PAD PLACEMENTS: sensitivity varies enormously by site, and so 38% on a forearm and 38% on a far more sensitive site are neither the same sensation nor the same risk. All calibration in this repo is from ONE body and ONE placement (one placement); use another site and you start again from zero. Never a pad path across the chest/heart. Never on broken, irritated or numb skin. Never while on mains power. Keep loops LOOSE -- circulation at the electrode is the only thing here that can cause real injury. If it burns rather than stings, or the skin doesn't settle back to normal pink, stop. Decide ceilings calm and BEFORE the scene; do not renegotiate mid-scene. The wearer's stop word and the hardware kill switch override everything, including this file.",
 
   "stop_word": "red",
 
   "power": {
-    "max_percent": 50,
-    "default_percent": 38,
-    "pleasure_band": [35, 50],
-    "note": "Above ~50 reads as pain, which can be wanted but must be deliberate. Raise max_percent only with a spoken, explicit request from the wearer in that session."
+    "max_percent": 10,
+    "default_percent": 5,
+    "pleasure_band": [5, 10],
+    "note": "The reference setup's comfortable band was 35-50%, but that is ONE body and ONE placement -- for many people 10% is a great deal. Start at the bottom of your own experience, not someone else's. Above the pleasure band reads as pain, which can be wanted but must be deliberate. Raise max_percent only on an explicit, spoken request from the wearer, and never mid-scene."
   },
 
   "speed": {
