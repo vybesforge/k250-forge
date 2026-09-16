@@ -13,10 +13,6 @@ echo "k250-forge → $HERE"
 echo
 
 # 0. preflight — these are the failures that otherwise look like mysteries.
-# MIN_PY_* is the floor bleak itself declares (Requires-Python); tests/test_portability.py checks
-# this stays in step with the installed bleak, so the README and the code cannot drift apart.
-MIN_PY_MAJOR=3
-MIN_PY_MINOR=10
 if ! command -v python3 >/dev/null 2>&1; then
   echo "ERROR: python3 not found."
   echo "  macOS : xcode-select --install     (or: brew install python)"
@@ -25,16 +21,12 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 echo "python3    : $(python3 --version 2>&1)"
-if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= ($MIN_PY_MAJOR, $MIN_PY_MINOR) else 1)" 2>/dev/null; then
-  echo "ERROR: python3 is too old for bleak (needs ${MIN_PY_MAJOR}.${MIN_PY_MINOR}+)."
-  echo "  bleak 3.x declares Requires-Python >=${MIN_PY_MAJOR}.${MIN_PY_MINOR}, and pip will fail with"
-  echo "  'could not find a version that satisfies the requirement bleak' — which reads like a"
-  echo "  network problem, not a version one."
-  echo "  macOS : brew install python@3.12   (stock /usr/bin/python3 can be older)"
-  echo "  Linux : install python3.12 (deadsnakes PPA on Ubuntu, or a newer distro), or use pyenv"
-  echo "  Windows: python.org installer, 3.10 or newer, and tick 'py launcher'"
-  exit 1
-fi
+# No static Python floor here, on purpose. pip resolves the NEWEST bleak that runs on THIS
+# interpreter: a Python 3.9 box gets bleak 1.1.1 (which installs and runs fine), a 3.10+ box
+# gets the current release. A fixed "needs 3.10+" check would therefore block a Python that
+# installs frankly fine on the false premise that the newer bleak is the only bleak there is.
+# The real gates are below: `pip install` failing to resolve (it names the true reason, so a
+# genuinely too-old Python still gets an honest error) and the `import bleak` check that follows.
 if ! python3 -c "import venv" >/dev/null 2>&1; then
   echo "ERROR: this python3 has no venv module."
   echo "  Debian/Ubuntu: sudo apt install python3-venv"

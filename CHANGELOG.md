@@ -11,6 +11,37 @@ happened is part of the record.
 
 ---
 
+## v3.2.19 — 2026-09-16
+
+### Fixed — two ceiling-safety bugs from the v3.2.18-era rewrite
+
+**1. `install.sh` refused Python 3.9 on a false premise (regression since v3.2.8).**
+The installer hard-blocked any Python below 3.10, claiming "bleak 3.x declares Requires-Python
+>=3.10" — but that only holds for the newest bleak. pip resolves the newest release that runs on
+*your* interpreter, so a Python 3.9 box gets bleak 1.1.1 (which installs and runs fine) and never
+touches 3.x at all. The static floor therefore blocked a Python that works. It's gone. The real
+gates were already there and stay: `pip install` resolving (it names the actual reason a genuinely
+too-old Python fails) and the `import bleak` check that follows. The README no longer repeats the
+3.10-floor claim either.
+
+**2. The wrapper and the engine enforced different ceilings when `K250_DIR` was set.**
+`k250-scene` preferred `limits.local.json` only inside its `K250_DIR`-empty branch. With
+`K250_DIR` set (the normal shim case) the wrapper fell back to `limits.json` while the engine
+(`k250_play.py find_limits`) read `limits.local.json` — two different `power.max_percent` values on
+the same run. The comfort default lives in the shipped `limits.json`; your tuned values belong in
+`limits.local.json`, and a divergence meant the wrapper could clamp to one ceiling while the engine
+enforced another. The preference is now derived from `DIR` (`$K250_DIR` or `$HERE`) in one place,
+matching `find_limits` exactly, so both always read the same file. New regression checks in
+`test_wrapper_cli.py` give a clone a `limits.local.json` that differs from `limits.json` and assert
+the wrapper and engine both read the `.local` file. The shipped `agent-skill/SKILL.md` was updated
+to name `limits.local.json` as the preferred ceiling file.
+
+Also: `test_portability.py`'s 1d check restated the old floor; it now asserts the installer gates
+on `import bleak` and carries no hardcoded `MIN_PY_*` floor, and that the README makes no 3.10
+claim.
+
+---
+
 ## v3.2.18 — 2026-09-15
 
 ### Changed — the repository was deleted and re-created, and the name is now lowercase

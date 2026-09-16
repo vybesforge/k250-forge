@@ -266,11 +266,15 @@ Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
 ## Install
 
-**Every platform needs:** Python **3.10+** (that is bleak's own floor, not our preference — 3.8 and
-3.9 will fail at `pip install bleak` with a version error that reads like a network problem), plus
-`pip` and `venv`, and working
+**Every platform needs:** Python 3 + `pip` and `venv`, and working
 Bluetooth LE on the host. That's it — no app, no server, no build step. `bleak` is the only
 dependency, and it speaks to each platform's native Bluetooth stack.
+
+There is **no fixed Python floor**. `pip install bleak` resolves the newest release that runs on
+*your* interpreter: an older Python (e.g. 3.9) gets an older bleak (1.1.1) that installs and runs
+fine, a newer one gets the current release. The installer just lets pip resolve and then confirms
+`import bleak` loads — so a genuinely too-old Python fails with pip's own honest error, not a
+guess. Don't install a second Python hoping to satisfy a version floor that isn't there.
 
 ### Linux
 
@@ -303,13 +307,12 @@ git clone https://github.com/vybesforge/k250-forge.git && cd k250-forge
 ./install.sh
 ```
 
-macOS needs no extra packages — `bleak` uses CoreBluetooth — **but you do need Python 3.10 or
-newer**, and that is the one thing macOS will not have out of the box. Three gotchas:
+macOS needs no extra packages — `bleak` uses CoreBluetooth. The stock `python3` is often Xcode's
+old 3.9, but there is **no version floor to clear**: pip just resolves the newest bleak that runs on
+it. If you'd rather run the current bleak (or a newer Python 3), `brew install python@3.12`, then
+either put it first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer as
+`PATH="$(brew --prefix)/bin:$PATH" ./install.sh`.
 
-- **`python3` on macOS is often Xcode's 3.9**, which is below `bleak`'s floor, so `install.sh` stops
-  with instructions rather than half-installing. Fix: `brew install python@3.12`, then either put it
-  first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer as
-  `PATH="$(brew --prefix)/bin:$PATH" ./install.sh`.
 - **Grant Bluetooth permission** to whatever app runs the commands (Terminal, iTerm, your editor).
   The prompt appears once on first scan; if it was dismissed, re-enable it in
   System Settings → Privacy & Security → Bluetooth.
@@ -330,10 +333,9 @@ py -3 -m venv venv
 ```
 
 - `bleak` uses the WinRT Bluetooth stack — **no extra drivers**.
-- **Check which Python `py -3` means.** It picks your newest Python 3, and if that is 3.9 or older the
-  `pip install bleak` below fails with a version error that reads like a network problem
-  (`bleak` needs 3.10+). `py -0p` lists what you have; with several installed, name it:
-  `py -3.12 -m venv venv`.
+- **Check which Python `py -3` means.** It picks your newest Python 3; pip then resolves the newest
+  bleak that runs on it (an older Python gets an older bleak, which still works), so there's no floor
+  to chase. With several installed, name the one you want: `py -3.12 -m venv venv`.
 - Turn **Bluetooth on** and make sure the box is awake before scanning.
 - `install.sh` is a bash script and won't run natively. Call the engine directly — **it reads
   `limits.json` itself**, so the ceiling and the session budget apply here exactly as they do

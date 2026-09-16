@@ -89,35 +89,23 @@ def main():
                 posix_bad.append(f"{rel(path)}: {call} without {guard}")
     checks.append(("POSIX-only APIs are guarded", not posix_bad, "; ".join(posix_bad) or "clean"))
 
-    # 1d. the Python floor install.sh enforces must match what bleak actually demands. It was 3.8
-    #     in the README and nothing in the code while bleak declared >=3.10 -- so a Linux user on a
-    #     distro with 3.8/3.9 followed the instructions and got "could not find a version that
-    #     satisfies the requirement bleak", which reads like a network problem.
+    # 1d. the installer must NOT hard-refuse on a fixed Python floor. pip resolves the newest
+    #     bleak that runs on the interpreter (a 3.9 box gets bleak 1.1.1, which installs and runs
+    #     fine), so a static "needs 3.10+" check blocks a Python that works on the false premise
+    #     that the newer bleak is the only bleak. The honest gates are `pip install` resolving (it
+    #     names the real reason a genuinely-too-old Python fails) plus `import bleak`. Assert the
+    #     real gate exists and no fixed MIN_PY block sits in front of it.
     install = os.path.join(ROOT, "install.sh")
     if os.path.isfile(install):
         with open(install, encoding="utf-8") as fh:
             src = fh.read()
-        mj = re.search(r"MIN_PY_MAJOR=(\d+)", src)
-        mn = re.search(r"MIN_PY_MINOR=(\d+)", src)
-        stated = (int(mj.group(1)), int(mn.group(1))) if mj and mn else None
-        checks.append(("install.sh states a minimum Python version", stated is not None, stated or ""))
-        real = None
-        try:
-            from importlib.metadata import metadata
-            req = metadata("bleak")["Requires-Python"] or ""
-            hit = re.search(r">=\s*(\d+)\.(\d+)", req)
-            if hit:
-                real = (int(hit.group(1)), int(hit.group(2)))
-        except Exception:
-            pass
-        if real and stated:
-            checks.append((f"install.sh floor {stated[0]}.{stated[1]} >= bleak's {real[0]}.{real[1]}",
-                           stated >= real, f"{stated} vs {real}"))
-        else:
-            print("  (bleak not installed here — skipped the floor-vs-dependency check)")
-        checks.append(("README states the same floor",
-                       f"{stated[0]}.{stated[1]}" in readme_text() if stated else False,
-                       f"looking for {stated}"))
+        checks.append(("install.sh gates on `import bleak`, not a hardcoded Python floor",
+                       "import bleak" in src and not re.search(r"MIN_PY_(MAJOR|MINOR)=", src),
+                       "import bleak present; MIN_PY_* gone" if "import bleak" in src and not re.search(r"MIN_PY_(MAJOR|MINOR)=", src) else ""))
+        # the README must not repeat the false "3.10 floor / bleak needs 3.10+" claim either
+        checks.append(("README does not claim a hard 3.10 floor",
+                       "bleak needs 3.10" not in readme_text() and "Python 3.10+" not in readme_text(),
+                       ""))
     else:
         checks.append(("install.sh present", False, "missing"))
 

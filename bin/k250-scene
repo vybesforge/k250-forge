@@ -17,7 +17,6 @@ set -euo pipefail
 
 PY=${K250_PY:-"${K250_DIR:-$HOME/k250-forge}/venv/bin/python"}
 PLAY="${K250_DIR:-$HOME/k250-forge}/k250_play.py"
-DEFAULT_LIMITS="${K250_LIMITS:-${K250_DIR:-$HOME/k250-forge}/limits.json}"
 
 # resolve our own location so a clone works from anywhere (bin/ -> repo root)
 # Resolve this script's real path. `readlink -f` is GNU-only -- macOS and Git Bash
@@ -36,10 +35,17 @@ HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "$HOME/k250-forge"
 if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
   PY="${K250_PY:-$HERE/venv/bin/python}"
   PLAY="$HERE/k250_play.py"
-  DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.local.json}"
-  [ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$HERE/limits.json}"
 fi
 DIR="${K250_DIR:-$HERE}"          # where the modules, the ledger and the helper live
+
+# The limits file preference MUST match the engine's (k250_play.py find_limits): a
+# user-editable limits.local.json wins over the shipped limits.json, and this has to
+# hold whether K250_DIR is set or not. When it only applied in the K250_DIR-empty
+# branch, a K250_DIR invocation made the WRAPPER enforce limits.json while the ENGINE
+# enforced limits.local.json -- two different ceilings on the same run. That's the
+# safety contract, so derive it from DIR (which is K250_DIR or HERE) in one place.
+DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.local.json}"
+[ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.json}"
 
 # Bail out LOUDLY if the modules are not there. A silent fallback (`|| echo
 # "$HOME/k250-forge"` above) sends you to a directory that is not your clone and

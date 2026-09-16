@@ -18,6 +18,7 @@ Read-only: this test only ever runs `--list` and `--limits-show`, never the engi
 Run: venv/bin/python tests/test_wrapper_cli.py
 """
 import os
+import json
 import re
 import shutil
 import subprocess
@@ -178,6 +179,37 @@ def main():
             checks.append((f"engine and wrapper agree on: {label.strip()}",
                            norm_path(field(r5.stdout, label)) == norm_path(field(r4.stdout, label)),
                            f"{field(r5.stdout, label)!r} vs {field(r4.stdout, label)!r}"))
+
+        # 6. the LIMITS-LOCAL preference must hold when K250_DIR is set -- the v3.2.18 regression.
+        #    The wrapper used to prefer limits.local.json only in the K250_DIR-empty branch, so a
+        #    K250_DIR invocation made the WRAPPER enforce limits.json while the ENGINE enforced
+        #    limits.local.json: two different ceilings on the same run. Give the clone a
+        #    limits.local.json that differs from limits.json and assert BOTH read the local file.
+        local_ceiling = "62"
+        shutil.copyfile(os.path.join(clone, "limits.json"), os.path.join(clone, "limits.local.json"))
+        with open(os.path.join(clone, "limits.local.json"), "r", encoding="utf-8") as fh:
+            lim = json.load(fh)
+        lim.setdefault("power", {})["max_percent"] = int(local_ceiling)
+        with open(os.path.join(clone, "limits.local.json"), "w", encoding="utf-8") as fh:
+            json.dump(lim, fh, indent=2)
+        r6w = run(["--limits-show"], cwd=elsewhere, env_extra={"K250_DIR": clone})
+        r6e = subprocess.run([sys.executable, os.path.join(clone, "k250_play.py"), "--limits-show"],
+                             cwd=elsewhere, capture_output=True, text=True, timeout=60)
+        w_file = field(r6w.stdout, "limits file ")
+        e_file = field(r6e.stdout, "limits file ")
+        checks.append(("with limits.local.json present, wrapper uses it (K250_DIR set)",
+                       norm_path(w_file).endswith("limits.local.json"),
+                       w_file or "(no path printed)"))
+        checks.append(("engine also uses limits.local.json in the same clone",
+                       norm_path(e_file).endswith("limits.local.json"),
+                       e_file or "(no path printed)"))
+        checks.append(("wrapper + engine agree on which limits file, both preferring .local",
+                       norm_path(w_file) == norm_path(e_file),
+                       f"{w_file!r} vs {e_file!r}"))
+        for label in ("POWER ceiling ", "POWER start ", "stop word "):
+            checks.append((f"wrapper and engine agree on the local limits: {label.strip()}",
+                           field(r6w.stdout, label) == field(r6e.stdout, label),
+                           f"{field(r6w.stdout, label)!r} vs {field(r6e.stdout, label)!r}"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
