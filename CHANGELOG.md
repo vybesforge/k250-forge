@@ -11,6 +11,23 @@ happened is part of the record.
 
 ---
 
+## v3.2.20 — 2026-09-16
+
+### Fixed — `test_wrapper_cli.py` leaked the installed `limits.local.json` into its temp clone
+
+The v3.2.19 regression test for the wrapper/engine ceiling fix could fail on an *installed* repo.
+`skeleton()` copies the repo with `shutil.copytree`, which does not respect `.gitignore` — so on any
+machine whose repo root held a `limits.local.json` (install.sh writes one), that file leaked into the
+temp clone. The wrapper then correctly reported `limits.local.json` while section 4 asserted
+`limits.json`, failing 1-of-24 — but only where the tool had actually been installed, so it passed on
+clean checkouts and looked like the suite was green.
+
+The temp clone is now a genuine clean checkout: `skeleton()` also excludes the gitignored per-install
+limits artifacts (`limits.local.json`, `limits.json.new`) alongside the usual caches. Verified both
+with and without a root `limits.local.json` present under it, and from a fresh clone.
+
+---
+
 ## v3.2.19 — 2026-09-16
 
 ### Fixed — two ceiling-safety bugs from the v3.2.18-era rewrite

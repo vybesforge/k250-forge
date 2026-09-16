@@ -31,10 +31,22 @@ WRAPPER = "bin/k250-scene"
 
 
 def skeleton(dest):
-    """A copy of the repo a wrapper can run from: no .git, no venv, no caches."""
+    """A copy of the repo a wrapper can run from: no .git, no venv, no caches, and none of the
+    user's LOCAL limits artifacts.
+
+    The ignore list must cover the gitignored per-install files too, not just the usual caches.
+    `shutil.copytree` does NOT respect .gitignore, so on any installed repo whose root holds a
+    `limits.local.json` (install.sh writes one) it used to leak that file into the clone — the
+    wrapper then correctly reported limits.local.json while section 4 asserted limits.json, failing
+    1-of-24 only on machines that had actually installed the tool. The temp clone must be a clean
+    checkout: shipped `limits.json` present, the user's editable copies absent.
+    """
     shutil.copytree(
         ROOT, dest,
-        ignore=shutil.ignore_patterns(".git", "venv", "__pycache__", "session.json"),
+        ignore=shutil.ignore_patterns(
+            ".git", "venv", "__pycache__", "session.json",
+            "limits.local.json", "limits.json.new",
+        ),
     )
     return dest
 
