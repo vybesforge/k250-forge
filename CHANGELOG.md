@@ -11,6 +11,16 @@ happened is part of the record.
 
 ---
 
+## v3.2.29 — 2026-09-17
+
+### Changed — the install section leads with the zero-effort path
+
+Before the per-OS steps the README now names the two ways in: hand the repo to an AI harness (this
+project is written to be installed that way — it ships a portable operator skill, and the steps are
+worded to be followed literally), or install by hand one OS at a time below. Same result either way.
+
+No engine, tool, test or limits-value change.
+
 ## v3.2.28 — 2026-09-17
 
 ### Changed — install.sh offers to put `~/.local/bin` on your PATH, instead of only telling you to

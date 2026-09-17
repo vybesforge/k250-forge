@@ -40,6 +40,16 @@ others, so the same figure is a different sensation and a different risk.
 
 ## Install
 
+**Two ways in.**
+
+**Hand it to your AI harness.** This repo is written for that: it ships a portable operator skill
+(`agent-skill/SKILL.md`) and the sections below are worded to be followed literally. Point your harness
+at the folder — or the clone — and tell it to install; it will run the right steps for your OS and read
+`limits.json` before it drives anything. That's the zero-effort path, and it's the one the agent handoff
+block further down spells out.
+
+**Or do it yourself** — one OS at a time, below. Both get you the same thing.
+
 **Run all of this from a folder you own** — your home directory is fine. A system directory is not
 writable by your user, and that is the whole of a very common first failure: on Windows you get
 `fatal: could not create work tree dir 'k250-forge': Permission denied` from `C:\WINDOWS\system32`, and
