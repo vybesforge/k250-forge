@@ -10,30 +10,31 @@ replaying the handful the box ships with. Everything here was measured against r
 witness.
 
 Built so a human **or an AI agent** can drive the hardware without being able to exceed limits the
-wearer agreed to — the ceiling lives in code, not in a prompt. Details in
-[Safety & limits](#safety--limits).
+wearer agreed to. [Install](#install) is next; the full safety contract is under
+[Safety & limits](#safety--limits), and the reverse-engineering detail after that.
 
 ---
 
 ## ⚠️ At your own risk — read this first
 
-**The K250-4S is a high-power e-stim device. You use it at your own risk.** Its own manual says so,
-in bold. Nothing here makes it *safe* — it makes it **controllable**, and those are not the same
-thing. This code was written by and for adults who chose to do this to themselves, and it assumes
-you're making that same choice with your eyes open.
+**At your own risk.** High-power e-stim device — this makes it **controllable**, not safe. **Start low
+and build.** Percentages don't transfer between pad placements: outer skin is far less sensitive than
+others, so the same figure is a different sensation and a different risk.
 
-**Start low and build.** Every number in this repo was found by starting well below where it was
-wanted and creeping up over an evening, watching what happened. Never open a session at a figure
-you've only read here.
+**The hard stops — every session, no exceptions:**
 
-**Percentages do not transfer between pad placements.** Skin sensitivity varies enormously by site —
-far more than most people expect. **38 % on a forearm and 38 % on a far more sensitive site are not
-the same sensation and not the same risk.** The figures here come from one placement on one body. If
-you strap pads somewhere else, **you are starting again from zero** — re-derive your own numbers,
-slowly, on yourself.
-
-**Read the hard stops in [Safety & limits](#safety--limits) before you use any of this.** The rules
-are stated once, in full, and the code assumes all of them.
+- **Never** a pad path across the chest or through the heart.
+- **Never** on broken, irritated or numb skin — or anywhere they can't feel it.
+- **Never** while plugged into mains power.
+- **Never** on someone who can't speak or signal, or who can't be seen by whoever is in the room.
+- Keep loops and pads **loose** — circulation at the electrode is the one thing here that can cause
+  real injury.
+- If it **burns rather than stings**, or the skin doesn't settle back to normal, stop — and don't
+  use that site again that night.
+- If they feel **nothing**, turn the power **down** before you touch anything else, then check the
+  loop: pads properly seated, cable attached, connection complete. A pad that's loose or half-attached
+  concentrates the current into a smaller area — and that is what burns people. Feeling nothing is a
+  **fault, not an invitation to push harder**.
 
 ---
 
@@ -139,33 +140,34 @@ py -3 -m venv venv
 
 - **One BLE connection at a time.** Don't pair the box in the OS Bluetooth settings — let the tool scan
   and connect. If the phone app is connected, nothing here can reach it.
-- **The box only advertises when it's awake and on the right screen**: power on, tap the top-left gear,
-  then the remote-control icon on the right (see [Finding the box](#finding-the-box)).
+- **The box only advertises when it's awake and on the right screen** — see below.
+
+### Make the box discoverable
+
+Do this before your first scan, and any time the box has gone quiet:
+
+1. Press any knob for about a second to **power it on** — the side LED glows red.
+2. Tap the **gear / settings icon in the top-left corner** to open the Options screen.
+3. Tap the **remote-control icon on the right-hand side.**
+4. That's it — the box is now advertising and `k250-status` will find it.
+
+Wake it the same way if it's gone to sleep mid-session; the screen going off stops the radio.
 
 ---
 
 ## Safety & limits
 
-This is the detailed section — everything the code assumes, and everything you sign up to by running it.
+The full contract: how the ceiling is enforced, and what else the code assumes.
 
-### The hard stops — every session, no exceptions
+### Beyond the hard stops
 
-- **Never** a pad path across the chest or through the heart region.
-- **Never** on broken, irritated or numb skin — or anywhere you can't feel it.
-- **Never** while connected to mains power (the device manual's own rule — surge risk).
-- **Never** on someone who can't speak or signal, or who can't be seen by whoever is in the room.
-- Keep loops and pads **loose**. Circulation at the electrode is the one thing in this setup that can
-  cause real injury. Pink that fades is fine; white, pinched, or marked is a stop.
-- If it **burns rather than stings**, or the skin doesn't settle back to normal pink, stop — and don't
-  use that site again that night.
-- **If they feel nothing, turn the power DOWN before you touch anything else, then check the loop** —
-  pads properly seated, cable attached, connection complete. A pad that's loose or half-attached
-  concentrates the current into a smaller area, and that is what burns people. **Feeling nothing is a
-  fault, not an invitation to push harder.**
+The hard stops are at the top of this file. Two rules that keep them working:
+
 - **Decide ceilings calm, before a session, and write them in `limits.json`.** Don't renegotiate them
   mid-scene — that's what the file is for. The wearer's stop word and the hardware kill switch both
   override everything, including the software, including whoever is driving.
-- **Skin check after every session.** Not optional, and it's the one thing software can't see.
+- **Skin check after every session.** Not optional, and it's the one thing software can't see. Skin that
+  settles back to normal is fine; pinched or marked is a stop.
 
 **The hardware kill switch is the real backstop: hold any knob on the box for 2 seconds and it powers
 off.** Give that to whoever is physically in the room. It needs no software, no network, and no AI in
@@ -243,24 +245,15 @@ Both are already written that way in **[`agent-skill/SKILL.md`](agent-skill/SKIL
 | **Address** | a **random static** LE address (it looks like any MAC, e.g. `AA:BB:CC:11:22:33`) — **it changes on power-cycle.** Never hardcode it; `find()` matches address *or* service UUID *or* name, and the UUID is the durable one. |
 | **Signal** | roughly −50 dBm within a couple of metres. If you see it at −90, you're too far. |
 
-**The box only advertises when it's awake and sitting on Options → "Remote App Control"** (the button
-the manual says to press when pairing with the companion app). Asleep, screen off, or on any other
-screen, it is invisible — a scan that finds nothing is almost always this and not a code problem. It
-does not enumerate as a USB device either: **all control is BLE** (USB-C is charge-only on Linux).
-
-**On the device, to make it discoverable:**
-
-1. Press any knob for about a second to **power it on** — the side LED glows red.
-2. Tap the **gear / settings icon in the top-left corner** to open the Options screen.
-3. Tap the **remote-control icon on the right-hand side.**
-4. That's it — the box is now advertising and `k250-status` will find it.
-
-Wake it the same way if it's gone to sleep mid-session; the screen going off stops the radio.
+**The box only advertises when it's awake and sitting on Options → "Remote App Control"** — the button
+the manual says to press when pairing with the companion app. The sequence is under
+[Make the box discoverable](#make-the-box-discoverable). On any other screen, asleep, or with the
+screen off, it is invisible: a scan that finds nothing is almost always this, not a code problem. It
+does not enumerate as a USB device either — **all control is BLE** (USB-C is charge-only on Linux).
 
 **What it looks like:** a small black handheld box, four knobs along the front, a colour touchscreen,
 four output jacks on the side for the channel cables, USB-C for charging. Radio is an **nRF52840** in
-a Raytac MDBT50Q (FCC ID `SH6MDBT50`). Firmware in this project's testing:
-`v1.08--18c4987-250114-01hGMT`.
+a Raytac MDBT50Q (FCC ID `SH6MDBT50`).
 
 ## The protocol (what was actually reverse-engineered)
 
@@ -320,8 +313,7 @@ protocol.
 The engine drives every channel the box reports as live (`CA`), and this works on two channels
 simultaneously. Three rules make it work, all learned the hard way:
 
-1. **A channel with a blank pattern REFUSES power.** The box echoes `{"PW": 0}` no matter what you
-   send. Give it a pattern first.
+1. **A channel with a blank pattern refuses power** — see trap 4 above. Give it a pattern first.
 2. **Set every channel to `Manual` before driving it.** In a patterned mode the box runs its own
    generator and your power writes go *into* that; in Manual nothing competes, so what you write is
    what happens. You own the pattern, not the box.
@@ -395,15 +387,14 @@ tests/                        eight suites, all runnable from any clone:
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
 
 Everything lives in one folder — the modules are flat because they import each other by name, and
-`bin/` holds the shell tools that get symlinked onto your `PATH`. There is nothing to build and no
-server to run.
+`bin/` holds the shell tools that get symlinked onto your `PATH`.
 
 ## First steps
 
 Do these in order, the first time, with the wearer connected and someone's hand near the box.
 
-1. **Wake the box and enable remote control** (see [Finding the box](#finding-the-box)). It advertises
-   as **`Kx250-4S`**.
+1. **Wake the box and enable remote control** (see [Make the box discoverable](#make-the-box-discoverable)).
+   It advertises as **`Kx250-4S`**.
 2. **Check it's reachable** — battery, live channels, current pattern:
    ```bash
    k250-status
@@ -421,8 +412,7 @@ Do these in order, the first time, with the wearer connected and someone's hand 
 5. **Prove the stop works, both ways.** `k250-stop` zeroes every channel immediately and kills any
    running pattern. Say the stop word out loud, and show everyone how to power the box off by hand
    (hold any knob ~2 seconds). Do this *before* the first real scene.
-6. **Then build** — up only on the wearer's spoken word, and if they feel nothing, power **down** and
-   check the loop. See the hard stops.
+6. **Then build** — up only on the wearer's spoken word, never in silence. See the hard stops at the top.
 
 ## For an AI agent (or anyone writing a skill from this)
 
@@ -440,8 +430,10 @@ connect, drive, and stop the box without guessing:
 | See what patterns exist | `k250_play.py --list` — works on every platform, no box needed |
 
 **Put the safety in the tool, not in the prompt.** The engine clamps to `limits.json` no matter what a
-driver asks for, so an agent cannot exceed the wearer's agreed ceiling even if it tries — that is the
-whole design. The two rules any skill must carry are in [If you're an AI reading this](#if-youre-an-ai-reading-this).
+driver asks for, so an agent cannot exceed the wearer's agreed ceiling even if it tries. An agent does
+not need to be trusted, because the ceiling is not in its hands — that is the point of shipping a limits
+file rather than a paragraph of good intentions. The two rules any skill must carry are in
+[If you're an AI reading this](#if-youre-an-ai-reading-this).
 
 ### Give this to your agent
 
@@ -458,16 +450,12 @@ If I say I feel nothing, stop and check the electrodes; never add power. One BLE
 at a time.
 ```
 
-Two things worth knowing about this arrangement:
-
-- **The agent does not need to be trusted, because the ceiling is not in its hands.** It clamps in
-  `limits.json` no matter what the agent asks for. That is the point of shipping a limits file rather
-  than a paragraph of good intentions.
-- **The skill is in the repo, not just described here.** [`agent-skill/SKILL.md`](agent-skill/SKILL.md)
-  is a self-contained operator skill: the two hard rules, the limits contract, the tool table and the
-  protocol traps. Copy that folder into whatever your agent auto-loads, or paste it into a system
-  prompt. An agent that can only *read* a repo still gets everything from this README — but if you want
-  it as a loadable skill, that file is the skill, and it is the same one the author drives the box with.
+**The skill is in the repo, not just described here.**
+[`agent-skill/SKILL.md`](agent-skill/SKILL.md) is a self-contained operator skill: the two hard rules,
+the limits contract, the tool table and the protocol traps. Copy that folder into whatever your agent
+auto-loads, or paste it into a system prompt. An agent that can only *read* a repo still gets everything
+from this README — but if you want it as a loadable skill, that file is the skill, and it is the same
+one the author drives the box with.
 
 ## Roadmap / ideas
 
@@ -487,22 +475,19 @@ Things worth building next, in rough order of usefulness:
    afterwards.
 4. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops loose,
    no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
-5. **A pattern composer UI** for roadmap item 2 — the vocabulary exists, the surface doesn't.
+5. **A composer UI** — the front end for item 2. The vocabulary exists; the surface doesn't.
 
 **Shipped since v1.0:** multi-channel verified on two channels · per-channel limits · the three
 enforced controls (power / frequency / slew) · the enforced session budget · the limits page · the
 pattern-change fix and its regression test.
 
-Not worth doing: chasing the encrypted firmware, or trying to drive the Reverse Polarity switch over
-BLE. It isn't in the protocol.
+Not worth doing: chasing the encrypted firmware (see **Status**), or trying to drive the Reverse
+Polarity switch over BLE — it isn't in the protocol.
 
 ## Status / honest gaps
 
-- **Multi-channel: verified on two channels (2026-09-15).** The engine reads `CA` and drives only
-  plugged channels; `PW` is per-selected-channel, so it selects each in turn in ~0.4 s windows. Two
-  preconditions are mandatory: every live channel needs a **pattern** (blank refuses power outright)
-  and should be set to **Manual** so the box isn't running its own generator underneath. Different
-  patterns per channel (`PA` is a per-channel array) is now the only untested part.
+- **Multi-channel: verified on two channels (2026-09-15)** — see the rules above. Different patterns per
+  channel (`PA` is a per-channel array) is the only part still untested.
 - `SB` / `CS` semantics unknown. Reverse Polarity is not reachable over BLE.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
 

@@ -11,6 +11,28 @@ happened is part of the record.
 
 ---
 
+## v3.2.22 — 2026-09-17
+
+### Changed — the README now says what the project is before it says anything else
+
+The file opened with a release line that was already wrong (it named v3.2.18 after v3.2.21 had
+shipped), and then restated the same safety rules four separate times. It is ordered now for someone
+who has never seen the box: what the project is, the hard stops, how to install it, the detailed
+safety contract, then the reverse-engineering.
+
+The hard stops — the list the limits page already carried — are stated in full once, at the top, and
+referenced everywhere else. Install comes before the detail, and the technical sections follow it.
+Sentences that appeared more than once were cut, along with a firmware string printed twice, and the
+safety wording no longer assumes a skin tone.
+
+### Changed — one wording of the skin rule, in all three places
+
+`limits-form.html` and the shipped `limits.json` both said the skin should settle "back to normal
+pink". Both now say "back to normal" — the check is that the skin is unchanged, not that it matches a
+particular colour. The README's copy of the rule follows.
+
+---
+
 ## v3.2.21 — 2026-09-16
 
 ### Fixed — `install.sh` claimed "already on your PATH" when it was only true for the current session
