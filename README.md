@@ -102,17 +102,30 @@ put it first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer a
 
 ### Windows
 
-In PowerShell, from a folder you own. Anything under `C:\Users\<you>` works; a protected directory
-does not:
+**One command.** In PowerShell, from a folder you own:
 
 ```powershell
 cd $HOME                 # C:\Users\<you>  -- anywhere you own
 git clone https://github.com/vybesforge/k250-forge.git
 cd k250-forge
-py -3 -m venv venv
-.\venv\Scripts\pip install bleak
+.\install.ps1
 ```
 
+`install.ps1` builds the venv, installs `bleak`, writes a conservative `limits.local.json`, and makes the
+engine answer `--limits-show` before it hands over. Nothing needs admin, and it does not touch your PATH
+or the registry. If the folder is one you cannot write to, it says so and stops there rather than leaving
+you three unrelated errors to work out.
+
+- **`install.ps1 cannot be loaded because running scripts is disabled on this system`** — Windows'
+  default execution policy refuses scripts. Bypass it for this one run:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\install.ps1
+  ```
+- **Doing it by hand instead** — the script is a convenience, not a requirement:
+  ```powershell
+  py -3 -m venv venv
+  .\venv\Scripts\pip install bleak
+  ```
 - **`py : The term 'py' is not recognized`** — the `py` launcher is not on this machine. It arrives
   with the **python.org** installer (which also has the *Add python.exe to PATH* box on its first
   screen), but the **Microsoft Store** build of Python does not add it. If `py` is missing, ask for the
@@ -388,6 +401,8 @@ k250_stop.py                  panic stop (kills patterns, zeroes all channels)
 k250_session.py               session ledger -- enforces session.max_duration_s
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              self-contained builder for limits.json
+install.sh                    installer for Linux and macOS (bash)
+install.ps1                   installer for Windows (PowerShell)
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
 LICENSE                       Apache-2.0
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
@@ -397,7 +412,10 @@ tests/                        eight suites, all runnable from any clone:
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
   test_write_policy.py          redundant power writes are skipped, but never unsafely
   test_portability.py           nothing shipped points at the author's machine; POSIX-only
-                                calls are guarded; the shipped skill still has both rules
+                                calls are guarded; the shipped skill still has both rules;
+                                install.ps1 keeps its promises (no PATH/registry edits, no
+                                fixed Python floor, refuses an unwritable folder) and parses
+                                under PowerShell when one is on PATH
   test_wrapper_cli.py           the wrapper tools work from any cwd, and fail loudly
   test_shell_compat.py          no bash-4-only syntax; arrays guarded for macOS's bash 3.2
   test_limits_form.py           limits-form.html still generates a contract the engine reads

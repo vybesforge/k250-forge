@@ -1,5 +1,10 @@
 """Portability: nothing in the shipped code may point at the author's machine.
 
+Also guards the Windows installer's invariants: install.ps1 must gate on `import bleak` rather
+than a hardcoded Python floor, must not edit the PATH or the registry (the docs promise it
+doesn't), and must refuse a directory the user cannot write to — that is the failure that reads
+as three unrelated errors from a protected folder.
+
 Regression guard for a real one: `tests/test_pattern_change.py` had
 `sys.path.insert(0, '/home/<user>/k250')` — the author's own working directory, hardcoded. It ran
 fine on that box and raised `ModuleNotFoundError: k250_play` for everyone else, which meant the one
@@ -14,12 +19,16 @@ Run: venv/bin/python tests/test_portability.py
 """
 import os
 import re
+import shutil
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# /home/<someone>/ or /Users/<someone>/ -- an absolute path into a personal home dir.
-ABSOLUTE_HOME = re.compile(r"(?:/home/|/Users/)[A-Za-z0-9._-]+")
+# A path into one particular person's home dir: POSIX (/home/<name>, /Users/<name>) or Windows
+# (C:\Users\<name>). The angle-bracket placeholder a doc would use (<you>) is not a name and
+# does not match, which is the point.
+ABSOLUTE_HOME = re.compile(r"(?:/home/|/Users/|[A-Za-z]:\\Users\\)[A-Za-z0-9._-]+")
 
 # Dependencies do not reliably expose a version attribute (bleak 1.x+ dropped it), so printing that
 # attribute turns a successful install into a traceback. Ask the package metadata instead. (Written
@@ -27,7 +36,7 @@ ABSOLUTE_HOME = re.compile(r"(?:/home/|/Users/)[A-Za-z0-9._-]+")
 VERSION_ATTR = re.compile(r"\.__" + r"version__")
 
 SKIP_DIRS = {".git", "venv", "__pycache__", "node_modules"}
-CHECK_SUFFIXES = (".py", ".sh")
+CHECK_SUFFIXES = (".py", ".sh", ".ps1")
 CHECK_NAMES = {"k250-scene", "k250-stop", "k250-status"}   # no extension, still shipped
 
 
@@ -108,6 +117,54 @@ def main():
                        ""))
     else:
         checks.append(("install.sh present", False, "missing"))
+
+    # 1e. the Windows installer. Same honesty rules as install.sh, plus the promise the README
+    #     makes for it: no PATH edits, no registry, and a refusal to work in a folder it cannot
+    #     write to (from a protected folder, `git clone` fails first and the next two commands
+    #     fail after it, so the cause is invisible without this check).
+    ps1 = os.path.join(ROOT, "install.ps1")
+    if os.path.isfile(ps1):
+        with open(ps1, encoding="utf-8") as fh:
+            ps = fh.read()
+        checks.append(("install.ps1 gates on `import bleak`, not a hardcoded Python floor",
+                       "import bleak" in ps and not re.search(r"MIN_PY_(MAJOR|MINOR)\s*=", ps),
+                       "import bleak present" if "import bleak" in ps else "no `import bleak` gate"))
+        edits = [t for t in ("SetEnvironmentVariable", "setx ", "[Environment]::", "New-ItemProperty")
+                 if t in ps]
+        checks.append(("install.ps1 does not edit PATH or the registry", not edits,
+                       ", ".join(edits) if edits else "clean"))
+        checks.append(("install.ps1 refuses an unwritable folder",
+                       "not writable" in ps, ""))
+        checks.append(("install.ps1 names python.org for a missing interpreter",
+                       "python.org" in ps, ""))
+        # `py` is the launcher (python.org installer only, not the Microsoft Store build), so
+        # the script has to work when it is absent. It probes the interpreter names in order
+        # rather than hardcoding one -- assert both fallbacks are actually tried.
+        checks.append(("install.ps1 survives a missing `py` launcher",
+                       "'python'" in ps and "'python3'" in ps,
+                       "probes py, then python, then python3"))
+        checks.append(("install.ps1 asks package metadata for the version",
+                       "importlib.metadata" in ps, ""))
+    else:
+        checks.append(("install.ps1 present", False, "missing"))
+
+    # 1f. parse install.ps1 when a PowerShell is available; skip cleanly when there is none.
+    #     A syntax error in an installer is invisible until a user hits it, and this repo has
+    #     been bitten by exactly that class (the macOS bash-3.2 crash every python test missed).
+    pwsh = shutil.which("pwsh")
+    if pwsh and os.path.isfile(ps1):
+        probe = (
+            '$e=$null;$t=$null;'
+            '[void][System.Management.Automation.Language.Parser]::ParseFile('
+            '"' + ps1.replace("\\", "/") + '",[ref]$t,[ref]$e);'
+            'if($e.Count){$e|%{Write-Host $_.Message};exit 1}else{exit 0}'
+        )
+        proc = subprocess.run([pwsh, "-NoProfile", "-Command", probe],
+                              capture_output=True, text=True)
+        checks.append(("install.ps1 parses under PowerShell", proc.returncode == 0,
+                       (proc.stdout + proc.stderr).strip()[:120] or "clean"))
+    else:
+        print("  skip  install.ps1 parses under PowerShell  — no pwsh on PATH")
 
     # 2. every test resolves the package relative to itself, not by literal path
     tests_dir = os.path.join(ROOT, "tests")

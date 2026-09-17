@@ -11,6 +11,35 @@ happened is part of the record.
 
 ---
 
+## v3.2.25 — 2026-09-17
+
+### Added — `install.ps1`, so the Windows route is one command like the others
+
+Linux and macOS have had `install.sh` from the start; Windows had a list of commands to type, and a
+first attempt at them from a freshly opened PowerShell fails in three places at once. From the Windows
+system folder, `git clone` cannot create the directory, so `cd k250-forge` fails, so
+`.\venv\Scripts\pip` is not a command — one cause wearing three costumes.
+
+`install.ps1` does what `install.sh` does — venv, `bleak`, a conservative `limits.local.json`, a summary
+of the tools — and adds the check the Windows route was missing: it writes to a probe file in its own
+folder first and, if that fails, names the real problem (this is a directory you do not own; move to one
+you do) instead of leaving three errors to work out. It finds the interpreter by trying `py -3`, then
+`python`, then `python3`, because the `py` launcher ships with the python.org installer but not with the
+Microsoft Store build of Python. It asks package metadata for the bleak version for the same reason
+`install.sh` does. It edits nothing outside its own folder: no PATH, no registry.
+
+`tests/test_portability.py` now scans `.ps1` files like any other shipped code, looks for a Windows home
+path the way it already looked for a POSIX one, and asserts the installer's promises: it gates on
+`import bleak` rather than a fixed Python floor, it does not write PATH or the registry entries, it
+refuses an unwritable folder, and it names python.org when no interpreter is found. When a PowerShell is
+on PATH it also parses the script and fails on a syntax error; with none present it skips, the same way
+`test_limits_form.py` skips without node.
+
+Both of its failure paths were exercised: run against a read-only directory it refuses and exits 1, and
+run against a venv that did not produce `Scripts\python.exe` it names that rather than carrying on.
+
+No engine, tool or limits-value change.
+
 ## v3.2.24 — 2026-09-17
 
 ### Fixed — the Windows install steps never said where to run them
