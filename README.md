@@ -274,7 +274,7 @@ Read-all (app sync):
 Notifications are pretty JSON, numbers sometimes unquoted, and may split across packets — strip
 `\n`, `\r`, `\x00` and debounce ~60 ms before parsing.
 
-### Five traps that will cost you an evening
+### Other Tech Notes:
 
 1. **The scale is 0..10000, not 0..100.** The official app maps its 0–100 slider by ×100. Sending
    `PW=10` is **0.1 %** — imperceptible, and it looks exactly like "my commands do nothing." Always
@@ -299,10 +299,7 @@ Notifications are pretty JSON, numbers sometimes unquoted, and may split across 
 
 **Why the engine still re-sends power anyway:** because the pattern-change reset means a driver must
 write *after* any `PA` change, and always writing means never having to special-case it. It's also what
-the official app does. Cost is nothing; belt-and-braces, not a requirement of the box. (An earlier
-version of this file claimed a single power write went missing and left 55 seconds silent. **That
-claim is retracted** — no dropped write has ever been observed here, and the real cause of that run was
-the pattern reset plus a driver that didn't re-send.)
+the official app does. Cost is nothing; belt-and-braces, not a requirement of the box.
 
 Also: the box gates channel selection on plug detection (`AC` writes to an unplugged channel are
 silently refused), and the Reverse Polarity Switch is **box-only** — it does not exist in the BLE
@@ -311,7 +308,7 @@ protocol.
 ### Multi-channel — verified 2026-09-15
 
 The engine drives every channel the box reports as live (`CA`), and this works on two channels
-simultaneously. Three rules make it work, all learned the hard way:
+simultaneously.
 
 1. **A channel with a blank pattern refuses power** — see trap 4 above. Give it a pattern first.
 2. **Set every channel to `Manual` before driving it.** In a patterned mode the box runs its own
