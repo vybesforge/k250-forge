@@ -11,6 +11,21 @@ happened is part of the record.
 
 ---
 
+## v3.2.21 — 2026-09-16
+
+### Fixed — `install.sh` claimed "already on your PATH" when it was only true for the current session
+
+The installer's PATH check tested the **live shell** (`case ":$PATH:"`), not whether the line was
+persisted. If the current session happened to have `~/.local/bin` on its PATH (a parent shell
+exported it, or you added it manually), it printed "already on your PATH" — but a fresh terminal
+reads the rc file and wouldn't find the tools. The check now asks the real question: does the rc
+file carry the `export PATH=…~/.local/bin…` line? It picks the right file per shell (`.bashrc` /
+`.zshrc`, and on macOS the login-shell `.bash_profile` / `.zprofile` when present), reports
+"persisted in <file>" when it's there, and otherwise prints the exact line to add. The live-PATH
+state is no longer treated as persistence.
+
+---
+
 ## v3.2.20 — 2026-09-16
 
 ### Fixed — `test_wrapper_cli.py` leaked the installed `limits.local.json` into its temp clone

@@ -57,19 +57,35 @@ for t in k250-scene k250-stop k250-status; do
   ln -sf "$HERE/bin/$t" "$BIN/$t"
   echo "      $BIN/$t"
 done
-case ":$PATH:" in
-  *":$BIN:"*) echo "      already on your PATH" ;;
-  *) _rc="$HOME/.bashrc"
-     case "${SHELL:-}" in *zsh*) _rc="$HOME/.zshrc" ;; esac
-     echo "      NOTE: $BIN is not on your PATH. Add it with:"
-     echo "            echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> $_rc"
-     echo "            then open a new shell."
-     if [ "$_rc" = "$HOME/.zshrc" ]; then
-       echo "            (zsh detected — macOS defaults to zsh, so ~/.zshrc is the right file there)"
-     fi
-     echo "      Or skip PATH entirely and call the tools directly:"
-     echo "            $HERE/venv/bin/python $HERE/k250_play.py --help" ;;
+# Is ~/.local/bin actually PERSISTED, not just in this session's PATH? The old check
+# (`case ":$PATH:"`) only tested the live shell, so if the current session happened to have the
+# dir (a parent shell exported it, or you added it manually) it printed "already on your PATH" —
+# but a fresh terminal reads the rc file and won't find the tools. The real question is whether
+# the rc file carries the export line.
+_rc="$HOME/.bashrc"
+case "${SHELL:-}" in
+  *zsh*) _rc="$HOME/.zshrc" ;;
 esac
+# macOS login shells read a different file than interactive ones: bash reads .bash_profile,
+# zsh reads .zprofile. Prefer those when present so a login shell (the default on macOS) sees it.
+if [ "$(uname -s)" = "Darwin" ]; then
+  case "${SHELL:-}" in
+    *zsh*) [ -f "$HOME/.zprofile" ] && _rc="$HOME/.zprofile" ;;
+    *)     [ -f "$HOME/.bash_profile" ] && _rc="$HOME/.bash_profile" ;;
+  esac
+fi
+if grep -q '\.local/bin' "$_rc" 2>/dev/null; then
+  echo "      $BIN is on your PATH (persisted in $_rc)"
+else
+  echo "      NOTE: $BIN is not on your PATH. Add it with:"
+  echo "            echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> $_rc"
+  echo "            then open a new shell."
+  if [ "$_rc" = "$HOME/.zshrc" ] || [ "$_rc" = "$HOME/.zprofile" ]; then
+    echo "            (zsh detected — macOS defaults to zsh, so ${_rc##*/} is the right file there)"
+  fi
+  echo "      Or skip PATH entirely and call the tools directly:"
+  echo "            $HERE/venv/bin/python $HERE/k250_play.py --help"
+fi
 echo
 
 # 3. your own limits file
