@@ -11,6 +11,24 @@ happened is part of the record.
 
 ---
 
+## v3.2.24 — 2026-09-17
+
+### Fixed — the Windows install steps never said where to run them
+
+Running the Windows route from a freshly opened PowerShell lands in `C:\WINDOWS\system32`, which is a
+protected system directory. `git clone` cannot create the folder there, so `cd k250-forge` then fails,
+so `.\venv\Scripts\pip` does not exist — three errors with one cause, and the README caused it by
+never saying where to stand. The Install section now opens with that rule (a folder you own, never a
+system directory), and the Windows steps start with `cd $HOME`.
+
+The other half of the same report was real and separate: `py -3` assumes the `py` launcher, which ships
+with the python.org installer but **not** with the Microsoft Store build of Python. Both spellings are
+now given, with the `python -m venv venv` fallback and a pointer to python.org if neither resolves, and
+`.\venv\Scripts\pip` not being recognised is named as the consequence of a failed venv step rather
+than a second problem.
+
+No engine, tool, test or limits-value change.
+
 ## v3.2.23 — 2026-09-17
 
 ### Changed — the second half of the README stopped saying things twice

@@ -40,6 +40,11 @@ others, so the same figure is a different sensation and a different risk.
 
 ## Install
 
+**Run all of this from a folder you own** — your home directory is fine. A system directory is not
+writable by your user, and that is the whole of a very common first failure: on Windows you get
+`fatal: could not create work tree dir 'k250-forge': Permission denied` from `C:\WINDOWS\system32`, and
+on Linux or macOS the same thing from `/` or `/usr`.
+
 **Every platform needs:** Python 3 with `pip` and `venv`, and working Bluetooth LE on the host.
 That's it — no app, no server, no build step. `bleak` is the only dependency, and it speaks to each
 platform's native Bluetooth stack.
@@ -97,19 +102,35 @@ put it first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer a
 
 ### Windows
 
-In PowerShell, in the folder you want:
+In PowerShell, from a folder you own. Anything under `C:\Users\<you>` works; a protected directory
+does not:
 
 ```powershell
+cd $HOME                 # C:\Users\<you>  -- anywhere you own
 git clone https://github.com/vybesforge/k250-forge.git
 cd k250-forge
 py -3 -m venv venv
 .\venv\Scripts\pip install bleak
 ```
 
+- **`py : The term 'py' is not recognized`** — the `py` launcher is not on this machine. It arrives
+  with the **python.org** installer (which also has the *Add python.exe to PATH* box on its first
+  screen), but the **Microsoft Store** build of Python does not add it. If `py` is missing, ask for the
+  interpreter directly:
+
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\pip install bleak
+  ```
+
+  `python3` works on some installs too. If none of the three resolve, install Python 3 from
+  **python.org**, open a **new** PowerShell window, and check `python --version` before going on.
+- **`The term '.\venv\Scripts\pip' is not recognized`** — the venv step didn't run, so there is no venv
+  to call. It is the step above failing, not a second problem. Fix that one and this one works.
 - `bleak` uses the WinRT Bluetooth stack — **no extra drivers**.
 - **Check which Python `py -3` means.** It picks your newest Python 3; pip then resolves the newest
   bleak that runs on it, so there's no floor to chase. With several installed, name the one you want:
-  `py -3.12 -m venv venv`.
+  `py -3.12 -m venv venv` (`python -3.12` if you are on the `python` spelling).
 - Turn **Bluetooth on** and make sure the box is awake before scanning.
 - `install.sh` is a bash script and won't run natively. Call the engine directly — **it reads
   `limits.json` itself**, so the ceiling and the session budget apply here exactly as they do through
