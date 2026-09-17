@@ -310,12 +310,15 @@ protocol.
 The engine drives every channel the box reports as live (`CA`), and this works on two channels
 simultaneously.
 
-1. **A channel with a blank pattern refuses power** — see trap 4 above. Give it a pattern first.
+1. **A channel with a blank pattern refuses power** — see the blank-pattern note above. Give it a pattern first.
 2. **Set every channel to `Manual` before driving it.** In a patterned mode the box runs its own
    generator and your power writes go *into* that; in Manual nothing competes, so what you write is
    what happens. You own the pattern, not the box.
 3. **Rotate channels in windows, don't flip-flop.** Hold one channel for ~0.4 s, then move to the next.
    Rapid per-tick switching halves each channel's update rate and fragments the power stream.
+
+**Still untested:** different patterns per channel. `PA` is a per-channel array, but the live channels
+have only ever been driven with one pattern between them.
 
 ## The two axes — this is the whole instrument
 
@@ -392,12 +395,7 @@ Do these in order, the first time, with the wearer connected and someone's hand 
 
 1. **Wake the box and enable remote control** (see [Make the box discoverable](#make-the-box-discoverable)).
    It advertises as **`Kx250-4S`**.
-2. **Check it's reachable** — battery, live channels, current pattern:
-   ```bash
-   k250-status
-   ```
-   `CA` shows `Active` for a channel with an electrode attached and `Unplugged` otherwise. That's load
-   detection, not proof that power is flowing.
+2. **Check it's reachable** — `k250-status` reads the battery, the live channels and the current pattern.
 3. **Read your limits before you drive anything.** Open `limits.json`, or build one with
    `limits-form.html`. Know three things: the power ceiling, the stop word, and the session budget.
 4. **Lowest useful first run.** With the wearer able to speak, and the physical kill switch in the room:
@@ -406,9 +404,8 @@ Do these in order, the first time, with the wearer connected and someone's hand 
    ```
    5 % is the shipped default start. It is meant to be barely anything — the point is to prove the path
    works, not to be a scene.
-5. **Prove the stop works, both ways.** `k250-stop` zeroes every channel immediately and kills any
-   running pattern. Say the stop word out loud, and show everyone how to power the box off by hand
-   (hold any knob ~2 seconds). Do this *before* the first real scene.
+5. **Prove the stop works, both ways.** Say the stop word out loud, run `k250-stop`, and show everyone
+   the hardware kill switch. Do this *before* the first real scene.
 6. **Then build** — up only on the wearer's spoken word, never in silence. See the hard stops at the top.
 
 ## For an AI agent (or anyone writing a skill from this)
@@ -421,7 +418,7 @@ connect, drive, and stop the box without guessing:
 | Understand the device, and connect to it | **Finding the box** above, and `FINDINGS.md` — the full log, including the dead ends |
 | Talk to it correctly (frames, keys, the 0..10000 scale) | **The protocol** section, and `k250_codec.py` |
 | Know what it must never do | `limits.json` → `safety.hard_stops`, plus **Safety & limits** |
-| Drive it | `k250-scene <pattern> --base N --secs N` — the ceiling is **clamped in code**, not requested politely. On Windows, where the wrapper can't run, the engine does the same clamping itself |
+| Drive it | `k250-scene <pattern> --base N --secs N`. On Windows, where the wrapper can't run, the engine clamps to the same ceiling itself |
 | Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
 | See what's connected | `k250-status` |
 | See what patterns exist | `k250_play.py --list` — works on every platform, no box needed |
@@ -434,8 +431,7 @@ file rather than a paragraph of good intentions. The two rules any skill must ca
 
 ### Give this to your agent
 
-The repo is written so an agent can pick it up cold. Point it at the folder — or the clone — and hand
-it this:
+Point it at the folder — or the clone — and hand it this:
 
 ```text
 Read README.md in this repo. Follow the Install section for this OS, then the First steps
@@ -448,44 +444,36 @@ at a time.
 ```
 
 **The skill is in the repo, not just described here.**
-[`agent-skill/SKILL.md`](agent-skill/SKILL.md) is a self-contained operator skill: the two hard rules,
-the limits contract, the tool table and the protocol traps. Copy that folder into whatever your agent
-auto-loads, or paste it into a system prompt. An agent that can only *read* a repo still gets everything
-from this README — but if you want it as a loadable skill, that file is the skill, and it is the same
-one the author drives the box with.
+[`agent-skill/SKILL.md`](agent-skill/SKILL.md) is that skill written out — the two hard rules, the limits
+contract, the tool table and the protocol traps. Copy the folder into whatever your agent auto-loads, or
+paste it into a system prompt.
 
 ## Roadmap / ideas
 
 Things worth building next, in rough order of usefulness:
 
 1. **A browser UI for the box** — one page, no build step: pick a pattern, set base/peak/seconds, hit
-   go, with a big STOP button. The whole engine already speaks plain arguments, so this is a thin
-   wrapper over `k250-scene`. Pair it with `limits-form.html` (already done) and a stranger can drive
-   the box safely without reading a line of Python.
-2. **A pattern generator, not just a pattern list.** The real finding of this project is that power and
-   speed are *two* axes, and that the interesting feelings come from how they move relative to each
-   other. A small composer — "power: flat / climb / drop, speed: sweep / hold / step, over N seconds" —
+   go, with a big STOP button. The engine already speaks plain arguments, so it's a thin wrapper over
+   `k250-scene`. Pair it with `limits-form.html` (already done) and a stranger can drive the box safely
+   without reading a line of Python.
+2. **A pattern composer, and the surface for it.** This project rests on the finding that power and
+   frequency are *two* axes, and that the interesting feelings come from how they move relative to each
+   other. A composer — "power: flat / climb / drop, frequency: sweep / hold / step, over N seconds" —
    would generate far more patterns than anyone wants to hand-write, and the vocabulary already exists
-   in `k250_play.py`.
+   in `k250_play.py`. The engine is the hard part; the UI over it is small.
 3. **A session log.** Timestamped record of what was run and at what numbers — partly for
    reproducibility, mostly because "what did we do last time" is the hardest question to answer
    afterwards.
 4. **A pre-flight checklist** the driver must answer before the first write: pads on where, loops loose,
    no mains, stop word understood, who's in the room. Cheap, and it's the step people skip.
-5. **A composer UI** — the front end for item 2. The vocabulary exists; the surface doesn't.
 
 **Shipped since v1.0:** multi-channel verified on two channels · per-channel limits · the three
 enforced controls (power / frequency / slew) · the enforced session budget · the limits page · the
 pattern-change fix and its regression test.
 
-Not worth doing: chasing the encrypted firmware (see **Status**), or trying to drive the Reverse
-Polarity switch over BLE — it isn't in the protocol.
-
 ## Status / honest gaps
 
-- **Multi-channel: verified on two channels (2026-09-15)** — see the rules above. Different patterns per
-  channel (`PA` is a per-channel array) is the only part still untested.
-- `SB` / `CS` semantics unknown. Reverse Polarity is not reachable over BLE.
+- `SB` / `CS` semantics unknown.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
 
 ## Licence

@@ -11,6 +11,29 @@ happened is part of the record.
 
 ---
 
+## v3.2.23 — 2026-09-17
+
+### Changed — the second half of the README stopped saying things twice
+
+Everything from "Multi-channel" onward had drifted into restating itself: First steps re-explained what
+trap 3 says about `CA` and what the Tools list says about `k250-stop`; the AI-agent section described
+itself as cold-startable twice and repeated its own clamping paragraph in a table cell; and the roadmap
+carried three separate items for one idea (a UI over the engine, a composer, a composer UI), plus a
+"not worth doing" line that repeated both bullets of Status.
+
+The untested part of multi-channel — different patterns per channel — moved out of Status and next to
+the rules it belongs to, as a **Still untested** line. Status is now the two genuine gaps it was meant
+to be. First steps, the AI-agent table and the roadmap are pointers rather than second copies.
+
+### Changed — a review pass over the protocol section
+
+The "Five traps" heading became **Other Tech Notes**, the retraction note about the earlier 55-second
+claim was dropped (the claim itself is gone, so the correction no longer needs to keep it alive), and
+the multi-channel rules lost their preamble. A cross-reference in the multi-channel list that pointed at
+"trap 4" now names the note it means, since the heading it referred to no longer exists.
+
+No engine, tool, test or limits-value change.
+
 ## v3.2.22 — 2026-09-17
 
 ### Changed — the README now says what the project is before it says anything else
