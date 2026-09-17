@@ -4,8 +4,9 @@
 #
 #   ./install.sh
 #
-# Nothing here needs sudo. Everything lives inside this folder; the only thing
-# written outside it is three symlinks in ~/.local/bin.
+# Nothing here needs sudo. Everything lives inside this folder; the only things
+# written outside it are three symlinks in ~/.local/bin and, only if you say yes,
+# one line of your shell rc file that puts ~/.local/bin on your PATH.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,14 +78,36 @@ fi
 if grep -q '\.local/bin' "$_rc" 2>/dev/null; then
   echo "      $BIN is on your PATH (persisted in $_rc)"
 else
-  echo "      NOTE: $BIN is not on your PATH. Add it with:"
-  echo "            echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> $_rc"
-  echo "            then open a new shell."
-  if [ "$_rc" = "$HOME/.zshrc" ] || [ "$_rc" = "$HOME/.zprofile" ]; then
-    echo "            (zsh detected — macOS defaults to zsh, so ${_rc##*/} is the right file there)"
+  # Add it? Two ways in, never silently: K250_ADD_PATH=1 for scripts/CI (no TTY, no prompting),
+  # or an interactive prompt whose default is yes. With stdin not a terminal and no override, it
+  # fails safe: nothing is written, the user just gets the reminder below.
+  _write_path=0
+  case "${K250_ADD_PATH:-}" in
+    1|y|Y|yes|YES) _write_path=1 ;;
+  esac
+  if [ "$_write_path" -eq 0 ] && [ -t 0 ]; then
+    printf "      %s is not on your PATH. Add it to %s? [Y/n] " "$BIN" "${_rc##*/}"
+    read -r _ans || true
+    case "${_ans:-y}" in
+      y|Y|yes) _write_path=1 ;;
+    esac
   fi
-  echo "      Or skip PATH entirely and call the tools directly:"
-  echo "            $HERE/venv/bin/python $HERE/k250_play.py --help"
+  if [ "$_write_path" -eq 1 ]; then
+    if printf '\n# ~/.local/bin on PATH (added by k250-forge install.sh)\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$_rc" 2>/dev/null; then
+      echo "      added to ${_rc##*/}:  export PATH=\"\$HOME/.local/bin:\$PATH\""
+      echo "      open a new terminal and the tools will be on your PATH."
+      echo "      (to undo, remove the line ending in '# k250-forge install.sh' from ${_rc##*/})"
+    else
+      echo "      could not write ${_rc##*/} — add it yourself:"
+      echo "            echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ${_rc##*/}"
+    fi
+  else
+    echo "      $BIN is not on your PATH. Open a new shell, or call the tools directly:"
+    echo "            $HERE/venv/bin/python $HERE/k250_play.py --help"
+    if [ "$_rc" = "$HOME/.zshrc" ] || [ "$_rc" = "$HOME/.zprofile" ]; then
+      echo "            (zsh detected — macOS defaults to zsh, so ${_rc##*/} is the file to edit)"
+    fi
+  fi
 fi
 echo
 

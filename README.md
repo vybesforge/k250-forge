@@ -66,7 +66,8 @@ cd k250-forge
 `install.sh` builds a venv, installs `bleak`, symlinks `k250-scene` / `k250-stop` / `k250-status`
 into `~/.local/bin`, and writes a conservative `limits.local.json`.
 
-- Needs **BlueZ running** (`systemctl status bluetooth`) and `~/.local/bin` on your `PATH`.
+- Needs **BlueZ running** (`systemctl status bluetooth`). `install.sh` will offer to put `~/.local/bin`
+  on your `PATH`; say yes, or add it yourself later.
 - If scanning finds nothing: `rfkill list`, then say the word — Bluetooth turned off is the usual cause.
 - **Don't run as root.** Root often can't reach BlueZ on a desktop session; your normal user can.
 - **The venv is not optional, and not a style choice.** Debian, Ubuntu and Fedora block `pip install`
@@ -96,8 +97,9 @@ put it first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer a
   System Settings → Privacy & Security → Bluetooth.
 - Everything runs on macOS's **stock `/bin/bash` (3.2)** — no Homebrew bash needed. That is checked in
   `tests/test_shell_compat.py`, because bash 3.2 has sharp edges newer bash does not.
-- `install.sh` links into `~/.local/bin`, which isn't on macOS's `PATH` by default. Add it
-  (`export PATH="$HOME/.local/bin:$PATH"`), or just call the tools as
+- `install.sh` links into `~/.local/bin`, which macOS doesn't put on `PATH`. The installer will offer
+  to add it to your shell rc (`.bash_profile` / `.zprofile`) — say yes, or add it yourself with
+  `export PATH="$HOME/.local/bin:$PATH"`. Or skip `PATH` entirely and call the tools as
   `./venv/bin/python k250_play.py …`.
 
 ### Windows
@@ -412,7 +414,7 @@ install.cmd                   launcher for install.ps1 — bypasses the script p
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
 LICENSE                       Apache-2.0
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
-tests/                        eight suites, all runnable from any clone:
+tests/                        nine suites, all runnable from any clone:
   test_pattern_change.py        regression: a PA change must clear the frequency cache
                                 and seed slew to zero
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
@@ -427,6 +429,8 @@ tests/                        eight suites, all runnable from any clone:
   test_limits_form.py           limits-form.html still generates a contract the engine reads
                                 (needs node; skips cleanly without it)
   test_stop_parsers.py          k250-stop finds the right processes on POSIX and Windows
+  test_install.py               the installer's PATH handling: K250_ADD_PATH writes the rc line,
+                                non-interactive runs write nothing, later runs do not duplicate
 ```
 
 Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`

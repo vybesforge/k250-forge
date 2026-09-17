@@ -11,6 +11,29 @@ happened is part of the record.
 
 ---
 
+## v3.2.28 — 2026-09-17
+
+### Changed — install.sh offers to put `~/.local/bin` on your PATH, instead of only telling you to
+
+It already linked the three tools into `~/.local/bin` and created the directory when it was missing,
+but it would not persist the PATH line — a fresh user got `command not found: k250-scene` in the next
+terminal on the OSes (Linux and macOS) where `~/.local/bin` is often not on PATH at all. The Windows
+installer (install.cmd) had just removed the same first-run wall on that platform; this closes it on the
+other two.
+
+The write is never silent: it happens only on an explicit yes. Interactively the installer asks
+"Add ... to your PATH ... [Y/n]" (default yes); with stdin not a terminal it reads `K250_ADD_PATH` and,
+with neither, writes nothing and just prints the reminder — an unattended run cannot edit a shell rc by
+accident. The added line is one commented export, marked with the installer's name so it can be removed
+in one go, and a second run sees the directory already persisted and does not duplicate it.
+
+`tests/test_install.py` pins the behaviour without a network build (the sandbox ships a fake
+`venv/bin/python` and `pip` so install.sh reaches its PATH step quickly): `K250_ADD_PATH=1` writes the
+line exactly once, a no-TTY, no-flag run writes nothing, `K250_ADD_PATH=no` writes nothing, and a second
+run does not duplicate. Nine suites now.
+
+No engine, tool or limits-value change.
+
 ## v3.2.27 — 2026-09-17
 
 ### Fixed — install.ps1 could not parse on Windows, at all
