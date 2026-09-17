@@ -36,7 +36,7 @@ ABSOLUTE_HOME = re.compile(r"(?:/home/|/Users/|[A-Za-z]:\\Users\\)[A-Za-z0-9._-]
 VERSION_ATTR = re.compile(r"\.__" + r"version__")
 
 SKIP_DIRS = {".git", "venv", "__pycache__", "node_modules"}
-CHECK_SUFFIXES = (".py", ".sh", ".ps1")
+CHECK_SUFFIXES = (".py", ".sh", ".ps1", ".cmd")
 CHECK_NAMES = {"k250-scene", "k250-stop", "k250-status"}   # no extension, still shipped
 
 
@@ -145,6 +145,18 @@ def main():
                        "probes py, then python, then python3"))
         checks.append(("install.ps1 asks package metadata for the version",
                        "importlib.metadata" in ps, ""))
+        # Windows' default execution policy refuses a .ps1 outright, so the launcher has to carry
+        # the bypass -- and it must be a per-process flag, not a machine-wide policy change.
+        cmd = os.path.join(ROOT, "install.cmd")
+        if os.path.isfile(cmd):
+            with open(cmd, encoding="utf-8") as fh:
+                csrc = fh.read()
+            checks.append(("install.cmd launches install.ps1 with a per-process policy bypass",
+                           "-ExecutionPolicy Bypass" in csrc and "install.ps1" in csrc
+                           and "Set-ExecutionPolicy" not in csrc,
+                           "no machine-wide policy change"))
+        else:
+            checks.append(("install.cmd present", False, "missing"))
     else:
         checks.append(("install.ps1 present", False, "missing"))
 

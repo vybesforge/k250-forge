@@ -11,6 +11,23 @@ happened is part of the record.
 
 ---
 
+## v3.2.26 — 2026-09-17
+
+### Added — `install.cmd`, because the default execution policy refuses `.ps1` files
+
+The first Windows run of `install.ps1` returned "cannot be loaded because running scripts is disabled on
+this system" — Windows' default execution policy, which blocks scripts before the installer's own checks
+ever see it. The documented fix was to type the bypass by hand, which is a poor first instruction.
+
+`install.cmd` is the two-line launcher: it runs `install.ps1` with `-ExecutionPolicy Bypass` for that one
+process. No policy is set, nothing persists, and the README now leads with it. Running the `.ps1` by hand
+still works, with the bypass spelled out for anyone who prefers it.
+
+`tests/test_portability.py` scans `.cmd` files like the rest of the shipped code and asserts the launcher
+carries a per-process bypass and never a machine-wide `Set-ExecutionPolicy`.
+
+No engine, tool or limits-value change.
+
 ## v3.2.25 — 2026-09-17
 
 ### Added — `install.ps1`, so the Windows route is one command like the others

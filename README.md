@@ -108,8 +108,12 @@ put it first (`export PATH="$(brew --prefix)/bin:$PATH"`) or run the installer a
 cd $HOME                 # C:\Users\<you>  -- anywhere you own
 git clone https://github.com/vybesforge/k250-forge.git
 cd k250-forge
-.\install.ps1
+.\install.cmd
 ```
+
+`install.cmd` is a two-line launcher for `install.ps1`: Windows' default execution policy refuses to run
+a `.ps1` file at all, so the launcher bypasses that policy **for that one process** and nothing else —
+no policy is set, and nothing outlives the window.
 
 `install.ps1` builds the venv, installs `bleak`, writes a conservative `limits.local.json`, and makes the
 engine answer `--limits-show` before it hands over. Nothing needs admin, and it does not touch your PATH
@@ -117,7 +121,8 @@ or the registry. If the folder is one you cannot write to, it says so and stops 
 you three unrelated errors to work out.
 
 - **`install.ps1 cannot be loaded because running scripts is disabled on this system`** — Windows'
-  default execution policy refuses scripts. Bypass it for this one run:
+  default execution policy. Use `install.cmd` instead, which bypasses it for one process and changes
+  nothing on your machine, or say it out loud yourself:
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\install.ps1
   ```
@@ -403,6 +408,7 @@ limits.json                   THE CONTRACT — power ceiling, stop word, safety 
 limits-form.html              self-contained builder for limits.json
 install.sh                    installer for Linux and macOS (bash)
 install.ps1                   installer for Windows (PowerShell)
+install.cmd                   launcher for install.ps1 — bypasses the script policy once
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
 LICENSE                       Apache-2.0
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
