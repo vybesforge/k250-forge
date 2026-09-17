@@ -157,6 +157,22 @@ def main():
                            "no machine-wide policy change"))
         else:
             checks.append(("install.cmd present", False, "missing"))
+
+        # Windows PowerShell 5.1 reads a .ps1 WITHOUT a byte-order mark as ANSI, not UTF-8. An
+        # em-dash then arrives as three characters (E2 80 94), and the last of them is a `"`, which
+        # closes the string early and takes the whole parse with it -- the installer could not run
+        # at all, on the platform it exists for. PowerShell 7 defaults to UTF-8, so this is
+        # invisible to any test running on Linux. The durable guard is no non-ASCII byte at all.
+        for name in ("install.ps1", "install.cmd"):
+            target = os.path.join(ROOT, name)
+            if not os.path.isfile(target):
+                continue
+            with open(target, "rb") as fh:
+                blob = fh.read()
+            offenders = sorted({b for b in blob if b > 127})
+            checks.append((f"{name} is pure ASCII (PowerShell 5.1 reads .ps1 as ANSI without a BOM)",
+                           not offenders,
+                           " ".join(f"0x{b:02X}" for b in offenders) if offenders else "clean"))
     else:
         checks.append(("install.ps1 present", False, "missing"))
 

@@ -11,6 +11,27 @@ happened is part of the record.
 
 ---
 
+## v3.2.27 — 2026-09-17
+
+### Fixed — install.ps1 could not parse on Windows, at all
+
+The first run on a real Windows box died in the parser, nine errors deep, none of them naming the cause.
+`install.ps1` was UTF-8 with no byte-order mark, and **Windows PowerShell 5.1 reads a `.ps1` without a BOM
+as ANSI**. Every em-dash arrived as three characters -- `E2 80 94` read as `a-euro-rightdoublequote` --
+and the last of those bytes is a `"`, which closed the string it sat inside and took the rest of the file
+with it.
+
+PowerShell 7 defaults to UTF-8, so the parse check that runs on Linux was clean: the installer was broken
+only on the platform it was written for. `install.ps1` and `install.cmd` are now **pure ASCII** -- no
+em-dash, no curly quote, nothing above 0x7F -- so the encoding of the file cannot matter to anyone who
+reads or rewrites it.
+
+`tests/test_portability.py` asserts both files carry no non-ASCII byte, and the check was mutation-tested:
+injecting one em-dash turns it red and prints the bytes responsible. Anything that puts a non-ASCII
+character back into either file fails the suite rather than reaching a Windows user.
+
+No engine, tool or limits-value change.
+
 ## v3.2.26 — 2026-09-17
 
 ### Added — `install.cmd`, because the default execution policy refuses `.ps1` files
