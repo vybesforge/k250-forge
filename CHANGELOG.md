@@ -11,6 +11,24 @@ happened is part of the record.
 
 ---
 
+## v3.2.30 — 2026-09-17
+
+### Changed — the folder rule is stated once, for every OS
+
+Cutting the long version of that warning left it living only in the Windows section, where it was told
+as a Windows story. Linux and macOS lost it entirely, so a clone into `/` or `/usr` failed with no
+warning at all. It is back as one line in the install preamble, covering all three platforms, and it
+stays in the Windows steps where it is natively part of the instruction.
+
+### Changed — the opening line and the repository description now say the same thing
+
+The description said "e-stim box" where the README said "e-stim **power** box" — the device's own name
+is the Kink K250-4S E-Stim Power Box, so "power box" is the one that is right, and the description was
+updated to match. The README's first sentence now also carries the description's "write your own
+patterns", which the next paragraph was already explaining.
+
+Docs only: no engine, tool, test or limits-value change.
+
 ## v3.2.29 — 2026-09-17
 
 ### Changed — the install section leads with the zero-effort path

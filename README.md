@@ -1,7 +1,7 @@
 # k250-forge
 
-A **BLE driver and pattern engine for the Kink K250-4S** 4-channel e-stim power box, driven from a
-computer.
+A **BLE driver and pattern engine for the Kink K250-4S** 4-channel e-stim power box — drive it from a
+computer, and write your own patterns.
 
 It does two things the stock companion app doesn't: it talks to the box **directly over Bluetooth
 LE**, and it **generates patterns** — timed compositions of power and frequency — rather than only
@@ -49,6 +49,9 @@ at the folder — or the clone — and tell it to install; it will run the right
 block further down spells out.
 
 **Or do it yourself** — one OS at a time, below. Both get you the same thing.
+
+**Run it from a folder you own** — your home directory is fine. A system directory (`/`, `/usr`,
+`C:\WINDOWS\system32`) is not writable by your user, and `git clone` fails there first.
 
 **Every platform needs:** Python 3 with `pip` and `venv`, and working Bluetooth LE on the host.
 That's it — no app, no server, no build step. `bleak` is the only dependency, and it speaks to each
