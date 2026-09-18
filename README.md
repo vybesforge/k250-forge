@@ -50,20 +50,9 @@ block further down spells out.
 
 **Or do it yourself** — one OS at a time, below. Both get you the same thing.
 
-**Run all of this from a folder you own** — your home directory is fine. A system directory is not
-writable by your user, and that is the whole of a very common first failure: on Windows you get
-`fatal: could not create work tree dir 'k250-forge': Permission denied` from `C:\WINDOWS\system32`, and
-on Linux or macOS the same thing from `/` or `/usr`.
-
 **Every platform needs:** Python 3 with `pip` and `venv`, and working Bluetooth LE on the host.
 That's it — no app, no server, no build step. `bleak` is the only dependency, and it speaks to each
 platform's native Bluetooth stack.
-
-There is **no fixed Python floor**. `pip install bleak` resolves the newest release that runs on
-*your* interpreter: an older Python (e.g. 3.9) gets an older bleak (1.1.1) that installs and runs
-fine, a newer one gets the current release. The installer just lets pip resolve and then confirms
-`import bleak` loads — so a genuinely too-old Python fails with pip's own honest error, not a guess.
-Don't install a second Python hoping to satisfy a version floor that isn't there.
 
 ### Linux
 
