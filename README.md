@@ -389,7 +389,37 @@ k250-scene --list                 # all patterns (same as: python k250_play.py -
 k250-scene --limits-show          # the active ceiling
 k250-stop                         # INSTANT STOP: kills the pattern, zeroes every live channel
 k250-status                       # read-only: battery, LIVE CHANNELS, pattern/speed per channel
+k250-launcher                     # the local bridge + the limits page (http://127.0.0.1:6969/)
 ```
+
+### The limits page and its bridge
+
+`limits-form.html` is the page you set the contract on, and `k250_launcher.py` is a tiny
+loopback-only server that both **serves** it and lets it **act**: press Apply and it writes
+`limits.json` (merging, never replacing — your notes and `pattern_notes` survive, and a
+timestamped backup is taken first); press Run and it plays a pattern through the same engine
+the CLI uses.
+
+Start it and open the page it serves:
+
+```bash
+k250-launcher          # or: python3 k250_launcher.py   ·  Windows: py -3 k250_launcher.py
+# then open http://127.0.0.1:6969/
+```
+
+It binds `127.0.0.1` **only** — nothing on your network can reach it — and it answers a
+`file://` page too, so opening `limits-form.html` directly still works. Three things about it
+are deliberate and worth knowing:
+
+- **One control sets the ceiling.** The page has a single *AI power ceiling* slider; the
+  per-channel rows sit under it and can only lower a channel. (It used to take the lowest of
+  the four channel sliders, so leaving an unused channel low silently dragged the ceiling down.)
+- **The wearer's own level is the only override.** If the Manual drive level is above the
+  ceiling, the bridge marks the run and the engine logs `!! OVERRIDE`; every tool path refuses
+  that flag outright, so a script or an AI driver cannot raise the agreed ceiling. The limits
+  file itself is yours to edit — nothing else writes it except Apply, which backs it up first.
+- **It zeroes after every run** — the engine already ends at `PW=0`, and the bridge then runs
+  the stop tool once more, and says so loudly if it could not reach the box.
 
 Patterns (`k250_play.py`) cover sweeps, hard drops, denial loops (`trap`, `ration`, `dread`), climbs
 (`climb`, `switchback`), chaos (`stutter`, `dice`) and compositions (`arc`, `signature`).
@@ -402,14 +432,15 @@ rather than performing.
 
 ```
 k250_ble.py / k250_codec.py   one-shot control + the wire codec
-k250_play.py                  pattern engine (the 35 patterns)
+k250_play.py                  pattern engine (the 64 patterns)
 k250_show.py                  setlists / whole scenes
 k250_ctl.py                   persistent FIFO-driven controller
 k250_status.py                read-only status
 k250_stop.py                  panic stop (kills patterns, zeroes all channels)
-k250_session.py               session ledger -- enforces session.max_duration_s
+k250_session.py               session ledger -- the timer (no cooldown, no refusal)
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
-limits-form.html              self-contained builder for limits.json
+limits-form.html              the limits page: set the contract, and drive from it
+k250_launcher.py              loopback bridge (127.0.0.1:6969) that serves that page
 install.sh                    installer for Linux and macOS (bash)
 install.ps1                   installer for Windows (PowerShell)
 install.cmd                   launcher for install.ps1 — bypasses the script policy once

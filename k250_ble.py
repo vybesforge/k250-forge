@@ -43,14 +43,39 @@ class K250:
         await self.cl.write_gatt_char(CHR, payload, response=True)
 
 
-async def find():
-    """Robust: one scan, match by address / service UUID / name (BlueZ scan-race safe)."""
-    res = await BleakScanner.discover(timeout=12, return_adv=True)
-    for addr, (dev, adv) in res.items():
-        uu = [u.lower() for u in (getattr(adv, "service_uuids", None) or [])]
-        if addr.upper() == ADDR or SVC.lower() in uu:
+def _matches(dev, adv=None):
+    uu = [u.lower() for u in (getattr(adv, "service_uuids", None) or [])]
+    if dev.address and dev.address.upper() == ADDR:
+        return True
+    if SVC.lower() in uu:
+        return True
+    return bool(dev.name and "Kx250" in dev.name)
+
+
+async def find(timeout=12.0):
+    """Return the box the MOMENT it answers; blind scan only as a fallback.
+
+    This used to be a flat `BleakScanner.discover(timeout=12)`, and a discovery
+    scan does not return early — it waits out the whole clock even when the box
+    is sitting right there advertising. That was the twelve seconds of silence
+    before every pattern started, in every tool, because they all call this.
+    A filter scan returns as soon as the advertisement matches (typically 1-2 s).
+
+    The slow path is kept only for the case the filter can miss — a BlueZ scan
+    race or an odd adapter — and it is NOT run after a clean timeout, or a box
+    that is asleep would cost double the wait.
+    """
+    try:
+        dev = await BleakScanner.find_device_by_filter(
+            lambda d, a: _matches(d, a), timeout=timeout)
+        if dev is not None:
             return dev
-        if dev.name and "Kx250" in dev.name:
+        return None
+    except Exception:
+        pass
+    res = await BleakScanner.discover(timeout=timeout, return_adv=True)
+    for addr, (dev, adv) in res.items():
+        if _matches(dev, adv):
             return dev
     return None
 

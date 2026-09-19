@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# k250-launcher — start the loopback bridge.
+#
+# It serves the limits page at http://127.0.0.1:6969/ (so the page and the bridge are
+# same-origin and no CORS is involved), and it is the only thing that can carry the
+# wearer's own Manual level above the agreed ceiling. Nothing on the network can reach
+# it: it binds 127.0.0.1 only.
+#
+# Same location and interpreter resolution as the other tools, so a clone works from
+# anywhere and a symlink from ~/.local/bin resolves back to the checkout.
+set -eu
+
+SELF="${BASH_SOURCE[0]}"
+if readlink -f "$SELF" >/dev/null 2>&1; then
+  SELF="$(readlink -f "$SELF")"
+else
+  # `readlink -f` is GNU-only; macOS and Git Bash need the portable symlink walk.
+  while [ -L "$SELF" ]; do
+    _t="$(readlink "$SELF")"
+    case "$_t" in /*) SELF="$_t" ;; *) SELF="$(dirname "$SELF")/$_t" ;; esac
+  done
+  SELF="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd -P)/$(basename "$SELF")"
+fi
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd)"
+DIR="${K250_DIR:-$HERE}"
+
+if [ -n "${K250_PY:-}" ]; then
+  PY="$K250_PY"
+elif [ -x "$DIR/venv/bin/python" ]; then
+  PY="$DIR/venv/bin/python"
+else
+  PY="$(command -v python3 || command -v python)"
+fi
+
+if [ ! -f "$DIR/k250_launcher.py" ]; then
+  echo "k250-launcher: no k250_launcher.py in $DIR" >&2
+  echo "  (set K250_DIR, or run it from inside the checkout)" >&2
+  exit 1
+fi
+
+exec "$PY" "$DIR/k250_launcher.py" "$@"

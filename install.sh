@@ -54,7 +54,7 @@ echo
 BIN="${HOME}/.local/bin"
 mkdir -p "$BIN"
 echo "[2/3] linking tools into $BIN"
-for t in k250-scene k250-stop k250-status; do
+for t in k250-scene k250-stop k250-status k250-launcher; do
   ln -sf "$HERE/bin/$t" "$BIN/$t"
   echo "      $BIN/$t"
 done

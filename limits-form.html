@@ -69,6 +69,21 @@
   .durmrow input[type=range]{flex:1;accent-color:var(--acc)}
   .durmrow .v{flex:0 0 62px;text-align:right;font-size:12.5px;color:var(--mut);
               font-variant-numeric:tabular-nums}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+  .chip{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:7px;
+        padding:6px 12px;font:600 13px inherit;cursor:pointer}
+  .chip.on{background:var(--acc);color:#1b1206;border-color:var(--acc)}
+  .applyrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;
+            border-top:1px solid var(--line);padding-top:14px}
+  .applymsg{font-size:13.5px;color:var(--mut)}
+  .field{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--mut)}
+  .field label{flex:0 0 auto;color:#c3ced5;font-size:13.5px}
+  .field input[type=range]{accent-color:var(--acc);height:22px}
+  .field .v{flex:0 0 58px;text-align:right;font-size:12.5px;color:var(--mut);
+            font-variant-numeric:tabular-nums}
+  .dirty{color:var(--warn)}
+  button[disabled]{opacity:.45;cursor:not-allowed}
+  .gate{font-size:13.5px;color:var(--warn);margin-top:10px}
   .out{margin-top:26px}
   .btns{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
   button{border:0;border-radius:9px;padding:12px 20px;font:600 14.5px inherit;cursor:pointer}
@@ -91,15 +106,56 @@
   <div class="risk">
     <b>At your own risk.</b> High-power e-stim device — this page makes it <i>controllable</i>, not safe.
     <b>Start low and build.</b> Percentages don't transfer between pad placements: outer skin is far less
-    sensitive than others, so the same figure is a different sensation and a different risk.
-    <b>Read the hard stops in Session &amp; safety below before you use any of this.</b>
+    sensitive than genital skin, so the same figure is a different sensation and a different risk.
+    <b>Read the hard stops in 1 · Session &amp; safety, and tick the acknowledgement there, before you use any of this.</b>
   </div>
 
   <div class="card">
-    <h2>1 · Limits <span style="text-transform:none;color:var(--mut);font-weight:400">— per channel</span></h2>
-    <p class="hint" style="margin-bottom:12px">Each channel gets its own three limits, because they don't sit on the
-      same skin — a cap that's right for one placement is wrong for another. Channels with nothing plugged in can't be
-      driven anyway; the box refuses them.</p>
+    <h2>1 · Session &amp; safety</h2>
+    <p class="hint" style="margin-bottom:14px">Stop word and session budget live in <b>2 · AI limits</b> — they are
+      part of the contract that Apply writes. What stays here is the part that isn't a number.</p>
+
+    <div class="hardstops">
+      <div class="hshead">The hard stops — every session, no exceptions</div>
+      <ul id="hsList">
+        <li><b>Never</b> a pad path across the chest or through the heart.</li>
+        <li><b>Never</b> on broken, irritated or numb skin — or anywhere they can't feel it.</li>
+        <li><b>Never</b> while plugged into mains power.</li>
+        <li><b>Never</b> on someone who can't speak or signal, or who can't be seen by whoever is in the room.</li>
+        <li>Keep loops and pads <b>loose</b> — circulation at the electrode is the one thing here that can cause real injury.</li>
+        <li>If it <b>burns rather than stings</b>, or the skin doesn't settle back to normal pink, stop — and don't use that site again that night.</li>
+        <li>If they feel <b>nothing</b>, turn the power <b>down</b> before you touch anything else, then check
+          the loop: pads properly seated, cable attached, connection complete. A pad that's loose or
+          half-attached concentrates the current into a smaller area — and that is what burns people.
+          Feeling nothing is a <b>fault, not an invitation to push harder</b>.</li>
+      </ul>
+      <label class="ack"><input type="checkbox" id="ack">
+        <span>I've read these and I'll hold all of them — and decide ceilings calm and before a session,
+          never mid-scene.</span></label>
+      <div class="gate" id="hsGate">Tick the acknowledgement to unlock <b>Run</b> in section 3. This box is
+        unticked on every page load, on purpose — the list above stays open until you've read it this time.</div>
+    </div>
+
+    <div class="kill"><b>Hardware kill switch —</b> hold any knob on the box for 2 seconds and it powers
+      off. Give that to whoever is in the room. It works with no software and no network.</div>
+  </div>
+
+
+  <div class="card">
+    <h2>2 · AI limits <span style="text-transform:none;color:var(--mut);font-weight:400">— the contract the engine enforces</span></h2>
+    <p class="hint" style="margin-bottom:12px">These sliders <b>are</b> the limits. <b>Apply</b> writes them into
+      <code>limits.json</code>, which is what the engine actually reads; nothing is enforced until you apply.
+      The <b>AI power ceiling</b> is the one gate an AI-driven run cannot pass — it has its own control so nothing else
+      can drag it down. The per-channel rows sit under it and can only <i>lower</i> a channel, because different channels
+      don't sit on the same skin. Channels with nothing plugged in can't be driven anyway — the box refuses them.</p>
+    <div class="durmrow" style="margin-bottom:6px">
+      <label for="ceil">AI power ceiling</label>
+      <div class="v" id="ceilV">10%</div>
+      <input type="range" id="ceil" min="0" max="100" step="1" value="10">
+    </div>
+    <p class="hint" style="margin:0 0 12px">The number an <b>AI-driven run may never exceed</b>. It is one control on
+      purpose: this used to be the lowest of the four channel sliders, so leaving an unused channel low dragged the whole
+      ceiling down with it. Your own Manual level in §3 can go past this — that is your hand, not the driver's.</p>
     <div class="pcgrid">
       <div class="pchead">channel</div>
       <div class="pchead" data-tip="The level, 0-100%. This is a CEILING, not a target — the engine refuses to write above it, whoever is driving. Per channel, because the same percentage is a different sensation on different skin. Start low and build.">Power</div>
@@ -107,45 +163,54 @@
       <div class="pchead right" data-tip="How fast power is allowed to move, in % per second — separate from how high it goes. Low is smooth and gliding; high lets it snap and chop. 0 = no limit. A safe ceiling reached in one jump can still hurt: this is the limit that stops that.">Slew</div>
       <div class="pcrow" id="pcrows" style="display:contents"></div>
     </div>
+    <div class="applyrow">
+      <button class="primary" id="apply" disabled>Apply to limits.json</button>
+      <span class="field"><label for="stop">Stop word</label>
+        <input type="text" id="stop" value="red" style="width:120px"></span>
+      <span class="field" style="flex:1;min-width:260px"><label for="durm">Longest session</label>
+        <input type="range" id="durm" min="5" max="240" step="5" value="30" style="flex:1">
+        <span class="v" id="durmV">30 min</span></span>
+      <span class="applymsg" id="applyMsg">reading limits.json…</span>
+    </div>
+    <p class="hint" style="margin-top:10px">The stop word and the session budget live here because they are part of
+      the same contract, and Apply writes them together. The session figure is a <b>timer, not a wall</b>: it counts
+      running time and, when it completes, the next run simply starts a <b>new session immediately</b> — no cooldown to
+      wait out and nothing to reset. Ceiling 240 minutes.</p>
   </div>
 
-  <div class="card">
-    <h2>2 · Session &amp; safety</h2>
-    <div class="row"><label for="stop">Stop word</label><input type="text" id="stop" value="red" style="width:150px"></div>
-    <div class="row"><label for="batt">Report battery below</label><input type="number" id="batt" min="0"
-      max="100" step="1" value="10" style="width:80px">
-      <span class="hint" style="margin:0">% — not a limit. The pack idles around 20–30% on the bench
-      charger, so a figure above this says nothing useful; mention the charge at or below it, or if the
-      box drops off BLE and low charge is the plausible cause.</span></div>
+  <div class="card" id="launcher">
+    <h2>3 · Manual — drive &amp; patterns <span style="text-transform:none;color:var(--mut);font-weight:400">— one click, engine enforces the limits</span></h2>
+    <p class="hint" style="margin-bottom:10px">
+      Bridge: <code>python3 k250_launcher.py</code> (Linux/macOS) or <code>py -3 k250_launcher.py</code>
+      (Windows) — then use <code>http://127.0.0.1:6969/</code>.
+      Box awake, on <b>Options → Remote App Control</b>, one connection at a time.
+    </p>
     <div class="durmrow">
-      <label for="durm">Longest session</label>
-      <div class="v" id="durmV">30 min</div>
-      <input type="range" id="durm" min="5" max="240" step="5" value="30">
+      <label for="driveLvl">Drive level</label>
+      <div class="v" id="driveLvlV">10%</div>
+      <input type="range" id="driveLvl" min="0" max="100" step="1" value="10">
     </div>
-    <p class="hint" style="margin-top:9px">Enforced, not advisory: the tools keep a session ledger and refuse to start
-      once the budget is used. Up to 240 minutes. A fresh session begins after 15 quiet minutes, or with <code>--reset-session</code>.</p>
-
-    <div class="hardstops">
-      <div class="hshead">The hard stops — every session, no exceptions</div>
-      <ul>
-        <li><b>Never</b> a pad path across the chest or through the heart.</li>
-        <li><b>Never</b> on broken, irritated or numb skin — or anywhere they can't feel it.</li>
-        <li><b>Never</b> while plugged into mains power.</li>
-        <li><b>Never</b> on someone who can't speak or signal, or who can't be seen by whoever is in the room.</li>
-        <li>Keep loops and pads <b>loose</b> — circulation at the electrode is the one thing here that can cause real injury.</li>
-        <li>If it <b>burns rather than stings</b>, or the skin doesn't settle back to normal, stop — and don't use that site again that night.</li>
-        <li>If they feel <b>nothing</b>, turn the power <b>down</b> before you touch anything else, then check
-          the loop: pads properly seated, cable attached, connection complete. A pad that's loose or
-          half-attached concentrates the current into a smaller area — and that is what burns people.
-          Feeling nothing is a <b>fault, not an invitation to push harder</b>.</li>
-      </ul>
-      <label class="ack"><input type="checkbox" id="ack" checked>
-        <span>I've read these and I'll hold all of them — and decide ceilings calm and before a session,
-          never mid-scene.</span></label>
+    <div class="gate" id="lvlWarn" style="display:none"></div>
+    <div class="durmrow">
+      <label for="driveSecs">Duration</label>
+      <div class="v" id="driveSecsV">60s</div>
+      <input type="range" id="driveSecs" min="10" max="300" step="5" value="60">
     </div>
-
-    <div class="kill"><b>Hardware kill switch —</b> hold any knob on the box for 2 seconds and it powers
-      off. Give that to whoever is in the room. It works with no software and no network.</div>
+    <div class="chips" id="durChips"></div>
+    <div id="driveGroups"></div>
+    <div class="out" style="margin-top:18px">
+      <div class="btns">
+        <button class="primary" id="driveRun">Run</button>
+        <button class="ghost" id="driveStop">Stop</button>
+        <button class="ghost" id="driveCopy">Copy command</button>
+        <button class="ghost" id="driveClear">Clear</button>
+        <button class="ghost" id="driveStatus">Check box</button>
+      </div>
+      <div class="save" id="driveMsg" style="margin-top:8px;min-height:20px"></div>
+      <div class="save" id="sessTimer" style="font-variant-numeric:tabular-nums">session: —</div>
+      <textarea id="driveOut" spellcheck="false" readonly style="height:64px"></textarea>
+      <div class="save">Copy = the plain <code>k250-scene</code> command · Check box = read-only pre-flight.</div>
+    </div>
   </div>
 
   <div class="out">
@@ -162,6 +227,8 @@
 
 <script>
 const $ = id => document.getElementById(id);
+// the limits.json view as loaded from the bridge (null until it answers)
+let FILE = null;
 
 function perChannel(){
   const out = {};
@@ -185,11 +252,11 @@ function perChannel(){
         <span class="v" id="pc${c}_powerV">10%</span>
         <input type="range" id="pc${c}_power" min="0" max="100" step="1" value="10"></div>
       <div class="pcsl" id="pc${c}_freqWrap">
-        <span class="v" id="pc${c}_freqV">25</span>
-        <input type="range" id="pc${c}_freq" min="0" max="10000" step="100" value="2500"></div>
+        <span class="v" id="pc${c}_freqV">100</span>
+        <input type="range" id="pc${c}_freq" min="0" max="10000" step="100" value="10000"></div>
       <div class="pcsl" id="pc${c}_slewWrap">
-        <span class="v" id="pc${c}_slewV">25</span>
-        <input type="range" id="pc${c}_slew" min="0" max="100" step="1" value="25"></div>`);
+        <span class="v" id="pc${c}_slewV">50</span>
+        <input type="range" id="pc${c}_slew" min="0" max="100" step="1" value="50"></div>`);
   }
 })();
 
@@ -246,7 +313,8 @@ function build(){
                max_duration_s_ceiling: 14400,
                note: "ENFORCED by k250_session.py: the tools keep a ledger of running time and refuse to start once the budget is spent. A fresh session begins after 15 idle minutes, or with --reset-session." },
     battery: {
-      report_below_percent: +$('batt').value,
+      report_below_percent: (FILE && FILE.battery_below !== null && FILE.battery_below !== undefined)
+                            ? FILE.battery_below : 10,
       note: "NOT a limit -- a reporting rule for whoever is driving. The pack idles in the 20-30% band during bench work, so a charge figure above this says nothing useful; mention it at or below this, or if the box drops off BLE and low charge is the plausible cause. It has gone flat mid-scene before; this is the threshold for caring, not a safety limit."
     },
     safety: {
@@ -269,16 +337,19 @@ function build(){
   }, null, 2);
 }
 
-$('durm').addEventListener('input', () => { read(); $('out').value = build(); });
+$('durm').addEventListener('input', () => { read(); $('out').value = build(); markDirty(); });
 // per-channel rows: four channels, three sliders each, live preview
 for (let c = 1; c <= 4; c++){
   ['power','freq','slew'].forEach(k => {
-    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); read(); $('out').value = build(); });
+    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); read(); $('out').value = build(); markDirty(); });
   });
   syncChannel(c);
 }
-$('stop').addEventListener('input', () => $('out').value = build());
-$('batt').addEventListener('input', () => $('out').value = build());
+$('stop').addEventListener('input', () => { $('out').value = build(); markDirty(); });
+$('ceil').addEventListener('input', () => {
+  $('ceilV').textContent = $('ceil').value + '%';
+  $('out').value = build(); markDirty();
+});
 $('ack').addEventListener('change', () => $('out').value = build());
 $('regen').onclick = () => { $('out').value = build(); };
 $('copy').onclick = async () => {
@@ -292,6 +363,361 @@ $('dl').onclick = () => {
   a.href = URL.createObjectURL(b); a.download = 'limits.json'; a.click();
 };
 read(); $('out').value = build();
+
+// ---- pattern launcher (Option B): generates the k250-scene command ----
+const DRIVE_GROUPS = [
+  { name: "Tease / gentle", patterns: [
+    ["tickles","very low continuous, the 'is it on?' base"],
+    ["light_pulse","low pulsing, gentle"],
+    ["light_stutter","low stuttering, uneven"],
+    ["teasing_pulse","medium pulsing, settle into it"],
+    ["teasing_stutter","medium stuttering, playful"],
+    ["teasing_continuous","medium steady hum"],
+    ["tide","slow swell up and down"],
+    ["drift","swell while MA drifts under it"],
+    ["buzzline","power climbs, MA wanders"],
+    ["cooldown","burst of beats then a low hum"],
+  ]},
+  { name: "Build / edge", patterns: [
+    ["edge","hover under the line, push over"],
+    ["verge","edge, but the push is a thump"],
+    ["lift","verge with power compensation"],
+    ["dread","long near-nothing, one heavy beat"],
+    ["pulse","mid MA, irregular power pulses"],
+    ["ration","2-5 beats at peak, long silence"],
+    ["crescendo","discrete escalating pulses"],
+    ["edging_pulse","high pulsing toward the edge"],
+    ["edging_wave","high wave, right at the line"],
+    ["edging_continuous","high relentless, no relief"],
+    ["tease","throttled build that never lands"],
+  ]},
+  { name: "Rhythm / beat", patterns: [
+    ["groove","locked to the thump, 2 beats/s"],
+    ["metronome","slow heavy beat, power surging"],
+    ["heartbeat","lub-dub, two surges then pause"],
+    ["knead","fast even 0<->high alternation"],
+    ["bounce","power bounces, MA rises"],
+    ["ripple","power ripples, MA glides up"],
+    ["rain","quick taps then a long hold"],
+  ]},
+  { name: "Deep / heavy", patterns: [
+    ["heavy","MA=8000, power compensated hard"],
+    ["compress","power steady, MA sinks to thump"],
+    ["ascend","both axes rising together"],
+    ["swell","ascend, then it comes back down"],
+    ["speed_sweep","power flat, MA sine-sweeps"],
+    ["speed_step","power flat, MA steps up"],
+    ["lie","power falls while MA ramps up"],
+    ["dual","power steps up, MA glides up"],
+    ["sweep_drop","climb speed, then drop instantly"],
+    ["sweep_hold_zero","dwells at both ends"],
+    ["arc","composed arc of the winners"],
+    ["high_sweep","both axes slow, out of phase"],
+    ["power_sweep","speed parked, power isolated"],
+    ["power_sweep_rich","power sweep with a shape"],
+    ["signature","every element that worked"],
+  ]},
+  { name: "Penetration / oral", patterns: [
+    ["thrust","slow deep penetration stroke"],
+    ["engulf","mouth works you, takes you deep"],
+    ["sound","sounding rod, slow and deep"],
+    ["milker","slow deep pull then fast buzz"],
+    ["flick","quick tongue-flicks"],
+    ["jelly","wobbling pulse, soft shake"],
+    ["fangs","two quick bites per cycle"],
+  ]},
+  { name: "Pain / punish", patterns: [
+    ["pain_stutter","sharp uneven stutter"],
+    ["pain_slow_ramp","slow ramp to painful, holds"],
+    ["pain_shocks","single sharp shocks, long gaps"],
+    ["stutter","irregular bursts, no rhythm"],
+    ["trap","hold, drop, come back higher"],
+    ["dice","random walk with surprise zeros"],
+    ["climb","sawtooth creep up, snap back"],
+    ["switchback","climb, snap-back is a thump"],
+    ["friction","rapid granular pulses, MA climbs"],
+  ]},
+  { name: "Calibration", patterns: [
+    ["map","step MA 0->5000, report what feels good"],
+  ]},
+];
+
+function buildDriveGroups(){
+  const host = document.getElementById('driveGroups');
+  host.innerHTML = '';
+  DRIVE_GROUPS.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginBottom = '10px';
+    card.style.padding = '12px 14px';
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--acc);margin-bottom:8px;font-weight:600';
+    h.textContent = g.name;
+    card.appendChild(h);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    g.patterns.forEach(([name, tip]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ghost';
+      b.style.cssText = 'padding:7px 12px;font-size:13px;border-radius:7px';
+      b.textContent = name;
+      b.title = tip;
+      b.onclick = () => setDrive(name);
+      wrap.appendChild(b);
+    });
+    card.appendChild(wrap);
+    host.appendChild(card);
+  });
+}
+
+// LEVEL is the ceiling from limits.json (2 · AI limits); the slider is the
+// request. The engine clamps request to ceiling, so the slider can never
+// exceed the contract — it just lets a run sit below it.
+let LEVEL = null;
+
+function driveCmd(){
+  const secs = +$('driveSecs').value;
+  const lvl = +$('driveLvl').value;
+  const pat = $('driveOut').dataset.pattern || '';
+  if (!pat) return '';
+  return `k250-scene ${pat} --base ${lvl} --peak ${lvl} --secs ${secs}`;
+}
+
+function setDrive(name){
+  $('driveOut').dataset.pattern = name;
+  $('driveOut').value = driveCmd();
+}
+
+const DUR_PRESETS = [20, 30, 45, 60, 90, 120, 300];
+(function buildDurChips(){
+  const host = $('durChips');
+  DUR_PRESETS.forEach(s => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.dataset.secs = s;
+    b.textContent = s >= 60 ? (s / 60) + ' min' : s + 's';
+    b.onclick = () => { $('driveSecs').value = s; syncDrive(); };
+    host.appendChild(b);
+  });
+})();
+
+function syncDrive(){
+  $('driveSecsV').textContent = $('driveSecs').value + 's';
+  $('driveLvlV').textContent = $('driveLvl').value + '%';
+  // The Manual level is decoupled from the limits: it can sit above the ceiling,
+  // and when it does that is an override — say so rather than let it be quiet.
+  const lv = +$('driveLvl').value;
+  const over = LEVEL !== null && lv > LEVEL;
+  $('lvlWarn').style.display = over ? '' : 'none';
+  $('lvlWarn').textContent = over
+    ? '⚠ ' + lv + '% is above the ' + LEVEL + '% ceiling in 2 · AI limits — this run overrides limits.json ' +
+      '(the Manual drive level wins).'
+    : '';
+  document.querySelectorAll('#durChips .chip').forEach(b =>
+    b.classList.toggle('on', +b.dataset.secs === +$('driveSecs').value));
+  $('driveOut').value = driveCmd();
+}
+
+$('driveSecs').addEventListener('input', syncDrive);
+$('driveLvl').addEventListener('input', syncDrive);
+$('driveClear').onclick = () => { delete $('driveOut').dataset.pattern; $('driveOut').value = ''; };
+$('driveStatus').onclick = () => { $('driveOut').dataset.pattern = ''; $('driveOut').value = 'k250-status'; };
+
+// ---- one-click run via the local launcher bridge ----
+const LAUNCHER = 'http://127.0.0.1:6969';
+// The bridge also serves THIS page at http://127.0.0.1:6969/ — opened that way
+// the page and the bridge are same-origin and there is no CORS involved at all.
+function engineLine(s){
+  const t = (s.log_tail || []).filter(x => x.trim());
+  return t.length ? ' — engine: ' + t[t.length - 1] : '';
+}
+function driveMsg(t, ok){
+  const el = $('driveMsg');
+  el.textContent = t;
+  el.style.color = ok === false ? 'var(--warn)' : (ok === true ? 'var(--ok)' : 'var(--mut)');
+}
+async function launcher(path, body){
+  try {
+    const r = await fetch(LAUNCHER + path, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return await r.json();
+  } catch(e) {
+    return { ok:false, message:'launcher not running — start it with: python3 k250_launcher.py' };
+  }
+}
+$('driveRun').onclick = async () => {
+  if (!$('ack').checked) {
+    driveMsg('tick the hard-stops acknowledgement in section 2 first', false);
+    return;
+  }
+  const pat = $('driveOut').dataset.pattern;
+  if (!pat) { driveMsg('pick a pattern first', false); return; }
+  if (+$('driveLvl').value < 1) { driveMsg('set a drive level — the slider is at 0%', false); return; }
+  const secs = +$('driveSecs').value;
+  driveMsg('starting ' + pat + '…');
+  const r = await launcher('/run', { pattern: pat, level: +$('driveLvl').value, secs });
+  driveMsg(r.message, r.ok);
+};
+$('driveStop').onclick = async () => {
+  driveMsg('stopping…');
+  const r = await launcher('/stop', {});
+  driveMsg(r.message, r.ok);
+};
+// poll status every 2s so the page reflects what's actually running
+setInterval(async () => {
+  try {
+    const r = await fetch(LAUNCHER + '/status');
+    const s = await r.json();
+    const z = s.last_zero || {};
+    SESS = s.session || SESS; SESS_AT = Date.now(); RUNNING = !!s.running;
+    drawSession();
+    if (s.warning) driveMsg(s.warning, false);
+    else if (s.running) driveMsg('running: ' + s.pattern + ' (pid ' + s.pid + ')' + engineLine(s), true);
+    else if (s.zeroing) driveMsg('run ended — zeroing the box…', true);
+    else if (z.ok === false) driveMsg('STOP TOOL COULD NOT REACH THE BOX — it may still be energised (' + (z.message||'') + ')', false);
+    else if (z.ok === true && $('driveMsg').textContent.includes('running:'))
+      driveMsg('idle — box zeroed after ' + (z.pattern||'the run'), true);
+    else if ($('driveMsg').textContent.includes('running:')) driveMsg('idle' + engineLine(s));
+  } catch(e) {}
+}, 2000);
+// ---- session timer: the same ledger that will refuse the next run ----
+let SESS = null, SESS_AT = 0, RUNNING = false;
+function fmtDur(s){
+  s = Math.max(0, Math.round(s));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return h ? h + 'h' + String(m).padStart(2, '0') + 'm'
+           : m ? m + 'm' + String(ss).padStart(2, '0') + 's' : ss + 's';
+}
+function drawSession(){
+  const el = $('sessTimer');
+  if (!el) return;
+  if (!SESS || SESS.used_s === null || SESS.used_s === undefined){
+    el.textContent = 'session: ledger unavailable';
+    return;
+  }
+  const live = RUNNING ? (Date.now() - SESS_AT) / 1000 : 0;   // ticks while a run is on
+  const used = (SESS.used_s || 0) + live;
+  const max = SESS.max_s || 0;
+  const left = Math.max(0, max - used);
+  el.textContent = 'session ' + fmtDur(used) + ' of ' + fmtDur(max) + ' · ' + fmtDur(left) + ' left'
+    + (left <= 0 ? ' — session complete; the next run starts a new one' : '');
+  el.style.color = left <= 0 ? 'var(--acc)' : 'var(--mut)';
+}
+setInterval(drawSession, 1000);
+$('driveCopy').onclick = async () => {
+  const v = $('driveOut').value;
+  if (!v) return;
+  try { await navigator.clipboard.writeText(v); $('driveCopy').textContent = 'Copied';
+        setTimeout(()=>$('driveCopy').textContent='Copy command',1200); } catch(e){}
+};
+buildDriveGroups();
+syncDrive();
+
+// ---- 1 · AI limits: the page READS limits.json, Apply writes it back ----
+// FILE_OK is load-bearing: if the page never successfully read the file, the
+// sliders are just the page's built-in defaults, and Apply on those would
+// silently overwrite the real contract with 10%/2500. It happened once.
+let FILE_OK = false;
+function loadLimits(view){
+  if (!view || typeof view.power_ceiling !== 'number'){
+    FILE_OK = false;
+    $('apply').disabled = true;
+    $('applyMsg').classList.add('dirty');
+    $('applyMsg').textContent = 'could NOT read limits.json from the bridge — these sliders are only page ' +
+      'defaults, so Apply stays disabled. Is the bridge running and serving /limits?';
+    return;
+  }
+  FILE_OK = true;
+  $('apply').disabled = false;
+  FILE = view;
+  const set = (id, v) => { if (v !== null && v !== undefined) $(id).value = v; };
+  set('durm', view.session_minutes);
+  set('ceil', view.power_ceiling);
+  $('ceilV').textContent = $('ceil').value + '%';
+  if (view.stop_word) $('stop').value = view.stop_word;
+  for (let c = 1; c <= 4; c++){
+    const e = view.per_channel[String(c)] || {};
+    set('pc'+c+'_power', e.power);
+    set('pc'+c+'_freq',  e.frequency);
+    set('pc'+c+'_slew',  e.slew);
+    syncChannel(c);
+  }
+  read();
+  LEVEL = +view.power_ceiling;
+  // the drive level is deliberately NOT set from the file any more — it is
+  // decoupled, and sits wherever it was left (the Manual level wins)
+  syncDrive();
+  $('out').value = build();
+  $('applyMsg').classList.remove('dirty');
+  $('applyMsg').textContent = 'loaded from ' + (view.path || 'limits.json') +
+    ' — ceiling ' + view.power_ceiling + '%' +
+    (view.ack === false ? ' · hard stops NOT acknowledged in the file' : '');
+}
+function markDirty(){
+  $('applyMsg').textContent = 'sliders differ from limits.json — press Apply to write them';
+  $('applyMsg').classList.add('dirty');
+}
+async function refreshLimits(){
+  try {
+    const r = await fetch(LAUNCHER + '/limits');
+    loadLimits(await r.json());
+  } catch(e) {
+    FILE_OK = false;
+    $('apply').disabled = true;
+    $('applyMsg').textContent = 'launcher not running — start it with: python3 k250_launcher.py ' +
+      '(Apply stays disabled: without the bridge these sliders are only page defaults)';
+    $('applyMsg').classList.add('dirty');
+  }
+}
+function limitsBody(){
+  const ch = perChannel();
+  const freqs = [1,2,3,4].map(c => ch[c].frequency);
+  const slws = [1,2,3,4].map(c => ch[c].slew).filter(s => s > 0);
+  return {
+    // the ceiling is its own control now. It used to be min(channel sliders),
+    // which silently LOWERED the AI ceiling whenever an unused channel sat low —
+    // the exact opposite of what someone moving one channel up intended.
+    power_ceiling: +$('ceil').value,
+    frequency_max: Math.min(...freqs),
+    slew: slws.length ? Math.min(...slws) : 0,
+    session_minutes: +$('durm').value,
+    stop_word: $('stop').value.trim() || 'red',
+    per_channel: ch
+  };
+}
+$('apply').onclick = async () => {
+  if (!FILE_OK) {
+    $('applyMsg').textContent = 'refusing to write: the page has not read limits.json, so these numbers are ' +
+      'page defaults, not your limits.';
+    $('applyMsg').classList.add('dirty');
+    return;
+  }
+  if (!$('ack').checked) {
+    $('applyMsg').textContent = 'refusing to write: tick the hard-stops acknowledgement in section 2 first.';
+    $('applyMsg').classList.add('dirty');
+    return;
+  }
+  $('applyMsg').classList.remove('dirty');
+  $('applyMsg').textContent = 'applying…';
+  const r = await launcher('/limits', limitsBody());
+  $('applyMsg').textContent = (r.ok ? '✓ ' : '✗ ') + r.message;
+  $('applyMsg').classList.toggle('dirty', !r.ok);
+  if (r.ok && r.limits) loadLimits(r.limits);
+};
+$('ack').addEventListener('change', () => {
+  $('hsList').style.display = $('ack').checked ? 'none' : '';
+  $('hsGate').style.display = $('ack').checked ? 'none' : '';
+  $('driveRun').disabled = !$('ack').checked;
+});
+$('hsList').style.display = '';
+$('driveRun').disabled = !$('ack').checked;
+refreshLimits();
+
 </script>
 </body>
 </html>

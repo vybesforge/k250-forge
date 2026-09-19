@@ -74,13 +74,17 @@ def main():
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         shutil.copy(os.path.join(here, "k250_session.py"), d)
         first = P.session_reserve(d, 30, 25)          # 25s of a 30s budget -> ok
-        second = P.session_reserve(d, 30, 25)         # would be 50s -> must refuse
-        checks.append(("session budget reserves up front", first is True, first))
-        checks.append(("session budget refuses when spent", second is False, second))
+        second = P.session_reserve(d, 30, 25)         # 50s -> past the budget: ROLLS OVER
+        checks.append(("session timer reserves up front", first is True, first))
+        # The budget no longer refuses anything: a spent session starts a new one
+        # immediately (no cooldown, no manual reset), so the next run is always
+        # allowed and is charged to the fresh session.
+        checks.append(("a run past the budget is still allowed (rolls over)",
+                       second is True, second))
         os.environ["K250_IGNORE_SESSION"] = "1"
         third = P.session_reserve(d, 30, 25)          # reserve() itself has no override;
         os.environ.pop("K250_IGNORE_SESSION")         # the caller checks it
-        checks.append(("ledger keeps accumulating", third is False, third))
+        checks.append(("the timer keeps working after a rollover", third is True, third))
 
     width = max(len(n) for n, _, _ in checks)
     bad = 0

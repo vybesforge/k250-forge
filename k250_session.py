@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
-"""K250-4S session ledger — makes session.max_duration_s real.
+"""K250-4S session ledger — the session TIMER that makes session.max_duration_s visible.
 
 The limit is a budget of *running time*, not wall-clock ownership of the box.
-A session ends when the box has been idle for IDLE_GAP seconds; the next run
-starts a fresh session. Usage:
 
-  python k250_session.py check --max 1800 [--dir DIR]   # exit 1 if over budget
+It does not block anything, and it never needs resetting by hand:
+
+  * no time-based reset — pausing does not behave differently from playing;
+  * no cooldown to wait out;
+  * when the budget is reached the next run begins a NEW session immediately
+    (`check` rolls it over and exits 0), so a session can follow a session
+    back-to-back with no gap and no ceremony.
+
+  python k250_session.py check --max 1800 [--dir DIR]   # rolls over if spent; always 0
   python k250_session.py add --seconds 45 [--dir DIR]   # record a run
-  python k250_session.py show --max 1800 [--dir DIR]
-  python k250_session.py reset [--dir DIR]
+  python k250_session.py show --max 1800 [--json] [--dir DIR]
+  python k250_session.py reset [--dir DIR]              # optional: start a fresh one now
 
-State lives in <dir>/session.json. Exit 1 (and a loud message) means: this run
-would exceed the budget the wearer agreed to. Starting a new session anyway is
-a deliberate act -- `k250-scene --reset-session`.
+State lives in <dir>/session.json.
 """
 import argparse
 import json
 import os
 import sys
 import time
-
-IDLE_GAP = 900.0        # 15 quiet minutes ends a session
 
 
 def path(d):
@@ -46,9 +48,10 @@ def save(d, s):
 
 
 def roll(s, now):
-    """Start a new session if the last activity was long enough ago."""
-    last = s.get("last_run_end")
-    if last is None or (now - last) > IDLE_GAP:
+    """No time-based rollover. A budget that refills itself after a pause is not a
+    budget: the session runs until it is reset on purpose. This only *starts* a
+    session the first time the ledger is used."""
+    if s.get("last_run_end") is None:
         s["session_start"] = now
         s["used_s"] = 0.0
     return s
@@ -65,6 +68,8 @@ def main():
     ap.add_argument("--max", type=float, default=1800.0)
     ap.add_argument("--seconds", type=float, default=0.0)
     ap.add_argument("--dir", default=os.path.dirname(os.path.abspath(__file__)))
+    ap.add_argument("--json", action="store_true",
+                    help="machine-readable state (used_s / max_s / left_s / spent)")
     a = ap.parse_args()
     now = time.time()
     s = load(a.dir)
@@ -89,23 +94,25 @@ def main():
     left = a.max - used
 
     if a.cmd == "show":
-        print(f"session : {fmt(used)} used of {fmt(a.max)}  ({fmt(max(0, left))} left)")
+        if a.json:
+            print(json.dumps({"used_s": round(used, 1), "max_s": a.max,
+                              "left_s": round(max(0.0, left), 1),
+                              "spent": left <= 0,
+                              "session_start": s.get("session_start")}))
+        else:
+            print(f"session : {fmt(used)} used of {fmt(a.max)}  ({fmt(max(0, left))} left)")
         return 0
 
-    # check
+    # check — NEVER refuses. The budget marks the end of a session, not the end of
+    # the evening: when it is reached the next run simply begins a new session,
+    # immediately. No idle wait, no manual reset.
     if left <= 0:
-        print(f"""
-SESSION BUDGET REACHED — refusing to start.
-  used {fmt(used)} of the agreed {fmt(a.max)} maximum.
-
-  This limit exists so a session doesn't drift past what was decided while you
-  were calm. Options:
-    * stop for now (the box is fine; the budget resets after 15 quiet minutes)
-    * raise session.max_duration_s in limits.json if you both genuinely want more
-    * start a fresh session deliberately:  k250-scene --reset-session
-""", file=sys.stderr)
-        return 1
-    save(a.dir, s)      # persist the roll (new session start) if any
+        s = {"session_start": now, "used_s": 0.0, "last_run_end": s.get("last_run_end")}
+        save(a.dir, s)
+        print(f"session complete ({fmt(used)} of {fmt(a.max)}) — starting a new one now",
+              file=sys.stderr)
+        return 0
+    save(a.dir, s)      # persist the session start if this is the first use
     return 0
 
 

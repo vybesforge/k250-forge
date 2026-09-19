@@ -161,6 +161,22 @@ async def main():
     a = ap.parse_args()
     setlist = SETLISTS[a.set]
 
+    # The limits file is the contract for every AI/tool path, and this tool used to
+    # take --hardcap at face value (default 60) and never read the file at all — a
+    # gap worth closing on its own terms: a setlist could exceed the agreed ceiling
+    # while the page and the CLI both obeyed it. Clamp to the file, always.
+    try:
+        from k250_play import find_limits, load_limits
+        _lim = load_limits(find_limits(None)) or {}
+        _file_cap = ((_lim.get("power") or {}).get("max_percent"))
+        if _file_cap is not None and float(a.hardcap) > float(_file_cap):
+            print(f"[{time.time()-T0:6.1f}] hardcap {a.hardcap:g}% clamped to the limits "
+                  f"file's {float(_file_cap):g}% ceiling", flush=True)
+            a.hardcap = float(_file_cap)
+    except Exception as e:
+        print(f"[{time.time()-T0:6.1f}] WARNING: could not read the limits file ({e}) — "
+              f"using --hardcap {a.hardcap:g}%", flush=True)
+
     dev = await find()
     if dev is None:
         print("K250 not found", flush=True)
@@ -179,6 +195,16 @@ async def main():
 
         pl = Player(k, a.hardcap)
         pl.max_rate = a.max_rate
+
+        # MANUAL FIRST (the operator's standing rule): in a patterned mode the box runs
+        # its own generator and our PW writes go INTO that, so what we write is
+        # not what happens. Manual has nothing competing. Also fixes a channel
+        # whose pattern slot is blank, which rejects power outright.
+        live = await pl.prepare_channels("Manual")
+        await asyncio.sleep(0.3)
+        pa = await pl.read_state("PA", timeout=2.0)
+        print(f"[{time.time()-T0:6.1f}] channels -> Manual on {[c + 1 for c in live]};"
+              f" PA now {pa}", flush=True)
 
         def abort(*_):
             pl.stop = True

@@ -11,6 +11,82 @@ happened is part of the record.
 
 ---
 
+## v3.3.0 — 2026-09-18
+
+### Added — the limits page can act, not just generate (`k250_launcher.py`, `k250-launcher`)
+
+The page has always generated a `limits.json` for you to save by hand. It now talks to a small
+loopback-only bridge, which both serves the page and lets it do the two things you actually want
+from it: **Apply** writes the file, and **Run** plays a pattern through the same engine the CLI
+uses. Open `http://127.0.0.1:6969/` — the bridge serves that page itself, so the page and the
+bridge are same-origin and no CORS is involved; a `file://` page still works, and the bridge
+answers it too.
+
+Apply **merges**, it does not replace: the keys the page owns are written and everything else in
+your file — `pattern_notes`, your notes, the disclaimer wording — is left alone, with a
+timestamped backup taken first. That distinction is not theoretical: writing the page's whole
+generated document over the file would have deleted them.
+
+New `k250-launcher` on PATH (`bin/k250-launcher`), linked by the installer on Linux/macOS;
+Windows uses `py -3 k250_launcher.py` from an activated venv, and the bridge finds the venv
+either way (`venv/bin/python` or `venv\Scripts\python.exe`).
+
+### Changed — one control sets the AI ceiling
+
+The page computed the top-level ceiling as the **lowest of the four channel sliders**, so moving
+one channel up while an unused channel sat low *lowered* the ceiling — the opposite of what it
+looked like. The ceiling now has its own *AI power ceiling* slider, and the per-channel rows sit
+under it and can only lower a channel. The page also loads its values from the file on open, has a
+single duration row with presets, and refuses to Apply until it has actually read the file (a
+failed read once let page defaults overwrite a live contract).
+
+### Changed — the session budget is a TIMER, not a wall
+
+It used to refuse a run once the budget was spent, and it used to roll the budget over after 15
+quiet minutes. Both are gone: an idle gap no longer behaves differently from playing, there is no
+cooldown to wait out and nothing to reset by hand — a spent session starts a new one *immediately*.
+The page shows the ledger as a live timer (`session 12m04s of 1h00m · 47m56s left`), read through
+the same module the engine uses, so the display cannot disagree with reality.
+
+### Security — the AI limits are the wearer's, and no driver may exceed them
+
+`--override-ceiling` exists for exactly one thing: the wearer's own Manual level, pushed by the
+bridge from the page when they set a level above the ceiling. It is refused **everywhere else** —
+without the bridge's marker, and always on the `k250-scene` wrapper path that every tool uses — so
+no script or AI-driven run can raise the agreed ceiling. `power.default_percent` is no longer
+written by Apply either: it is the wearer's tuned starting figure, not the page's.
+
+### Added — `flat`, and 28 more patterns
+
+`flat` holds one level with MA pinned at zero: the pattern that is the absence of a pattern, for
+when the scene wants steadiness rather than drama. The engine now ships 64 patterns.
+
+### Fixed — twelve seconds before every pattern
+
+`find()` ran a blind `BleakScanner.discover(timeout=12)`, and a discovery scan does not return
+early — it waits out the whole clock even with the box advertising on the desk. Every tool calls
+`find()`, so every start began with twelve seconds of silence. A filter scan returns the moment the
+advertisement matches: measured `found` at **0.6 s** and first output at **2.0 s** on the same
+hardware, down from 12.1 s and 16.1 s. Fixed startup `sleep`s in the engine and in
+`k250_show.py` were replaced with waits on the actual reply.
+
+### Fixed — `k250_show.py` never set the box to Manual, and ignored the limits file
+
+It drove the box while it sat in a patterned mode, so our `PW` writes went *into* the box's own
+generator, and it took `--hardcap` at face value (default 60) without ever reading `limits.json` —
+a setlist could exceed the agreed ceiling while the CLI and the page both obeyed it. It now calls
+`prepare_channels()` first, verifies `PA` came back `Manual`, and clamps to the file.
+
+### Tests
+
+Four suites added (`test_session_timer.py`, `test_no_ai_override.py`, `test_launcher_limits.py`,
+`test_flat_pattern.py`), and the existing ones updated where the behaviour they pinned was
+deliberately changed: `test_limits_enforcement.py` now asserts a spent session rolls over instead
+of refusing, `test_limits_form.py`'s DOM stub covers the new controls and asserts the page ships
+with the acknowledgement unticked and never writes that field through Apply.
+
+---
+
 ## v3.2.30 — 2026-09-17
 
 ### Changed — the folder rule is stated once, for every OS

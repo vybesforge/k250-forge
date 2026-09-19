@@ -59,6 +59,10 @@ class Player:
         self.channel_window = 0.4     # seconds to hold one channel before rotating
         self._last_rotate = 0.0
         self.channel_caps = {}        # {"1": {"power":50,"speed":2500,"sway":25}, ...}
+        # Set by --override-ceiling: the wearer's Manual level wins over the AI
+        # limits for the POWER of the channel it drives. Frequency and slew are
+        # not lifted (they are not levels), and non-override runs still clamp.
+        self.override_power = False
         self._ch_last = {}            # per-channel slew state
         self._pw_sent = {}            # per-channel (value, timestamp) of the last PW write
         # Seconds before an unchanged power value is re-sent anyway as a safety
@@ -69,7 +73,13 @@ class Player:
     def cap_for(self, ch: int, kind: str, fallback):
         """Per-channel limit, else the global one. `ch` is 0-based; limits.json
         keys channels 1-4. Different channels are on different skin -- a cap that
-        is right for one placement is wrong for another."""
+        is right for one placement is wrong for another.
+
+        One exception, and only one: with `override_power` set (the wearer asked
+        for `--override-ceiling`), a POWER cap does not apply -- the Manual level
+        wins for the channel it is driving. Frequency and slew caps still do."""
+        if kind == "power" and getattr(self, "override_power", False):
+            return fallback
         c = (self.channel_caps or {}).get(str(ch + 1)) or {}
         v = c.get(kind)
         return fallback if v is None else v
@@ -310,6 +320,457 @@ class Player:
         await self.k.send({"MA": v})
 
 
+# ---------------------------------------------------------- research patterns
+# Translated from the open-source Howl / Daimonia wave vocabulary
+# (Penetration, BJ/engulf, Milker, Lick, and the "Jelly"/"Fangs" wave shapes).
+# On the K250 the second axis (MA = beat period) is what carries the character:
+# a slow thump (MA~5500) presses, MA=0 buzzes, and sliding between them IS the
+# gesture. Power is the shape; MA is what the shape is made of.
+
+async def _ma_glide(pl: Player, a: float, b: float, secs: float, tick: float = 0.05):
+    """Smoothly move MA from a to b over `secs` seconds. The box holds MA, so
+    this is a gentle interpolation -- the frequency axis glides instead of
+    stepping, which is the Daimonia signature (power and frequency move in
+    counterpoint, not as discrete jumps)."""
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop and not pl.expired():
+        u = (time.time() - t0) / secs
+        u = u * u * (3 - 2 * u)          # smoothstep: ease in and out
+        await pl.ma(a + (b - a) * u)
+        await asyncio.sleep(tick)
+
+
+async def p_thrust(pl: Player, base: float, peak: float, secs: float):
+    """Fuck: the slow deep penetration stroke. Power ramps in like the thrust,
+    holds deep, eases back out. MA glides in counterpoint -- buzzy at entry,
+    sliding to slow and heavy at full depth, back to buzzy on the withdraw. The
+    character changes with the depth, not just the power."""
+    deep = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await _ma_glide(pl, 0, 5500, 0.6)          # entry: buzzy -> slow heavy as it goes in
+        await pl.hold(0.3, base * 0.5, tick=0.05)
+        await pl.hold(0.3, deep * 0.75, tick=0.05)
+        await pl.hold(0.9, deep, tick=0.05)          # deep, slow, heavy
+        await _ma_glide(pl, 5500, 0, 0.6)           # withdraw: slow heavy -> buzzy
+        await pl.hold(0.3, deep * 0.7, tick=0.05)
+        await pl.hold(0.4, base * 0.35, tick=0.05)
+
+
+
+
+async def p_engulf(pl: Player, base: float, peak: float, secs: float):
+    """Suck: the mouth works you. Short buzzy licks at MA=0, then it takes you
+    deep -- MA glides to slow and heavy as the power climbs -- holds, releases
+    back to buzzy, and starts again."""
+    deep = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.ma(0)
+        for _ in range(3):
+            await pl.hold(random.uniform(0.15, 0.25), peak * 0.9, tick=0.05)
+            await pl.hold(random.uniform(0.12, 0.22), base * 0.4, tick=0.05)
+        await _ma_glide(pl, 0, 6000, 0.8)           # engulf: buzzy -> slow heavy
+        await pl.hold(0.5, peak * 0.95, tick=0.05)
+        await pl.hold(1.0, deep, tick=0.05)          # deep, slow, held
+        await _ma_glide(pl, 6000, 0, 0.6)           # release: slow heavy -> buzzy
+        await pl.hold(0.6, base * 0.5, tick=0.05)
+
+
+
+
+async def p_sound(pl: Player, base: float, peak: float, secs: float):
+    """Sounding rod: slow, deliberate, deep. MA stays low and buzzy the whole
+    time while power creeps up over many seconds into a long hold at depth,
+    then withdraws just as slowly. The patience is the sensation."""
+    await pl.ma(1200)
+    deep = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.25, 0.5, 0.75, 1.0):
+            await pl.hold(1.4, base + (deep - base) * frac, tick=0.1)
+        await pl.hold(2.5, deep, tick=0.1)
+        for frac in (0.75, 0.5, 0.25):
+            await pl.hold(1.4, base + (deep - base) * frac, tick=0.1)
+        await pl.hold(0.8, base * 0.3, tick=0.1)
+
+
+
+
+async def p_milker(pl: Player, base: float, peak: float, secs: float):
+    """Milker: a slow deep pull, then a fast buzz. MA glides to slow and heavy
+    for the womp, then drops to 0 for the buzz -- the womp-then-buzz milking
+    rhythm, the two axes in full contrast."""
+    deep = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await _ma_glide(pl, 0, 5000, 1.2)          # womp: buzzy -> slow heavy
+        await pl.hold(1.8, deep, tick=0.05)
+        await pl.hold(0.8, deep * 0.5, tick=0.05)
+        await _ma_glide(pl, 5000, 0, 0.4)          # buzz: slow heavy -> buzzy
+        await pl.hold(0.9, peak * 0.85, tick=0.05)
+        await pl.hold(0.4, base * 0.4, tick=0.05)
+
+
+
+
+async def p_flick(pl: Player, base: float, peak: float, secs: float):
+    """Lick: quick tongue-flicks. Short buzzy taps (MA=0) with tiny gaps, then
+    one long slow sweep where MA glides up and back -- the tongue pressing
+    harder, then easing."""
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.ma(0)
+        for _ in range(random.randint(2, 4)):
+            await pl.hold(random.uniform(0.12, 0.2), peak * 0.85, tick=0.04)
+            await pl.hold(random.uniform(0.1, 0.2), base * 0.35, tick=0.04)
+        await _ma_glide(pl, 0, 1500, 0.5)          # sweep in
+        await pl.hold(random.uniform(0.7, 1.1), base + (peak - base) * 0.7, tick=0.05)
+        await _ma_glide(pl, 1500, 0, 0.4)          # sweep out
+        await pl.hold(0.4, base * 0.4, tick=0.05)
+
+
+
+
+async def p_jelly(pl: Player, base: float, peak: float, secs: float):
+    """Jelly: a wobbling pulse. Power oscillates fast between a low and a high
+    on a soft sine while MA wobbles in counterpoint -- when power is high MA
+    drops buzzy, when power is low MA rises. Reads as a shake, like something
+    soft moving inside."""
+    lo, hi = base, peak * 0.9
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        ph = (time.time() - t0) / 1.6 * 2 * math.pi
+        await pl.w(lo + (hi - lo) * (0.5 - 0.5 * math.cos(ph)))
+        # counterpoint: power high -> MA low (buzzy), power low -> MA high
+        await pl.ma(6000 - 6000 * (0.5 - 0.5 * math.cos(ph)))
+        await asyncio.sleep(0.06)
+
+
+
+
+async def p_fangs(pl: Player, base: float, peak: float, secs: float):
+    """Fangs: two quick bites per cycle -- a sharp pair of peaks with a small
+    valley between, then a long low rest. MA stays low so each bite stays
+    sharp and sudden."""
+    await pl.ma(0)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.18, peak * 0.95, tick=0.04)
+        await pl.hold(0.3, base * 0.5, tick=0.05)
+        await pl.hold(0.18, min(pl.hardcap, peak), tick=0.04)
+        await pl.hold(random.uniform(1.4, 2.4), base * 0.3, tick=0.08)
+
+
+
+
+# ---------------------------------------------------------- DG-LAB translations
+# The 16 official DG-LAB Coyote patterns, translated to the K250's two axes.
+# Coyote intensity -> PW (power %); Coyote waveform freq -> MA, INVERTED
+# (Coyote low Hz = thumpy = K250 high MA; Coyote high Hz = buzzy = K250 low MA).
+# Power is the contract (base/peak); MA is the free axis.
+
+async def p_heartbeat(pl: Player, base: float, peak: float, secs: float):
+    """Heartbeat: lub-dub -- two quick surges then a pause, the classic. MA low
+    (8000 ~= 1.25 thumps/s) so each beat is counted, not felt as buzz."""
+    await pl.ma(8000)
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.18, hi, tick=0.03)          # lub
+        await pl.hold(0.14, base * 0.4, tick=0.03)
+        await pl.hold(0.26, hi * 0.9, tick=0.03)    # dub
+        await pl.hold(random.uniform(1.0, 1.4), base * 0.25, tick=0.08)  # rest
+
+
+async def p_knead(pl: Player, base: float, peak: float, secs: float):
+    """Knead: fast, even 0<->high alternation, like hands kneading. Regular and
+    relentless -- no gaps to brace for."""
+    await pl.ma(1500)
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.2, hi, tick=0.03)
+        await pl.hold(0.2, base * 0.5, tick=0.03)
+
+
+async def p_crescendo(pl: Player, base: float, peak: float, secs: float):
+    """Crescendo: discrete escalating pulses -- each one higher than the last,
+    with a short drop between. Builds by steps, not a smooth ramp."""
+    await pl.ma(2000)
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.28, 0.52, 0.73, 0.87, 1.0):
+            await pl.hold(0.5, base + (hi - base) * frac, tick=0.05)
+            await pl.hold(0.3, base * 0.5, tick=0.05)
+        await pl.hold(1.0, base * 0.3, tick=0.08)
+
+
+async def p_compress(pl: Player, base: float, peak: float, secs: float):
+    """Compress: power steady and high while MA walks DOWN -- the character sinks
+    from buzzy to heavy thump under constant power. The squeeze."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await _ma_glide(pl, 2000, 9000, 4.0)       # sink to thump
+        await pl.hold(3.0, hi, tick=0.08)
+        await _ma_glide(pl, 9000, 2000, 2.0)       # back up
+
+
+async def p_friction(pl: Player, base: float, peak: float, secs: float):
+    """Friction: rapid granular pulses while MA climbs -- a rasping, dragging
+    feel, like something rough moving over you."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for i in range(8):
+            await pl.ma(800 + i * 900)
+            await pl.hold(random.uniform(0.12, 0.3), hi, tick=0.03)
+            await pl.hold(random.uniform(0.1, 0.25), base * 0.4, tick=0.03)
+
+
+async def p_bounce(pl: Player, base: float, peak: float, secs: float):
+    """Bounce: power bounces low->mid->high->low while MA rises, so each bounce
+    lands at a different character than the last."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.0, 0.33, 0.66, 1.0, 0.0):
+            await pl.hold(0.6, base + (hi - base) * frac, tick=0.05)
+        await _ma_glide(pl, 0, 9000, 2.4)
+
+
+async def p_ripple(pl: Player, base: float, peak: float, secs: float):
+    """Ripple: power ripples 0->50->100->73 repeating while MA glides up under
+    it -- wave on wave, the surface moving over something deeper."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.0, 0.5, 1.0, 0.73):
+            await pl.hold(0.45, base + (hi - base) * frac, tick=0.04)
+        await _ma_glide(pl, 0, 9000, 1.8)
+
+
+async def p_rain(pl: Player, base: float, peak: float, secs: float):
+    """Rain: a burst of quick rise-fall taps, then a long steady hold -- the
+    shower breaks and then just pours."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.ma(1200)
+        for _ in range(random.randint(8, 12)):
+            await pl.hold(0.2, base + (hi - base) * random.uniform(0.4, 1.0), tick=0.03)
+            await pl.hold(0.2, base * 0.4, tick=0.03)
+        await pl.ma(7000)
+        await pl.hold(random.uniform(3.0, 4.5), hi, tick=0.1)
+
+
+async def p_tease(pl: Player, base: float, peak: float, secs: float):
+    """Tease: a throttled build that never lands -- the level creeps up, pulls
+    back, then stutters at high character, then drops to nothing."""
+    hi = min(pl.hardcap, peak)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.2, 0.4, 0.6, 0.8, 1.0):
+            await pl.ma(2500 - frac * 1500)
+            await pl.hold(0.7, base + (hi - base) * frac, tick=0.05)
+        await pl.ma(0)
+        for _ in range(8):
+            await pl.hold(0.2, hi, tick=0.03)
+            await pl.hold(0.2, base * 0.3, tick=0.03)
+        await pl.hold(0.8, 0, tick=0.05)
+
+
+# ---------------------------------------------------------- Daimonia translations
+# The 12 eu.daimonia.app stims, rebuilt for the K250's two axes.
+# Daimonia intensity -> PW (power %); the stim's character (pulse/stutter/wave/
+# continuous) -> MA + PW timing. Power is the contract (base/peak); MA is free.
+
+async def p_tickles(pl: Player, base: float, peak: float, secs: float):
+    """Tickles: very low continuous stim, the 'is it even on?' frustration base.
+    Barely-there power, steady buzzy MA."""
+    await pl.ma(800)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(2.0, base * 0.4, tick=0.1)
+
+
+async def p_light_pulse(pl: Player, base: float, peak: float, secs: float):
+    """Light pulses: low intensity pulsing, gentle frustration. Slow even on/off."""
+    await pl.ma(1500)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.5, base * 0.6, tick=0.05)
+        await pl.hold(0.5, base * 0.2, tick=0.05)
+
+
+async def p_light_stutter(pl: Player, base: float, peak: float, secs: float):
+    """Light stutter: low intensity stuttering, uneven gaps -- can't lock on."""
+    await pl.ma(1000)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(random.uniform(0.15, 0.3), base * 0.6, tick=0.04)
+        await pl.hold(random.uniform(0.2, 0.6), base * 0.15, tick=0.04)
+
+
+async def p_teasing_pulse(pl: Player, base: float, peak: float, secs: float):
+    """Teasing pulses: medium pulsing, pleasant. A rhythm you can settle into."""
+    await pl.ma(2500)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.6, base + (peak - base) * 0.6, tick=0.05)
+        await pl.hold(0.4, base * 0.3, tick=0.05)
+
+
+async def p_teasing_stutter(pl: Player, base: float, peak: float, secs: float):
+    """Teasing stutter: medium stuttering, playful -- builds then pulls back."""
+    await pl.ma(1800)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for _ in range(random.randint(2, 4)):
+            await pl.hold(random.uniform(0.2, 0.4), base + (peak - base) * 0.6, tick=0.04)
+            await pl.hold(random.uniform(0.15, 0.3), base * 0.3, tick=0.04)
+        await pl.hold(random.uniform(0.8, 1.4), base * 0.4, tick=0.08)
+
+
+async def p_teasing_continuous(pl: Player, base: float, peak: float, secs: float):
+    """Teasing continuous: medium continuous, a steady pleasant hum."""
+    await pl.ma(2000)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(2.0, base + (peak - base) * 0.5, tick=0.1)
+
+
+async def p_edging_pulse(pl: Player, base: float, peak: float, secs: float):
+    """Edging pulses: high pulsing, pushes toward the edge. Stronger, faster."""
+    await pl.ma(4000)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.4, peak, tick=0.04)
+        await pl.hold(0.3, base * 0.4, tick=0.04)
+
+
+async def p_edging_wave(pl: Player, base: float, peak: float, secs: float):
+    """Edging waves: high wave stim, the swell that keeps you right at the line."""
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        ph = (time.time() - t0) / 6.0 * 2 * math.pi
+        await pl.ma(3000 + 3000 * (0.5 - 0.5 * math.cos(ph)))
+        await pl.w(base + (peak - base) * (0.5 - 0.5 * math.cos(ph)))
+        await asyncio.sleep(0.08)
+
+
+async def p_edging_continuous(pl: Player, base: float, peak: float, secs: float):
+    """Edging continuous: high continuous, relentless -- no relief, just the line."""
+    await pl.ma(5000)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(2.0, peak * 0.9, tick=0.1)
+
+
+async def p_pain_stutter(pl: Player, base: float, peak: float, secs: float):
+    """Pain stutter: stuttering pain -- sharp, uneven, no rhythm to brace for."""
+    await pl.ma(0)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(random.uniform(0.1, 0.25), peak, tick=0.03)
+        await pl.hold(random.uniform(0.15, 0.5), base * 0.2, tick=0.03)
+
+
+async def p_pain_slow_ramp(pl: Player, base: float, peak: float, secs: float):
+    """Pain slow ramp: ramps slowly to painful intensity, then holds -- the
+    build is the point, the arrival is the punishment."""
+    await pl.ma(0)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        for frac in (0.2, 0.4, 0.6, 0.8, 1.0):
+            await pl.hold(1.2, base + (peak - base) * frac, tick=0.08)
+        await pl.hold(2.0, peak, tick=0.08)
+        await pl.hold(1.0, base * 0.3, tick=0.08)
+
+
+async def p_pain_shocks(pl: Player, base: float, peak: float, secs: float):
+    """Pain shocks: single sharp shocks with long gaps -- each one a surprise."""
+    await pl.ma(0)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(0.15, peak, tick=0.03)
+        await pl.hold(random.uniform(2.0, 4.0), base * 0.2, tick=0.1)
+
+
+async def p_flat(pl: Player, base: float, peak: float, secs: float):
+    """Flat hold: one level, MA pinned at 0, nothing to anticipate and no let-up.
+
+    The pattern is the absence of a pattern. Everything else in this library moves
+    something — power, character, or both — so the wearer always has a shape to ride
+    or brace against. This gives them nothing: same level, buzziest character, for as
+    long as the caller says, which is the point when the scene wants steadiness
+    rather than drama."""
+    await pl.ma(0)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        await pl.hold(1.0, peak, tick=0.1)
+
+
 # ---------------------------------------------------------------- patterns
 # Each returns when done; every one must leave the box at 0 (done by caller).
 
@@ -380,7 +841,7 @@ async def p_edge(pl: Player, base: float, peak: float, secs: float):
 
 async def p_verge(pl: Player, base: float, peak: float, secs: float):
     """Edge, sharpened: hover buzzy under the line, then push OVER it in thump
-    mode (MA=5000 ~= 1 beat/s) so you can count the beats you can't have."""
+    mode (MA=5000 ~= 2 beats/s) so you can count the beats you can't have."""
     t0 = time.time()
     while time.time() - t0 < secs and not pl.stop:
         await pl.ma(0)
@@ -392,7 +853,7 @@ async def p_verge(pl: Player, base: float, peak: float, secs: float):
 
 
 async def p_groove(pl: Player, base: float, peak: float, secs: float):
-    """Locked to the thump: MA held at 1 beat/s, power pulsing once per beat so
+    """Locked to the thump: MA held at 2 beats/s, power pulsing once per beat so
     each thump lands heavier. Slow, deliberate, unavoidable."""
     await pl.ma(5000)
     t0 = time.time()
@@ -422,7 +883,7 @@ async def p_switchback(pl: Player, base: float, peak: float, secs: float):
 
 async def p_map(pl: Player, base: float, peak: float, secs: float):
     """CALIBRATION: hold power flat at `base`, step MA from 0 (buzziest) up to
-    5000 (~1 beat/s) in 20 even steps. Report which steps feel good."""
+    5000 (~2 beats/s) in 20 even steps. Report which steps feel good."""
     steps = 20
     await pl.ma(0)
     await pl.hold(1.0, base, tick=0.1)
@@ -437,7 +898,7 @@ async def p_map(pl: Player, base: float, peak: float, secs: float):
 
 
 async def p_lift(pl: Player, base: float, peak: float, secs: float):
-    """verge, with MA compensation: thump segments get +8% power because 1/s
+    """verge, with MA compensation: thump segments get +8% power because 2/s
     delivers less average energy. Beat count varies 1-3 so it's never the same."""
     t0 = time.time()
     while time.time() - t0 < secs and not pl.stop:
@@ -915,6 +1376,20 @@ PATTERNS = {
     "high_sweep": p_high_sweep, "power_sweep": p_power_sweep,
     "pain_edge": p_pain_edge, "power_sweep_rich": p_power_sweep_rich,
     "signature": p_signature,
+    "thrust": p_thrust, "engulf": p_engulf, "sound": p_sound,
+    "milker": p_milker, "flick": p_flick, "jelly": p_jelly,
+    "fangs": p_fangs,
+    "heartbeat": p_heartbeat, "knead": p_knead, "crescendo": p_crescendo,
+    "compress": p_compress, "friction": p_friction, "bounce": p_bounce,
+    "ripple": p_ripple, "rain": p_rain, "tease": p_tease,
+    "tickles": p_tickles, "light_pulse": p_light_pulse, "light_stutter": p_light_stutter,
+    "teasing_pulse": p_teasing_pulse, "teasing_stutter": p_teasing_stutter,
+    "teasing_continuous": p_teasing_continuous,
+    "edging_pulse": p_edging_pulse, "edging_wave": p_edging_wave,
+    "edging_continuous": p_edging_continuous,
+    "pain_stutter": p_pain_stutter, "pain_slow_ramp": p_pain_slow_ramp,
+    "pain_shocks": p_pain_shocks,
+    "flat": p_flat,
 }
 
 
@@ -958,9 +1433,16 @@ def _cap(a, b):
     return 0.0 if (a == 0 or b == 0) else None
 
 
-def apply_limits(a, lim):
+def apply_limits(a, lim, override=False):
     """Merge the limits file into the CLI args. The file is the contract and the
-    command line may only tighten it."""
+    command line may only tighten it — UNLESS the override is asked for by name.
+
+    `override=True` comes from the explicit `--override-ceiling` flag and exists
+    for one reason: the person wearing the electrodes decided, out loud, to drive
+    the Manual level above the agreed ceiling. It is never implicit, it never
+    comes from the file, and the caller is expected to log it loudly — a ceiling
+    that can be raised silently is not a ceiling. Per-channel caps still apply and
+    still clamp: this raises the global wall, not the per-channel one."""
     if not lim:
         return (a.hardcap if a.hardcap is not None else 100.0), (a.max_rate or 0.0), \
                a.ma_top, a.channel_caps
@@ -970,7 +1452,15 @@ def apply_limits(a, lim):
     f_slew = (lim.get("slew") or {}).get("max_percent_per_second")
 
     hard = float(f_power) if f_power is not None else 100.0
-    if a.hardcap is not None:
+    if override:
+        # The Manual level wins: take --hardcap if it was given, else the level the
+        # caller actually asked for. (Without this fallback the override did
+        # nothing unless --hardcap happened to be passed — the CLI's --base/--peak
+        # are the real level on the direct path, and --hardcap defaults to None.)
+        want = a.hardcap if a.hardcap is not None else max(a.base or 0.0, a.peak or 0.0)
+        if want is not None and float(want) > hard:
+            hard = float(want)
+    elif a.hardcap is not None:
         hard = min(float(a.hardcap), hard)
 
     rate = _cap(a.max_rate, f_slew)
@@ -994,25 +1484,23 @@ def apply_limits(a, lim):
 
 
 def session_reserve(here, max_s, seconds):
-    """Enforce the session budget on the direct path too. Reserves the time up
-    front (conservative: an interrupted run still counts). The wrapper does this
-    itself, so it sets K250_WRAPPED=1 to avoid double-counting."""
+    """Charge the session timer on the direct path too. Reserves the time up front
+    (conservative: an interrupted run still counts). The wrapper does this itself,
+    so it sets K250_WRAPPED=1 to avoid double-counting.
+
+    The session budget no longer refuses anything: `check` rolls a spent session
+    over into a new one and exits 0, so a run can follow a run with no gap, no
+    cooldown and no manual reset. The reservation still happens, so the timer on
+    the page shows real time."""
     script = os.path.join(here, "k250_session.py")
     if not os.path.isfile(script):
         return True
-    # Ask the ledger whether this run would push the session PAST the budget, by
-    # checking against (budget - what we are about to use). Checking against the
-    # full budget instead would let the last run overshoot it.
     r = subprocess.run([sys.executable, script, "check",
                         "--max", str(max(0.0, max_s - seconds)), "--dir", here],
                        capture_output=True, text=True)
-    if r.returncode != 0:
-        print(f"SESSION BUDGET: a {seconds:.0f}s run would take this session past the "
-              f"agreed {max_s:.0f}s.\n"
-              f"  Options: stop for now (the budget resets after 15 quiet minutes) · raise "
-              f"session.max_duration_s in limits.json · or start a fresh session deliberately "
-              f"with k250-scene --reset-session.", file=sys.stderr)
-        return False
+    if r.returncode != 0:            # not a refusal path any more; report if it changes
+        print(f"SESSION TIMER: unexpected ledger result — {r.stderr.strip() or r.returncode}",
+              file=sys.stderr)
     subprocess.run([sys.executable, script, "add", "--seconds", str(seconds), "--dir", here],
                    capture_output=True, text=True)
     return True
@@ -1032,6 +1520,12 @@ async def main():
     ap.add_argument("--hardcap", type=float, default=None,
                     help="power ceiling. The limits file is the real ceiling; "
                          "a value here can only LOWER it, never raise it")
+    ap.add_argument("--override-ceiling", action="store_true",
+                    help="NOT for tool or AI-driven runs. This is the WEARER's Manual level, "
+                         "set from the page's Manual section by the person in the electrodes; "
+                         "it is refused unless the bridge marks the run (K250_WEARER_OVERRIDE=1) "
+                         "and is always refused down the k250-scene wrapper path. "
+                         "The AI limits in limits.json are changed by the user, never by a driver.")
     ap.add_argument("--limits", default=None,
                     help="path to limits.json (default: limits.local.json or "
                          "limits.json next to this script, else $K250_LIMITS)")
@@ -1101,11 +1595,40 @@ async def main():
             print("  ", n, file=sys.stderr)
         return 2
 
-    # The limits file is the contract; this can only make it stricter.
+    # The AI limits are the wearer's, and only the wearer changes them. The
+    # override flag is how the PAGE carries the wearer's own Manual level — so it
+    # is refused anywhere else: no tool, script or agent-driven run may raise the
+    # agreed ceiling. Two locks, because the wrapper is the documented entry point
+    # every tool uses: (1) the bridge's in-process marker must be present, and
+    # (2) the wrapper path (K250_WRAPPED=1) is refused outright.
+    if a.override_ceiling:
+        why = None
+        if os.environ.get("K250_WRAPPED") == "1":
+            why = "it was asked for down k250-scene, which is a tool path"
+        elif os.environ.get("K250_WEARER_OVERRIDE") != "1":
+            why = "the wearer's marker is not present (K250_WEARER_OVERRIDE=1)"
+        if why:
+            print(f"REFUSED: --override-ceiling — {why}.\n"
+                  f"  The AI limits in limits.json are the wearer's to set, from the page, and "
+                  f"no tool or AI-driven run may exceed them. Raise power.max_percent (your "
+                  f"settings, your file) or drive it yourself from the page's Manual section.",
+                  file=sys.stderr)
+            return 2
+
+    # The limits file is the contract; this can only make it stricter — unless the
+    # wearer asked for the Manual level to win, in which case it is stated loudly.
     _here = os.path.dirname(os.path.abspath(__file__))
     lim_path = find_limits(a.limits)
     lim = load_limits(lim_path)
-    a.hardcap, a.max_rate, a.ma_top, a.channel_caps = apply_limits(a, lim)
+    file_ceiling = ((lim or {}).get("power") or {}).get("max_percent")
+    a.hardcap, a.max_rate, a.ma_top, a.channel_caps = apply_limits(
+        a, lim, override=bool(a.override_ceiling))
+    if a.override_ceiling and file_ceiling is not None \
+            and float(a.hardcap) > float(file_ceiling):
+        print(f"!! OVERRIDE — the Manual drive level wins for this run: "
+              f"{float(file_ceiling):g}% ceiling in limits.json -> {float(a.hardcap):g}%.\n"
+              f"   The wearer asked for this out loud; nothing else may raise it.",
+              file=sys.stderr, flush=True)
     # In the wrapper the same figures were already printed from the same file, so
     # only announce them on the direct path (e.g. Windows).
     if not os.environ.get("K250_WRAPPED"):
@@ -1130,15 +1653,19 @@ async def main():
     async with BleakClient(dev, timeout=30) as cl:
         k = K250(cl)
         await k.start()
-        await asyncio.sleep(0.7)
+        await asyncio.sleep(0.35)      # let the notify subscription go live
         await k.send(READ_ALL)
-        await asyncio.sleep(1.0)
-        log(f"state before: {json.dumps(k.last, ensure_ascii=False)}")
+        # wait for the box's ANSWER rather than guessing at a fixed sleep
+        t0 = time.time()
+        while k.last is None and time.time() - t0 < 2.0:
+            await asyncio.sleep(0.05)
+        log(f"state before: {json.dumps(k.last or {}, ensure_ascii=False)}")
 
         pl = Player(k, a.hardcap)
         pl.ma_top = a.ma_top
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
+        pl.override_power = bool(a.override_ceiling)
         if a.channel_caps:
             try:
                 pl.channel_caps = json.loads(a.channel_caps)

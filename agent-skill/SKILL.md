@@ -25,6 +25,12 @@ used while building this repo, and it is deliberately short. The repo itself —
 
 ## Non-negotiable
 
+- **The limits file belongs to the wearer.** Never edit `limits.local.json` / `limits.json`, and
+  never work around the ceiling: a driver exists to hold the agreement, not to change it. If more
+  is wanted, the wearer raises it themselves (the page's *AI power ceiling* → Apply, which merges
+  and backs up). The one override is **their own Manual level**: when they set it above the ceiling
+  the bridge marks that run, and the engine refuses the same flag on every tool path and without
+  that marker. `--override-ceiling` is never a driver's flag.
 - The ceiling lives in `limits.local.json` (your editable copy) or, when that doesn't exist,
   `limits.json` — and it is **clamped in code** the same way either way. The engine refuses to write
   above `power.max_percent` no matter what you ask for, and a command-line `--hardcap` can only

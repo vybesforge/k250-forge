@@ -38,6 +38,9 @@ const els = {};
 const registered = [];
 function stub(id){
   if (!els[id]) els[id] = { id, value: "", checked: false, textContent: "", style: {},
+                            dataset: {}, disabled: false, innerHTML: "",
+                            classList: { add(){}, remove(){}, toggle(){} },
+                            appendChild(){}, querySelectorAll(){ return []; },
                             addEventListener(){}, insertAdjacentHTML(_, html){ ingest(html); } };
   return els[id];
 }
@@ -47,9 +50,16 @@ function ingest(html){
   while ((m = re.exec(html))) { stub(m[1]).value = m[2]; registered.push(m[1]); }
 }
 const PRELOAD = %s;
+globalThis.setInterval = () => 0;          // the page's timers must not hold node open
+globalThis.setTimeout = () => 0;
+globalThis.fetch = () => Promise.reject(new Error("no bridge in this test"));
 globalThis.document = {
   getElementById: stub,
-  createElement: () => ({ style: {}, click(){}, set href(v){}, set download(v){} })
+  createElement: () => ({ style: {}, dataset: {}, textContent: "", value: "",
+                          classList: { add(){}, remove(){}, toggle(){} },
+                          appendChild(){}, addEventListener(){}, click(){},
+                          set href(v){}, set download(v){} }),
+  querySelectorAll: () => []
 };
 for (const [id, v] of Object.entries(PRELOAD)) {
   const e = stub(id);
@@ -76,7 +86,8 @@ def static_inputs(html):
 def form_output():
     html = open(FORM, encoding="utf-8").read()
     script = re.search(r"<script>(.*)</script>", html, re.S).group(1)
-    program = PRELUDE % json.dumps(static_inputs(html)) + script + \
+    preload = static_inputs(html)
+    program = PRELUDE % json.dumps(preload) + script + \
         "\nconsole.log(JSON.stringify({json: build(), registered}));\n"
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "run.js")
@@ -85,7 +96,10 @@ def form_output():
         r = subprocess.run([NODE, path], capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         raise RuntimeError(f"node failed: {r.stderr.strip()[:400]}")
-    return json.loads(r.stdout.strip().splitlines()[-1])
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    out["preload"] = preload          # the page's own HTML defaults, as the stub saw them
+    out["script"] = script
+    return out
 
 
 def main():
@@ -98,6 +112,7 @@ def main():
 
     got = form_output()
     generated, registered = got["json"], got["registered"]
+    PRELOAD, script = got["preload"], got["script"]
 
     checks.append(("buildRows produced the 4x3 channel controls", len(registered) == 12,
                    f"{len(registered)} controls"))
@@ -116,8 +131,26 @@ def main():
         for key in ("stop_word", "power", "frequency", "slew", "channels", "session", "safety",
                     "battery"):
             checks.append((f"generated file has {key}", key in parsed, ""))
-        checks.append(("safety acknowledgement present",
-                       parsed.get("safety", {}).get("hard_stops_acknowledged") is True, ""))
+        # The acknowledgement is a per-session GATE now (unticked on every page load,
+        # and it holds Run shut until ticked). The generated file records it honestly:
+        # true only if it is ticked at the moment you press Download / Copy — and the
+        # Apply path never writes this field at all, so a page that has not been
+        # ticked cannot silently un-acknowledge the file on disk.
+        checks.append(("the generated file records the acknowledgement honestly",
+                       parsed.get("safety", {}).get("hard_stops_acknowledged")
+                       is (PRELOAD.get("ack", {}).get("checked") is True),
+                       parsed.get("safety", {}).get("hard_stops_acknowledged")))
+        checks.append(("the page ships with the acknowledgement unticked",
+                       PRELOAD.get("ack", {}).get("checked") is False,
+                       PRELOAD.get("ack", {}).get("checked")))
+        checks.append(("Apply never sends the acknowledgement field",
+                       "ack:" not in re.sub(r"\s+", " ",
+                                            script.split("function limitsBody")[1]
+                                            .split("}")[0]) if "function limitsBody" in script else False,
+                       "limitsBody payload"))
+        checks.append(("the file on disk keeps its own acknowledgement",
+                       json.load(open(SHIPPED)).get("safety", {}).get("hard_stops_acknowledged") is True,
+                       json.load(open(SHIPPED)).get("safety", {}).get("hard_stops_acknowledged")))
         checks.append(("hard stops still listed",
                        len(parsed.get("safety", {}).get("hard_stops", [])) >= 6, ""))
 
