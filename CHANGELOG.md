@@ -11,6 +11,36 @@ happened is part of the record.
 
 ---
 
+## v3.3.3 — 2026-09-18
+
+### Breaking — the engine now drives ONLY channel 1. Channels 2–4 are disabled.
+
+A two-channel drive went wrong on 2026-09-18: channel 2 received far more than
+intended while channel 1 was the level that had been tuned. The engine had
+per-channel caps and honored them, but a pattern's `base`/`peak` frame was channel
+1's — channel 2 rode its *own* cap while the waveform software scaled to channel
+1's figure, and the result was a lot more on channel 2 than expected. That behaviour
+is gone until it is genuinely understood and re-derived.
+
+- **`Player.w()` never selects a second channel.** The rotation branch is deleted; the
+  engine always writes channel 1 only. This is a hard guard in the engine — the last
+  line of defence — so it holds on every path: the bash wrapper, the direct Windows
+  `python k250_play.py` route, and the loopback launcher page.
+- **`detect_channels()` and `prepare_channels()` report channel 1 regardless of `CA`.**
+  A channel the box says is plugged in no longer gets driven just because it's live.
+  The per-channel caps map still exists and is still enforced, but channel 1 is the only
+  channel that receives power.
+- **New test guards the contract:** `tests/test_two_channel_power.py` asserts the engine
+  never selects or powers a second channel, even when `CA` reports two live and a caps
+  map raises channel 2's ceiling. Running it with a box plugged into 2+ channels now
+  drives only the channel 1 output.
+
+If multi-channel is re-derived and re-enabled later, it must land with its own
+channel-relative power frame (so channel N is tuned to channel N's placement, not a copy
+of channel 1's), its own test that fires on every platform, and an explicit human go.
+
+---
+
 ## v3.3.2 — 2026-09-18
 
 ### Changed — the idle path got cheap, and the working copy got a drift check

@@ -159,19 +159,14 @@ class Player:
         return None
 
     async def detect_channels(self):
-        """Which channels does the box say are actually plugged in?
+        """MULTI-CHANNEL DRIVING IS PULLED (2026-09-18). ALWAYS drive ch1 only.
 
-        CA is e.g. ["Active","Unplugged","Unplugged","Unplugged"]. The box
-        REFUSES to select an unplugged channel (AC write is silently ignored),
-        so writing power to one is pointless — drive only the live ones."""
-        ca = await self.read_state("CA")
-        if not isinstance(ca, list):
-            self.channels = [0]
-            return self.channels
-        self.channels = [i for i, s in enumerate(ca)
-                         if str(s).strip().lower() != "unplugged"]
-        if not self.channels:
-            self.channels = [0]
+        A two-channel drive went wrong: channel 2 received far more than intended
+        while channel 1 was the tuned level — the waveform's base/peak frame was
+        channel 1's, but channel 2 sat on its own cap. Until the two-channel
+        behaviour is genuinely understood and re-derived, the engine MUST NOT
+        power a second channel. This override wins over CA regardless."""
+        self.channels = [0]
         return self.channels
 
     async def prepare_channels(self, pattern: str = "Manual"):
@@ -188,11 +183,10 @@ class Player:
            what we write is what happens. We own the pattern, not the box.
 
         Returns the list of live channel indices."""
-        ca = await self.read_state("CA")
         pa = await self.read_state("PA")
-        if isinstance(ca, list):
-            self.channels = [i for i, s in enumerate(ca)
-                             if str(s).strip().lower() != "unplugged"] or [0]
+        # MULTI-CHANNEL PULLED (2026-09-18): ALWAYS ch1. detect_channels() is the
+        # single source of truth; do not let the CA re-read below re-enable ch2.
+        self.channels = await self.detect_channels()
         if not isinstance(pa, list):
             return self.channels
         fixed = list(pa)
@@ -236,25 +230,11 @@ class Player:
         p = max(0.0, min(p, self.hardcap))
 
         # Pick the channel we're writing to.
-        if len(self.channels) <= 1:
-            ch = self.channels[0]
-            await self.select(ch)
-        else:
-            # Hold ONE channel for a window, then rotate. Flip-flopping every tick
-            # halves each channel's update rate and fragments the power stream.
-            now = time.time()
-            need_rotate = (self._ch is None
-                           or self._ch not in self.channels
-                           or (now - self._last_rotate) > self.channel_window)
-            if need_rotate:
-                idx = 0 if self._ch not in self.channels else (
-                    (self.channels.index(self._ch) + 1) % len(self.channels))
-                self._last_rotate = now
-                await self.select(self.channels[idx])
-                # a freshly selected channel may hold a stale speed setting
-                if self._ma is not None:
-                    await self.k.send({"MA": self._ma})
-            ch = self._ch if self._ch in self.channels else self.channels[0]
+        # MULTI-CHANNEL PULLED (2026-09-18): the engine drives ch1 ONLY. The
+        # rotation branch that walked channels 2-4 is gone entirely — nothing may
+        # select-and-write a second channel, whatever CA reports.
+        ch = 0
+        await self.select(ch)
 
         # Clamp and rate-limit for THIS channel. Different channels can sit on
         # very different skin, so a single global ceiling is the wrong shape.
