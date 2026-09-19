@@ -29,12 +29,9 @@
   "channels": {
     "mode": "auto",
     "allowed": [
-      1,
-      2,
-      3,
-      4
+      1
     ],
-    "note": "auto = drive whatever the box reports as plugged in (CA). Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live.",
+    "note": "auto = drive whatever the box reports as plugged in (CA). Channels 2-4 are DISABLED and pinned at 0: only channel 1 may be driven. Unplugged channels are silently refused by the box; never claim to drive a channel that isn't live.",
     "per_channel": {
       "1": {
         "power": null,
@@ -42,17 +39,17 @@
         "slew": null
       },
       "2": {
-        "power": null,
+        "power": 0,
         "frequency": null,
         "slew": null
       },
       "3": {
-        "power": null,
+        "power": 0,
         "frequency": null,
         "slew": null
       },
       "4": {
-        "power": null,
+        "power": 0,
         "frequency": null,
         "slew": null
       }

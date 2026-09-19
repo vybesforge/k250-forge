@@ -11,6 +11,44 @@ happened is part of the record.
 
 ---
 
+## v3.3.4 — 2026-09-18
+
+### Added — the page is gated behind the acknowledgement, and channels 2-4 are off
+
+- **Everything below the hardware kill switch is hidden until the hard-stops acknowledgement is
+  ticked.** The kill switch is hardware — it works with no software in the loop — so it is the last
+  thing on the page that stays visible while the rest waits for you to confirm you have read the hard
+  stops this time. Unticked on every load, on purpose; the prompt says so.
+- **Channels 2, 3 and 4 are disabled and pinned at 0** — `channels.allowed: [1]`, per-channel power
+  `0` — and **their sliders are gone from the page**: the rows still render, as readouts reading
+  `0% (disabled)` / `off`. Channel 1 keeps its three controls, and the AI power ceiling keeps its own.
+  The page writes disabled channels as power 0 with frequency/slew `null`, which is what the shipped
+  `limits.json` now says, so page and engine agree.
+
+### Fixed — a disabled channel could have dragged the ceiling to 0
+
+The page derived its written ceiling with `Math.min()` across all four channel sliders. With 2-4
+disabled at 0 that would have generated a **0% ceiling** — the same shape of bug as the old
+min-of-sliders ceiling, arriving from the other direction. The ceiling now comes from the ceiling
+control, and the frequency/slew minimums only consider *enabled* channels. Verified: with ch1 at 40
+and the ceiling at 25, the generated file says ceiling 25 / ch1 40 / ch2-4 0.
+
+### Fixed — two acknowledgement handlers doing one job
+
+The page had an ack listener that collapsed the hard-stop list and unlocked Run, and this release
+added a second for the gate. In a browser both fire; in the form suite's DOM stub only the last one
+survives, so the test caught what a reader would not. They are now one handler.
+
+### Tests
+
+`tests/test_limits_form.py`: the "4x3 channel controls" assertion became "channel 1 is the only
+channel with controls", plus checks that 2-4 have no sliders, that they still render as readouts, that
+the generated file pins them at 0, that the shipped `limits.json` disables them, that the region below
+the kill switch ships hidden with the gate wired to the acknowledgement, and that there is exactly one
+ack handler (the two-handler bug above).
+
+---
+
 ## v3.3.3 — 2026-09-18
 
 ### Breaking — the engine now drives ONLY channel 1. Channels 2–4 are disabled.

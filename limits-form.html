@@ -132,13 +132,20 @@
       <label class="ack"><input type="checkbox" id="ack">
         <span>I've read these and I'll hold all of them — and decide ceilings calm and before a session,
           never mid-scene.</span></label>
-      <div class="gate" id="hsGate">Tick the acknowledgement to unlock <b>Run</b> in section 3. This box is
-        unticked on every page load, on purpose — the list above stays open until you've read it this time.</div>
+      <div class="gate" id="hsGate">Tick the acknowledgement to reveal the rest of the page — the limits and the
+        driving controls. This box is unticked on every page load, on purpose: the kill switch stays with you and the
+        list above stays open until you've read it this time.</div>
     </div>
 
     <div class="kill"><b>Hardware kill switch —</b> hold any knob on the box for 2 seconds and it powers
       off. Give that to whoever is in the room. It works with no software and no network.</div>
   </div>
+
+  <!-- EVERYTHING BELOW THE HARDWARE KILL SWITCH IS HIDDEN until the acknowledgement
+       above is ticked. The kill switch is the last thing you can always reach: it is
+       hardware, so it stays visible while the rest of the page waits for you to
+       confirm you have read the hard stops. Unticked on every load, on purpose. -->
+  <div id="belowKill" hidden>
 
 
   <div class="card">
@@ -223,6 +230,7 @@
     <div class="save">Save it as <code>limits.json</code> next to the tools, then run
       <code>k250-scene speed_sweep --base 5 --secs 60</code> — the engine clamps to it automatically.</div>
   </div>
+  </div><!-- /belowKill -->
 </div>
 
 <script>
@@ -230,54 +238,75 @@ const $ = id => document.getElementById(id);
 // the limits.json view as loaded from the bridge (null until it answers)
 let FILE = null;
 
+// Channel 1 is the only channel with controls. Channels 2-4 are DISABLED: their
+// sliders are gone and the page writes them as power 0 with frequency/slew null
+// (null = inherit). Disabled means disabled — nothing here can drive them.
 function perChannel(){
   const out = {};
+  const ch1 = {
+    power:     +$('pc1_power').value,
+    frequency: +$('pc1_freq').value,
+    slew:      +$('pc1_slew').value
+  };
   for (let c = 1; c <= 4; c++){
-    out[c] = {
-      power:     +$('pc'+c+'_power').value,
-      frequency: +$('pc'+c+'_freq').value,
-      slew:      +$('pc'+c+'_slew').value
-    };
+    out[c] = (c === 1) ? ch1 : { power: 0, frequency: null, slew: null };
   }
   return out;
 }
 
-// build the four compact channel rows (3 sliders each) into the grid
+// four channel rows: channel 1 has the three sliders, 2-4 are readouts only
 (function buildRows(){
   const host = document.getElementById('pcrows');
   for (let c = 1; c <= 4; c++){
+    const off = c !== 1;
+    const body = off
+      ? `<span class="v locked" id="pc${c}_powerV">0% (disabled)</span>`
+      : `<span class="v" id="pc1_powerV">10%</span>
+         <input type="range" id="pc1_power" min="0" max="100" step="1" value="10">`;
+    const freq = off
+      ? `<span class="v locked" id="pc${c}_freqV">off</span>`
+      : `<span class="v" id="pc1_freqV">100</span>
+         <input type="range" id="pc1_freq" min="0" max="10000" step="100" value="10000">`;
+    const slew = off
+      ? `<span class="v locked" id="pc${c}_slewV">off</span>`
+      : `<span class="v" id="pc1_slewV">50</span>
+         <input type="range" id="pc1_slew" min="0" max="100" step="1" value="50">`;
     host.insertAdjacentHTML('beforeend', `
       <label class="pcch">ch ${c}</label>
-      <div class="pcsl" id="pc${c}_powerWrap">
-        <span class="v" id="pc${c}_powerV">10%</span>
-        <input type="range" id="pc${c}_power" min="0" max="100" step="1" value="10"></div>
-      <div class="pcsl" id="pc${c}_freqWrap">
-        <span class="v" id="pc${c}_freqV">100</span>
-        <input type="range" id="pc${c}_freq" min="0" max="10000" step="100" value="10000"></div>
-      <div class="pcsl" id="pc${c}_slewWrap">
-        <span class="v" id="pc${c}_slewV">50</span>
-        <input type="range" id="pc${c}_slew" min="0" max="100" step="1" value="50"></div>`);
+      <div class="pcsl" id="pc${c}_powerWrap">${body}</div>
+      <div class="pcsl" id="pc${c}_freqWrap">${freq}</div>
+      <div class="pcsl" id="pc${c}_slewWrap">${slew}</div>`);
   }
 })();
 
 function syncChannel(c){
-  $('pc'+c+'_powerV').textContent = $('pc'+c+'_power').value + '%';
-  $('pc'+c+'_freqV').textContent  = Math.round($('pc'+c+'_freq').value / 100);
-  $('pc'+c+'_slewV').textContent  = $('pc'+c+'_slew').value;
+  if (c === 1){
+    $('pc1_powerV').textContent = $('pc1_power').value + '%';
+    $('pc1_freqV').textContent  = Math.round($('pc1_freq').value / 100);
+    $('pc1_slewV').textContent  = $('pc1_slew').value;
+  } else {
+    $('pc'+c+'_powerV').textContent = '0% (disabled)';
+    $('pc'+c+'_freqV').textContent  = 'off';
+    $('pc'+c+'_slewV').textContent  = 'off';
+  }
 }
 
 function read(){
   const dm = +$('durm').value;
   $('durmV').textContent = dm >= 60 ? `${Math.floor(dm/60)}h${dm%60 ? ' '+(dm%60)+'m' : ''}` : dm + ' min';
   const ch = perChannel();
-  const pows = [1,2,3,4].map(c => ch[c].power);
-  const freqs = [1,2,3,4].map(c => ch[c].frequency);
-  const slws = [1,2,3,4].map(c => ch[c].slew).filter(s => s > 0);
+  // only ENABLED channels count toward the contract. 2-4 are disabled, so they
+  // must not drag the derived numbers down (min() over a disabled 0 would make the
+  // ceiling 0 — the same shape of bug as the old min-of-channel-sliders ceiling).
+  const enabled = [1];
+  const pows = enabled.map(c => ch[c].power);
+  const freqs = enabled.map(c => ch[c].frequency).filter(v => typeof v === 'number' && v > 0);
+  const slws = enabled.map(c => ch[c].slew).filter(s => typeof s === 'number' && s > 0);
   return {
     durm: dm,
-    cap:  Math.min(...pows),
+    cap:  +$('ceil').value,           // the ceiling is its own control, never a min()
     def:  Math.min(...pows),
-    smax: Math.min(...freqs),
+    smax: freqs.length ? Math.min(...freqs) : 10000,
     rate: slws.length ? Math.min(...slws) : 0
   };
 }
@@ -338,11 +367,14 @@ function build(){
 }
 
 $('durm').addEventListener('input', () => { read(); $('out').value = build(); markDirty(); });
-// per-channel rows: four channels, three sliders each, live preview
+// per-channel rows: only channel 1 has inputs now; 2-4 are readouts
 for (let c = 1; c <= 4; c++){
-  ['power','freq','slew'].forEach(k => {
-    $('pc'+c+'_'+k).addEventListener('input', () => { syncChannel(c); read(); $('out').value = build(); markDirty(); });
-  });
+  if (c === 1){
+    ['power','freq','slew'].forEach(k => {
+      const el = $('pc1_'+k);
+      if (el) el.addEventListener('input', () => { syncChannel(1); read(); $('out').value = build(); markDirty(); });
+    });
+  }
   syncChannel(c);
 }
 $('stop').addEventListener('input', () => { $('out').value = build(); markDirty(); });
@@ -350,7 +382,16 @@ $('ceil').addEventListener('input', () => {
   $('ceilV').textContent = $('ceil').value + '%';
   $('out').value = build(); markDirty();
 });
-$('ack').addEventListener('change', () => $('out').value = build());
+// the acknowledgement is the gate for the whole page, not just the Run button:
+// everything below the hardware kill switch stays hidden until it is ticked.
+// (Called from the single ack handler at the bottom of this script.)
+function applyAckGate(){
+  const on = !!$('ack').checked;
+  const rest = $('belowKill');
+  if (rest) rest.hidden = !on;
+  const g = $('hsGate');
+  if (g) g.style.display = on ? 'none' : '';
+}
 $('regen').onclick = () => { $('out').value = build(); };
 $('copy').onclick = async () => {
   $('out').value = build();
@@ -635,16 +676,19 @@ function loadLimits(view){
   FILE_OK = true;
   $('apply').disabled = false;
   FILE = view;
-  const set = (id, v) => { if (v !== null && v !== undefined) $(id).value = v; };
+  // seed only the controls that exist: the ceiling and channel 1 (2-4 are disabled readouts)
+  const set = (id, v) => { const el = $(id); if (el && v !== null && v !== undefined) el.value = v; };
   set('durm', view.session_minutes);
   set('ceil', view.power_ceiling);
   $('ceilV').textContent = $('ceil').value + '%';
   if (view.stop_word) $('stop').value = view.stop_word;
   for (let c = 1; c <= 4; c++){
-    const e = view.per_channel[String(c)] || {};
-    set('pc'+c+'_power', e.power);
-    set('pc'+c+'_freq',  e.frequency);
-    set('pc'+c+'_slew',  e.slew);
+    if (c === 1){
+      const e = (view.per_channel || {})['1'] || {};
+      set('pc1_power', e.power);
+      set('pc1_freq',  e.frequency);
+      set('pc1_slew',  e.slew);
+    }
     syncChannel(c);
   }
   read();
@@ -709,13 +753,19 @@ $('apply').onclick = async () => {
   $('applyMsg').classList.toggle('dirty', !r.ok);
   if (r.ok && r.limits) loadLimits(r.limits);
 };
+// ONE handler for the acknowledgement: it collapses the hard-stop list, reveals
+// everything below the hardware kill switch, and unlocks Run. (It was two handlers
+// doing overlapping halves of this — the gate belongs in one place.)
 $('ack').addEventListener('change', () => {
   $('hsList').style.display = $('ack').checked ? 'none' : '';
   $('hsGate').style.display = $('ack').checked ? 'none' : '';
   $('driveRun').disabled = !$('ack').checked;
+  applyAckGate();
+  $('out').value = build();
 });
 $('hsList').style.display = '';
 $('driveRun').disabled = !$('ack').checked;
+applyAckGate();          // unticked on load -> everything below the kill switch hidden
 refreshLimits();
 
 </script>

@@ -114,8 +114,34 @@ def main():
     generated, registered = got["json"], got["registered"]
     PRELOAD, script = got["preload"], got["script"]
 
-    checks.append(("buildRows produced the 4x3 channel controls", len(registered) == 12,
+    html_src = open(FORM, encoding="utf-8").read()
+
+    # Channel 1 is the only channel with controls. 2-4 are DISABLED: readouts only.
+    checks.append(("only channel 1 has controls (its three sliders)", len(registered) == 3,
                    f"{len(registered)} controls"))
+    checks.append(("channels 2-4 have no sliders at all",
+                   re.search(r'id="pc[234]_(power|freq|slew)"', html_src) is None,
+                   "no pc2/3/4 inputs"))
+    checks.append(("channels 2-4 still render as disabled readouts",
+                   "0% (disabled)" in html_src and 'id="pc${c}_powerV"' in html_src
+                   and "off</span>" in html_src,
+                   "readouts present"))
+    checks.append(("a disabled channel cannot drag the ceiling down "
+                   "(build() reads the ceiling control, not min() of channels)",
+                   "cap:  +$('ceil').value" in re.sub(r"\s+", " ", script)
+                   or "cap: +$('ceil').value" in re.sub(r"\s+", " ", script),
+                   "cap source"))
+
+    # The acknowledgement gates the WHOLE page, not just Run: everything below the
+    # hardware kill switch is hidden until it is ticked.
+    checks.append(("the region below the hardware kill switch ships hidden",
+                   re.search(r'id="belowKill"\s+hidden', html_src) is not None, "hidden"))
+    checks.append(("that region is closed", "/belowKill" in html_src, "closed"))
+    checks.append(("the gate is wired to the acknowledgement",
+                   "function applyAckGate" in script and "applyAckGate();" in script, "applyAckGate"))
+    checks.append(("there is one acknowledgement handler, not two",
+                   script.count("$('ack').addEventListener") == 1,
+                   f"{script.count(chr(36) + chr(40) + chr(39) + 'ack' + chr(39) + chr(41) + '.addEventListener')} handlers"))
 
     # 1. it is a file the engine can read at all
     parsed = None
@@ -153,6 +179,16 @@ def main():
                        json.load(open(SHIPPED)).get("safety", {}).get("hard_stops_acknowledged")))
         checks.append(("hard stops still listed",
                        len(parsed.get("safety", {}).get("hard_stops", [])) >= 6, ""))
+        # the disabled channels are written as 0, never as inherit or omitted
+        pc_got = parsed.get("channels", {}).get("per_channel", {})
+        checks.append(("the generated file pins channels 2-4 at 0",
+                       all(pc_got.get(c, {}).get("power") == 0 for c in ("2", "3", "4")),
+                       {c: pc_got.get(c, {}).get("power") for c in ("1", "2", "3", "4")}))
+        checks.append(("the shipped limits.json disables 2-4 as well",
+                       json.load(open(SHIPPED))["channels"].get("allowed") == [1]
+                       and all(json.load(open(SHIPPED))["channels"]["per_channel"][c]["power"] == 0
+                               for c in ("2", "3", "4")),
+                       json.load(open(SHIPPED))["channels"].get("allowed")))
 
         # 3. the battery reporting rule, which is why this test exists
         batt = parsed.get("battery", {})
