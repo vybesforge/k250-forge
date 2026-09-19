@@ -4,11 +4,9 @@
 Usage: python k250_status.py
 """
 import asyncio
-import json
 import sys
 
 from bleak import BleakClient
-from k250_codec import READ_ALL
 
 from k250_ble import K250, find
 

@@ -11,6 +11,47 @@ happened is part of the record.
 
 ---
 
+## v3.3.2 — 2026-09-18
+
+### Changed — the idle path got cheap, and the working copy got a drift check
+
+Everything here was measured before it was changed, on the bench, with the numbers below.
+
+- **The session timer no longer spawns a process.** The page polls `/status` every two seconds, and
+  each poll ran `k250_session.py show --json`: one interpreter, 38 ms, thirty a minute, for two file
+  reads. The bridge now imports the same module in-process — the same code the engine enforces, so the
+  timer still cannot disagree with reality. Measured: **`/status` 49.5 ms → 1.7 ms**, process spawns
+  **30/min → 0**.
+- **The pattern list is computed once and cached.** It re-imported the engine on every call (~100 ms,
+  measured); the library cannot change while the bridge runs. Measured: **`/patterns` 100.6 ms →
+  16.0 ms** (first call), ~0 after. The page never used it; other callers did.
+- **bleak is imported inside the functions that touch the radio**, so read-only paths (`--list`,
+  `--limits-show`, a status read with no box present) stop paying for it. Honest note: the saving is
+  smaller than the import cost suggests (~10 ms end to end) — what actually dominates those commands
+  is the interpreter start and `asyncio`, both of which the architecture needs. The change is still
+  correct; it just is not the 75 ms it looked like.
+- **Backups are pruned to the newest 10** (`_prune_backups`). One was written per Apply, forever: 32
+  files, 165 KB, every one indistinguishable to a human scanning a folder.
+- **Five unused imports removed** (each appeared only on its import line, verified): `CHR` in
+  `k250_play.py`, `CHR` + `READ_ALL` in `k250_stop.py`, `json` + `READ_ALL` in `k250_status.py`.
+- **The wrapper and the engine now derive the limits file in one place.** The two copies had each
+  accumulated a different fix: the repo's `DEFAULT_LIMITS` derivation (which had fixed a real
+  two-ceilings-on-one-run bug where `K250_DIR` made the wrapper enforce `limits.json` while the engine
+  read `limits.local.json`) was missing from the working copy. Merged; the wrapper still forwards no
+  override, which is the point of it.
+- **New: `tools/k250-drift`.** The working copy and the repo are two copies kept in step by hand, which
+  is how they drift — that is what surfaced the wrapper divergence above. Run it before shipping; exit
+  1 names the files that differ.
+- **Three new regression guards** in `tests/test_launcher_limits.py`: the session read spawns nothing and
+  still carries the enforcing numbers, the pattern list spawns the engine exactly once, and the prune
+  keeps the newest 10 while the newest survives.
+
+Not changed, and why: the engine's startup reads were left alone (merging two round trips saves ~0.07 s
+and the ordering is pinned by tests), and the wrapper's ledger calls were left at two per run (~0.04 s
+each, and one of them happens after the run by definition). Both are measured, not skipped.
+
+---
+
 ## v3.3.1 — 2026-09-18
 
 ### Changed — one line of the findings doc named the author's workstation

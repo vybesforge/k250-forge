@@ -26,8 +26,7 @@ import signal
 import sys
 import time
 
-from bleak import BleakClient
-from k250_codec import CHR, READ_ALL
+from k250_codec import READ_ALL
 
 from k250_ble import K250, find
 
@@ -1650,6 +1649,7 @@ async def main():
         return 1
     log("found", dev.address, dev.name)
 
+    from bleak import BleakClient          # lazy: read-only paths must not pay for it
     async with BleakClient(dev, timeout=30) as cl:
         k = K250(cl)
         await k.start()

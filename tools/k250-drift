@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# k250-drift — is the working copy still the same code as the repo?
+#
+# The stack lives in two places: this repo (the published truth) and a working
+# directory someone actually runs. They are kept in step BY HAND, which is exactly
+# how they drift — a fix landed in one copy and not the other, and then a whole
+# session is spent debugging code that was never running.
+#
+# Usage:  k250-drift [repo_dir] [live_dir]
+#         defaults: ./ and $K250_LIVE (or ~/k250)
+# Exit:   0 = identical, 1 = drift (or a file missing from one side)
+set -u
+
+REPO="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+LIVE="${2:-${K250_LIVE:-$HOME/k250}}"
+
+FILES="k250_play.py k250_show.py k250_ble.py k250_codec.py k250_session.py
+       k250_stop.py k250_status.py k250_launcher.py limits-form.html bin/k250-scene"
+
+drift=0
+printf 'repo: %s\nlive: %s\n\n' "$REPO" "$LIVE"
+for f in $FILES; do
+  if [ ! -f "$REPO/$f" ]; then printf '  missing in repo : %s\n' "$f"; drift=1; continue; fi
+  if [ ! -f "$LIVE/$f" ]; then printf '  missing in live : %s\n' "$f"; drift=1; continue; fi
+  if cmp -s "$REPO/$f" "$LIVE/$f"; then
+    printf '  same            %s\n' "$f"
+  else
+    printf '  DRIFT           %s\n' "$f"
+    drift=1
+  fi
+done
+
+if [ "$drift" = 0 ]; then
+  echo
+  echo "no drift: the working copy and the repo are carrying the same code"
+else
+  echo
+  echo "drift found. Decide which side is right, sync it, then ship."
+fi
+exit $drift

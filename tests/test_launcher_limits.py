@@ -112,6 +112,58 @@ with tempfile.TemporaryDirectory() as d:
                    v.get("power_ceiling") is not None
                    and ({} or {}).get("power_ceiling") is None, True))
 
+    # --- the three things the sweep changed, each one measured before changing it ---
+
+    # (1) the session read is IN-PROCESS now. It used to spawn k250_session.py on
+    # every /status, and the page polls that every two seconds: 38 ms and one process
+    # per poll, thirty a minute, for two file reads.
+    import inspect
+    src = inspect.getsource(L._session_state)
+    body_code = src.split('"""', 2)[-1]        # drop the docstring, which names the old spawn
+    L._session_state()
+    st = L._session_state()
+    checks.append(("session read spawns nothing (module import, not a subprocess)",
+                   "subprocess.run" not in body_code and "importlib" in body_code, True))
+    checks.append(("session read still carries the enforcing numbers",
+                   isinstance(st.get("used_s"), float) and st.get("enforced") is True,
+                   st.get("used_s")))
+    checks.append(("session read carries the ceiling the file says",
+                   st.get("max_s") == float(json.load(open(path))["session"]["max_duration_s"]),
+                   st.get("max_s")))
+
+    # (2) the pattern list is computed once and cached (it imports the engine, ~100 ms).
+    calls = {"n": 0}
+    real_run = L.subprocess.run
+
+    def counting(*a, **k):
+        calls["n"] += 1
+        return real_run(*a, **k)
+
+    L.subprocess.run = counting
+    L._PATTERNS_CACHE = None
+    first = L._pattern_list()
+    n1 = calls["n"]
+    L._pattern_list()
+    n2 = calls["n"]
+    L.subprocess.run = real_run
+    L._PATTERNS_CACHE = None
+    checks.append(("pattern list spawns the engine once, then serves from cache",
+                   n1 == 1 and n2 == n1, (n1, n2)))
+    checks.append(("pattern list is the whole library", len(first) > 50, len(first)))
+
+    # (3) backups are pruned to the newest 10 — one per Apply, forever otherwise.
+    before = len([f for f in os.listdir(d) if f.startswith("limits.json.bak-")])
+    for i in range(13):
+        p = path + f".bak-20260101-{i:06d}"
+        open(p, "w").write("{}")
+        os.utime(p, (1_700_000_000 + i, 1_700_000_000 + i))
+    removed = L._prune_backups(10)
+    left = [f for f in os.listdir(d) if f.startswith("limits.json.bak-")]
+    checks.append(("backups pruned to the newest 10",
+                   len(left) == 10 and removed == before + 13 - 10, (removed, len(left))))
+    checks.append(("the newest backup survives the prune",
+                   os.path.exists(path + ".bak-20260101-000012"), True))
+
 width = max(len(n) for n, _, _ in checks)
 bad = 0
 for name, ok, got in checks:

@@ -111,17 +111,28 @@ def _power_ceiling():
     return d.get("power", {}).get("max_percent", 50)
 
 
+_PATTERNS_CACHE = None
+
+
 def _pattern_list():
-    """name -> first line of docstring, from the engine's PATTERNS."""
+    """name -> first line of docstring, from the engine's PATTERNS.
+
+    Spawning the engine to answer this costs ~100 ms (it imports bleak, ~76 ms of
+    that) and the answer cannot change while this process runs, so it is computed
+    once and cached. Returns the cache even if a later call would fail."""
+    global _PATTERNS_CACHE
+    if _PATTERNS_CACHE is not None:
+        return _PATTERNS_CACHE
     try:
         out = subprocess.run(
             [PY, "-c",
              "import sys;sys.path.insert(0,'%s');import k250_play as K;"
              "import json;print(json.dumps({n:(f.__doc__ or '').strip().split(chr(10))[0] for n,f in K.PATTERNS.items()}))" % HERE],
             capture_output=True, text=True, timeout=30)
-        return json.loads(out.stdout) if out.returncode == 0 else {}
+        _PATTERNS_CACHE = json.loads(out.stdout) if out.returncode == 0 else {}
     except Exception:
-        return {}
+        _PATTERNS_CACHE = {}
+    return _PATTERNS_CACHE
 
 
 def _tail(n=5):
@@ -302,25 +313,58 @@ def _apply_limits(p):
         os.replace(tmp, LIMITS)
     except Exception as e:
         return False, f"write failed: {e}"
-    return True, f"{len(changes)} change(s) written; backup {os.path.basename(backup)}"
+    pruned = _prune_backups()
+    return True, (f"{len(changes)} change(s) written; backup {os.path.basename(backup)}"
+                  + (f"; pruned {pruned} old backup(s)" if pruned else ""))
+
+
+def _prune_backups(keep=10):
+    """Keep the newest `keep` backups next to the limits file.
+
+    One is written per Apply, so the directory grows forever — 32 of them, 165 KB,
+    and every one looks like every other to a human scanning a folder. Ten is plenty
+    to undo a mistake; the file itself is the contract, these are just the undo."""
+    d = os.path.dirname(os.path.abspath(LIMITS))
+    try:
+        baks = sorted((os.path.join(d, f) for f in os.listdir(d)
+                       if f.startswith("limits.json.bak-")), key=os.path.getmtime)
+    except OSError:
+        return 0
+    n = 0
+    for p in baks[:-keep] if len(baks) > keep else []:
+        try:
+            os.remove(p)
+            n += 1
+        except OSError:
+            pass
+    return n
 
 
 def _session_state():
-    """The session ledger, read through the module the engine actually enforces.
+    """The session ledger, read IN-PROCESS through the module that enforces it.
 
-    Deliberately not re-implemented here: the page's timer must show the same
-    number that will refuse the next run."""
-    d = _load_limits()
-    max_s = float(((d.get("session") or {}).get("max_duration_s")) or 1800)
+    This used to spawn `k250_session.py show --json` on every call, and the page
+    polls this endpoint every two seconds: one python process (38 ms) per poll,
+    thirty a minute, forever, for a number that is two file reads away. Importing
+    the module is not a reimplementation — it is the same code the engine uses, so
+    the timer still cannot disagree with reality."""
     try:
-        r = subprocess.run([PY, os.path.join(HERE, "k250_session.py"), "show", "--json",
-                            "--max", str(max_s), "--dir", HERE],
-                           capture_output=True, text=True, timeout=20)
-        st = json.loads((r.stdout or "").strip().splitlines()[-1])
-        st["enforced"] = True
-        return st
+        import importlib
+        import sys as _sys
+        if HERE not in _sys.path:
+            _sys.path.insert(0, HERE)
+        sess = importlib.import_module("k250_session")
+        d = _load_limits()
+        max_s = float(((d.get("session") or {}).get("max_duration_s")) or 1800)
+        st = sess.load(HERE)
+        used = float(st.get("used_s", 0.0) or 0.0)
+        return {"used_s": round(used, 1), "max_s": max_s,
+                "left_s": round(max(0.0, max_s - used), 1),
+                "spent": (max_s - used) <= 0,
+                "session_start": st.get("session_start"),
+                "enforced": True}
     except Exception as e:
-        return {"used_s": None, "max_s": max_s, "left_s": None, "spent": None,
+        return {"used_s": None, "max_s": None, "left_s": None, "spent": None,
                 "enforced": True, "error": str(e)}
 
 

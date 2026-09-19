@@ -17,7 +17,6 @@ import sys
 import time
 
 from bleak import BleakClient
-from k250_codec import CHR, READ_ALL
 
 from k250_ble import K250, find
 

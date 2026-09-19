@@ -11,7 +11,11 @@ import asyncio
 import json
 import sys
 
-from bleak import BleakClient, BleakScanner
+# bleak is imported INSIDE the functions that touch the radio. It costs ~76 ms to
+# import, and everything that only wants to read something — `--list`,
+# `--limits-show`, the launcher's pattern list, a status read with no box present —
+# was paying it for nothing. Same reasoning as the fast discovery: a driver's idle
+# path should stay cheap, especially on modest hardware.
 from k250_codec import ADDR, NAME, CHR, READ_ALL, SVC
 
 
@@ -65,6 +69,7 @@ async def find(timeout=12.0):
     race or an odd adapter — and it is NOT run after a clean timeout, or a box
     that is asleep would cost double the wait.
     """
+    from bleak import BleakScanner          # lazy: see the note at the top of this file
     try:
         dev = await BleakScanner.find_device_by_filter(
             lambda d, a: _matches(d, a), timeout=timeout)
@@ -92,6 +97,7 @@ async def main():
               "  - it only advertises when awake and on that screen")
         return 1
     print("found", dev.address, dev.name)
+    from bleak import BleakClient          # lazy: see the note at the top of this file
     async with BleakClient(dev, timeout=30) as cl:
         k = K250(cl)
         await k.start()
