@@ -1,6 +1,6 @@
 # Kink K250-4S — BLE takeover: findings & assets
 
-Saved 2026-09-14. Device physically attached to the Precision 5810; webcam points at its LCD.
+Saved 2026-09-14. Device physically attached to the bench machine; a webcam points at its LCD.
 
 ## 1. The device
 - **Kink K250-4S E-Stim Power Box** (Kink Store / Red System Ventures LLC; kinkstore.com).

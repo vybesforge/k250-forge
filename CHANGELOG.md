@@ -11,6 +11,15 @@ happened is part of the record.
 
 ---
 
+## v3.3.1 — 2026-09-18
+
+### Changed — one line of the findings doc named the author's workstation
+
+`FINDINGS.md` described the device as attached to a specific machine model. It now says the bench
+machine. Docs only: no engine, tool, test or limits-value change.
+
+---
+
 ## v3.3.0 — 2026-09-18
 
 ### Added — the limits page can act, not just generate (`k250_launcher.py`, `k250-launcher`)
