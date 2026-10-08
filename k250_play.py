@@ -340,9 +340,18 @@ class Player:
 #       sent as 500 and clamps to the box's top -- i.e. the page says 5% and the box
 #       is driven at full. Wrong in the safe direction the other way (an under-drive),
 #       so mapping it is the safe side of the bet either way.
+# v1 is listed EXPLICITLY so that "known v1" and "firmware unknown" stay different
+# things. v1 takes PW as percent x100; an unknown firmware must never inherit that,
+# because on v2 hardware x100 units pin the box to its top.
 FW_AXES = {
+    "1": {"ma_apex": None, "pw_scale": 100.0, "pa_writable": True},
     "2": {"ma_apex": 100.0, "pw_scale": 1.0, "pa_writable": False},
 }
+
+# Fail SAFE, never open. An unknown firmware gets the SMALLER units: an under-drive is
+# harmless, an over-drive is not. main() refuses to drive at all in this case; this is
+# the second line of defence for any path reaching the helpers without that check.
+UNKNOWN_AXES = {"ma_apex": 100.0, "pw_scale": 1.0, "pa_writable": False}
 
 
 def _major(fv) -> str:
@@ -358,12 +367,13 @@ def _major(fv) -> str:
 
 def ma_box_max_for(fv):
     """The MA apex this firmware accepts, or None to write the axis raw (v1)."""
-    return FW_AXES.get(_major(fv), {}).get("ma_apex")
+    return FW_AXES.get(_major(fv), UNKNOWN_AXES).get("ma_apex")
 
 
 def pw_scale_for(fv):
     """Multiplier from a percent to this firmware's PW units (100 on v1, 1 on v2)."""
-    return FW_AXES.get(_major(fv), {}).get("pw_scale", 100.0)
+    # An UNKNOWN firmware yields the SAFE (smaller) multiplier, never v1's x100.
+    return FW_AXES.get(_major(fv), UNKNOWN_AXES).get("pw_scale")
 
 
 def pa_writable_for(fv):
@@ -371,7 +381,7 @@ def pa_writable_for(fv):
 
     v2 refuses every one, so reading and writing it before a run is a wasted round
     trip AND a log line that claims a change that never happened."""
-    return FW_AXES.get(_major(fv), {}).get("pa_writable", True)
+    return FW_AXES.get(_major(fv), UNKNOWN_AXES).get("pa_writable")
 
 
 async def _ma_glide(pl: Player, a: float, b: float, secs: float, tick: float = 0.05):
@@ -1706,22 +1716,36 @@ async def main():
         await k.start()
         await asyncio.sleep(0.35)      # let the notify subscription go live
         await k.send(READ_ALL)
-        # wait for the box's ANSWER rather than guessing at a fixed sleep
+        # Wait for the box's ANSWER rather than guessing at a fixed sleep -- and wait
+        # for the FIELD we actually need. The box can send an early partial reply, and
+        # "k.last is not None" is satisfied by {} exactly as well as by a real state:
+        # that is how a run once started knowing nothing, took v1's power scale as the
+        # default, and wrote 24% to the box as 2400 -- i.e. full power. Wait for FV.
         t0 = time.time()
-        while k.last is None and time.time() - t0 < 2.0:
+        while not (k.last or {}).get("FV") and time.time() - t0 < 6.0:
             await asyncio.sleep(0.05)
         log(f"state before: {json.dumps(k.last or {}, ensure_ascii=False)}")
 
         pl = Player(k, a.hardcap)
         pl.ma_top = a.ma_top
         _fv = (k.last or {}).get("FV")
+        if not _fv:
+            log("!! REFUSING TO DRIVE: the box never reported its firmware, so its power")
+            log("!! units are unknown. Guessing v1 units on v2 hardware means FULL power,")
+            log("!! so this run stops here. Wake the box onto the remote-control screen.")
+            return 1
+        if _major(_fv) not in FW_AXES:
+            log(f"!! REFUSING TO DRIVE: firmware {_fv} is not in the known table, so its")
+            log("!! power units are unknown. Measure it and add it to FW_AXES first.")
+            return 1
         pl.ma_out_max = ma_box_max_for(_fv)
         pl.pw_scale = pw_scale_for(_fv)
         pl.pa_writable = pa_writable_for(_fv)
-        if pl.ma_out_max or pl.pw_scale != 100.0:
-            log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
-                f"PW = percent x{pl.pw_scale:g}, "
-                f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
+        # ALWAYS log the axes. This line was gated on pw_scale != 100, which made the
+        # one dangerous case -- scale unknown and defaulted -- the only silent one.
+        log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
+            f"PW = percent x{pl.pw_scale:g}, "
+            f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)

@@ -11,6 +11,34 @@ happened is part of the record.
 
 ---
 
+## v3.7.2 — 2026-10-08
+
+### Fixed (SAFETY) — an unreadable firmware drove the box at FULL power
+
+- **What happened:** a run asked for 24% and the box was driven at 100. The ceiling was not at
+  fault -- it was enforced correctly (64). The engine reads the box's firmware to learn its units:
+  `PW` is a percent x100 on v1 and the percent itself on v2. That run's startup read came back
+  `{}` -- the box can send an early partial reply -- and the wait loop was `while k.last is None`,
+  which `{}` satisfies. So it stopped waiting, never saw `FV`, and the scale fell back to v1's
+  x100: 24% written as 2400, and the box pins that to its top. `last` reported `FV: 2.00.08b`
+  moments later -- the firmware was knowable, it was simply asked too early.
+- **The default failed OPEN, which is the wrong direction for a device on a body.** An unknown
+  firmware now takes the SMALLER units (percent x1, MA apex 100): an under-drive is harmless, an
+  over-drive is not. v1 is listed explicitly so "known v1" and "unknown firmware" stay distinct.
+- **The drivers refuse to drive at all when the firmware is unknown**, instead of guessing its
+  units -- in both the pattern path and the stim path. `k250_play.py` and `k250_stim_play.py`.
+- **The startup read waits for `FV`**, not merely for a reply, up to 6 s.
+- **The `axes` log line is now unconditional.** It was gated on `pw_scale != 100`, which made the
+  one dangerous case -- scale unknown and defaulted -- the only silent one. Silence must never be
+  what a bad scale looks like.
+- Verified on the box: the same `Tide` that chose 24% and drove 100 now echoes `PW 10` for a 10%
+  request, through both the CLI and the page, with the axes line logged every time.
+- `tests/test_failsafe_axes.py` (54 checks) pins the safe direction and is mutation-proven to fail
+  if the old default returns. Three checks in `test_firmware_axes.py` had asserted the old v1
+  fallback and labelled it "fails safe" -- corrected, because on v2 hardware it is the opposite.
+
+---
+
 ## v3.7.1 — 2026-10-07
 
 ### Fixed — the stop raced itself
