@@ -51,6 +51,7 @@ class Player:
         self.ma_top = 2500.0          # apex of the speed axis (MA 0..2500)
         self.ma_out_max: float | None = None   # the apex THIS firmware accepts, if shorter
         self.pw_scale = 100.0         # percent -> this firmware's PW units (v2: 1)
+        self.pa_writable = True       # v2 refuses the pattern write; skip the attempt
         self.sweep_period = 8.0       # seconds per full speed sweep
         self.channels = [0]           # live channels (set by detect_channels)
         self._ch = None
@@ -186,10 +187,18 @@ class Player:
            what we write is what happens. We own the pattern, not the box.
 
         Returns the list of live channel indices."""
-        pa = await self.read_state("PA")
         # MULTI-CHANNEL PULLED (2026-09-18): ALWAYS ch1. detect_channels() is the
         # single source of truth; do not let the CA re-read below re-enable ch2.
         self.channels = await self.detect_channels()
+        if not self.pa_writable:
+            # v2 refuses every PA write (see references/firmware-2.md in the skill). The
+            # read and the write here were both dead weight -- a round trip each, and a
+            # log line announcing a change that never happened. The pattern is the
+            # wearer's to set on the box; we shape what it runs.
+            print("   pattern   : this firmware refuses PA writes — the pattern is set on "
+                  "the box by hand (Intense on 2.x); shaping what it runs", flush=True)
+            return self.channels
+        pa = await self.read_state("PA")
         if not isinstance(pa, list):
             return self.channels
         fixed = list(pa)
@@ -325,7 +334,7 @@ class Player:
 #       is driven at full. Wrong in the safe direction the other way (an under-drive),
 #       so mapping it is the safe side of the bet either way.
 FW_AXES = {
-    "2": {"ma_apex": 100.0, "pw_scale": 1.0},
+    "2": {"ma_apex": 100.0, "pw_scale": 1.0, "pa_writable": False},
 }
 
 
@@ -348,6 +357,14 @@ def ma_box_max_for(fv):
 def pw_scale_for(fv):
     """Multiplier from a percent to this firmware's PW units (100 on v1, 1 on v2)."""
     return FW_AXES.get(_major(fv), {}).get("pw_scale", 100.0)
+
+
+def pa_writable_for(fv):
+    """Whether this firmware accepts a pattern (PA) write at all.
+
+    v2 refuses every one, so reading and writing it before a run is a wasted round
+    trip AND a log line that claims a change that never happened."""
+    return FW_AXES.get(_major(fv), {}).get("pa_writable", True)
 
 
 async def _ma_glide(pl: Player, a: float, b: float, secs: float, tick: float = 0.05):
@@ -1693,9 +1710,11 @@ async def main():
         _fv = (k.last or {}).get("FV")
         pl.ma_out_max = ma_box_max_for(_fv)
         pl.pw_scale = pw_scale_for(_fv)
+        pl.pa_writable = pa_writable_for(_fv)
         if pl.ma_out_max or pl.pw_scale != 100.0:
             log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
-                f"PW = percent x{pl.pw_scale:g}")
+                f"PW = percent x{pl.pw_scale:g}, "
+                f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)

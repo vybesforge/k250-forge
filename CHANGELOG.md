@@ -11,7 +11,23 @@ happened is part of the record.
 
 ---
 
-## v3.6.1 — 2026-10-07
+## v3.6.2 — 2026-10-07
+
+### Fixed — every click spent two BLE round trips on a write that cannot work
+
+- Before each run the engine read the pattern slot and wrote it back, on every firmware. On `2.x` that
+  write is refused outright, so it was two wasted round trips — each waiting on the box for up to a 3 s
+  timeout — plus a log line announcing a change that never happened (`set channels [1] to 'Manual'`).
+  It is now gated on the firmware (`pa_writable_for`), so `2.x` skips the attempt and says what is
+  actually true: the pattern is set on the box by hand.
+- Measured on a real click: process spawn and imports cost **0.2 s**; everything else is BLE handshake,
+  dominated by the box's own `READ_ALL` reply latency (**2.4 s**). The remaining delay is the radio, not
+  the code.
+- Deliberately NOT changed: the device scan is a filter scan that returns in **0.3 s**, and the box's
+  address is random-static — it changes on power-cycle — so pinning a remembered address would often be
+  stale and cost more than it saves. The scan stays.
+
+ — 2026-10-07
 
 ### Changed — the pattern is set on the box, by hand
 

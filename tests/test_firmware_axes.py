@@ -21,7 +21,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from k250_play import (Player, ma_box_max_for, pw_scale_for, pct)   # noqa: E402
+from k250_play import (Player, ma_box_max_for, pw_scale_for, pct,   # noqa: E402
+                       pa_writable_for)
 
 checks = []
 
@@ -72,6 +73,14 @@ checks.append(("v1 PW stays percent x100",
                pw_scale_for("1.08--v1.08") == 100.0, pw_scale_for("1.08--v1.08")))
 checks.append(("an unreadable firmware keeps percent x100",
                pw_scale_for("") == 100.0, pw_scale_for("")))
+
+checks.append(("v2 refuses the pattern write, so do not attempt it",
+               pa_writable_for("2.00.08b--v2.00.08b") is False,
+               pa_writable_for("2.00.08b--v2.00.08b")))
+checks.append(("v1 accepts the pattern write",
+               pa_writable_for("1.08--v1.08") is True, pa_writable_for("1.08--v1.08")))
+checks.append(("an unreadable firmware keeps trying (v1 behaviour)",
+               pa_writable_for("") is True, pa_writable_for("")))
 
 # --- the MA mapping -----------------------------------------------------------
 v2 = asyncio.run(ma_writes("2.00.08b--v2.00.08b", 10000.0, [0, 2500, 5000, 10000]))
