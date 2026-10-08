@@ -25,19 +25,17 @@ used while building this repo, and it is deliberately short. The repo itself —
 
 ## Non-negotiable
 
-- **The limits file belongs to the wearer.** Never edit `limits.local.json` / `limits.json`, and
+- **The limits file belongs to the wearer.** Never edit `limits.json`, and
   never work around the ceiling: a driver exists to hold the agreement, not to change it. If more
   is wanted, the wearer raises it themselves (the page's *AI power ceiling* → Apply, which merges
   and backs up). The one override is **their own Manual level**: when they set it above the ceiling
   the bridge marks that run, and the engine refuses the same flag on every tool path and without
   that marker. `--override-ceiling` is never a driver's flag.
-- The ceiling lives in `limits.local.json` (your editable copy) or, when that doesn't exist,
-  `limits.json` — and it is **clamped in code** the same way either way. The engine refuses to write
+- The ceiling lives in `limits.json` — and it is **clamped in code**. The engine refuses to write
   above `power.max_percent` no matter what you ask for, and a command-line `--hardcap` can only
   lower it. Never work around it, and never edit it to raise a limit mid-scene without a spoken,
-  explicit request from the wearer. (`install.sh` writes `limits.local.json`; both the wrapper and
-  the engine prefer it over the shipped `limits.json`, so what you see with `--limits-show` is the
-  file that is actually enforced.)
+  explicit request from the wearer. (`--limits-show` reports the one file
+  that is actually enforced.)
 - The session budget (`session.max_duration_s`) is enforced the same way, by `k250_session.py`.
   When it refuses, the answer is stop — not a workaround.
 - Read `safety.hard_stops` in `limits.json` before the first run. No pad path across the chest or

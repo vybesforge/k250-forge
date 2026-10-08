@@ -5,101 +5,182 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K250 — set your limits</title>
 <style>
+  /* ═══ vybesforge forge fonts (self-hosted) ═══ */
+  @font-face{font-family:'Inter';font-style:normal;font-weight:300;font-display:swap;src:url('/static/fonts/inter-300.woff2') format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/fonts/inter-400.woff2') format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('/static/fonts/inter-500.woff2') format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url('/static/fonts/inter-600.woff2') format('woff2')}
+  @font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('/static/fonts/inter-700.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:600;font-display:swap;src:url('/static/fonts/space-grotesk-600.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:700;font-display:swap;src:url('/static/fonts/space-grotesk-700.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/static/fonts/jetbrains-mono-400.woff2') format('woff2')}
+
   :root{
-    --bg:#0f1214; --card:#161b1e; --line:#242c31; --fg:#e9eef2; --mut:#8b9aa4;
-    --acc:#e0a45e; --ok:#7fb069; --warn:#c9705a;
+    /* vybesforge forge palette — sampled from the VF monogram */
+    --bg:#02060f; --bg-soft:#0b121d; --panel:#070c16; --card:#0b121d;
+    --line:rgba(255,255,255,.075); --border-strong:rgba(255,255,255,.12);
+    --fg:#e8ecf5; --mut:#8f99ad; --dim:#5a6478;
+    --acc:#fd6c0f; --acc2:#ffb000; --acc3:#ffde0a;
+    --cyan:#29d5e9; --magenta:#bf338a; --metal:#32252b;
+    --ok:#34d399; --warn:#ff5252; --radius:16px;
+    --font-body:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-head:'Space Grotesk','Inter',sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-       font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased}
-  .wrap{max-width:760px;margin:0 auto;padding:26px 20px 70px}
-  header{margin-bottom:18px}
-  h1{margin:0 0 4px;font-size:23px;letter-spacing:-.02em}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--font-body);
+       -webkit-font-smoothing:antialiased;
+       background-image:
+         radial-gradient(ellipse at 18% 0%, rgba(253,108,15,.10) 0%, transparent 58%),
+         radial-gradient(ellipse at 82% 100%, rgba(41,213,233,.07) 0%, transparent 58%);
+       background-attachment:fixed}
+  h1,h2,h3{font-family:var(--font-head);font-weight:700;letter-spacing:-.03em}
+  ::selection{background:rgba(253,108,15,.35)}
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:6px}
+  *::-webkit-scrollbar-thumb:hover{background:rgba(253,108,15,.45)}
+  *::-webkit-scrollbar-track{background:transparent}
+
+  .wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px}
+
+  /* ── brand header ── */
+  header{margin-bottom:20px}
+  .brandrow{display:flex;align-items:center;gap:14px}
+  .brand-mark{width:54px;height:54px;flex:0 0 auto;border-radius:14px;
+    background-image:url('/static/images/logo-400.jpg');background-size:cover;background-position:center;
+    border:1px solid rgba(255,176,0,.32);box-shadow:inset 0 0 12px rgba(0,0,0,.6), 0 6px 22px rgba(253,108,15,.18)}
+  .brand-name{font:600 10.5px/1 var(--font-mono);letter-spacing:.26em;color:var(--acc2);
+    text-transform:uppercase;margin-bottom:6px}
+  .brand-name .dot{color:var(--cyan)}
+  h1{margin:0;font-size:clamp(1.4rem,3.6vw,2rem);line-height:1.15}
+  .neon-rule{height:1px;margin:16px 0 12px;border:0;
+    background:linear-gradient(90deg, var(--cyan), var(--magenta) 65%, transparent)}
   .lede{color:var(--mut);font-size:14px}
-  .risk{border-left:3px solid var(--warn);background:#1c1614;border-radius:0 8px 8px 0;
-        padding:12px 16px;margin:16px 0 18px;font-size:13.5px;color:#e8d5cd}
-  .risk b{color:#f3b9a4}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;
-        padding:15px 18px;margin-bottom:12px}
-  .card h2{margin:0 0 3px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+
+  /* ── callouts ── */
+  .risk{border-left:3px solid var(--warn);border-radius:0 12px 12px 0;
+        background:linear-gradient(90deg, rgba(255,82,82,.10), rgba(255,82,82,.02));
+        padding:13px 17px;margin:16px 0 18px;font-size:13.5px;color:#f0d6d6}
+  .risk b{color:#ffb3b3}
+  .kill{border-left:3px solid var(--ok);border-radius:0 12px 12px 0;
+        background:linear-gradient(90deg, rgba(52,211,153,.10), rgba(52,211,153,.02));
+        padding:13px 17px;margin-top:16px;font-size:14px;color:#cfead9}
+
+  /* ── cards ── */
+  .card{background:linear-gradient(180deg, var(--card), var(--panel));
+        border:1px solid var(--line);border-radius:var(--radius);
+        padding:17px 20px;margin-bottom:13px;transition:border-color .18s, box-shadow .18s}
+  .card:hover{border-color:var(--border-strong);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .card h2{margin:0 0 4px;font-family:var(--font-head);font-size:13px;letter-spacing:.10em;
+           text-transform:uppercase;color:var(--acc2);font-weight:700}
   .card p.hint{margin:0 0 18px;color:var(--mut);font-size:13.5px}
+
+  /* ── controls ── */
   .ctrl{margin:16px 0}
   .ctrl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
   .ctrl label{font-size:14px}
-  .ctrl .num{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;color:var(--fg)}
+  .ctrl .num{font:700 17px var(--font-mono);color:var(--fg);font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--acc);height:26px}
-  .ends{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:-4px}
-  .row{display:flex;gap:12px;align-items:center;margin:12px 0}
+  .ends{display:flex;justify-content:space-between;color:var(--dim);font-size:12px;margin-top:-4px;
+        font-family:var(--font-mono)}
+  .row{display:flex;gap:12px;align-items:center;margin:12px 0;flex-wrap:wrap}
   .row label{flex:0 0 190px;font-size:14px;color:var(--mut)}
-  input[type=text],input[type=number]{background:#0b0e10;border:1px solid var(--line);
-      color:var(--fg);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px}
+  input[type=text],input[type=number],select{background:var(--panel);border:1px solid var(--line);
+      color:var(--fg);border-radius:10px;padding:9px 11px;font:inherit;font-size:14px;outline:none}
+  input[type=text]:focus,input[type=number]:focus,select:focus{border-color:var(--acc);
+      box-shadow:0 0 0 3px rgba(253,108,15,.15)}
   .chk{display:flex;gap:11px;align-items:flex-start;margin:11px 0;font-size:14px}
   .chk input{margin-top:4px;accent-color:var(--acc);width:16px;height:16px}
-  .chk span{color:#c3ced5}
-  .kill{border-left:3px solid var(--ok);background:#141a15;border-radius:0 8px 8px 0;
-        padding:13px 17px;margin-top:16px;font-size:14px;color:#cfe0cb}
-  /* compact per-channel grid: 4 rows, 3 sliders each, no scrolling */
+  .chk span{color:var(--fg)}
+
   .pcgrid{display:grid;grid-template-columns:64px 1fr 1fr 1fr;gap:6px 12px;align-items:center}
   .pchead{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
-          position:relative;cursor:help;border-bottom:1px dotted var(--mut);padding-bottom:1px}
+          font-family:var(--font-mono);position:relative;cursor:help;
+          border-bottom:1px dotted var(--dim);padding-bottom:1px}
   .pchead:hover::after{content:attr(data-tip);position:absolute;left:0;bottom:150%;z-index:20;
-    width:275px;background:#0e1519;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
-    font-size:12.5px;line-height:1.5;text-transform:none;letter-spacing:0;color:#c8d2d8;
-    font-weight:400;box-shadow:0 10px 26px rgba(0,0,0,.55);pointer-events:none;white-space:normal}
+    width:275px;background:var(--panel);border:1px solid var(--border-strong);border-radius:12px;
+    padding:10px 12px;font-size:12.5px;line-height:1.5;text-transform:none;letter-spacing:0;
+    color:var(--fg);font-family:var(--font-body);font-weight:400;
+    box-shadow:0 16px 40px rgba(0,0,0,.7);pointer-events:none;white-space:normal}
   .pchead.right:hover::after{left:auto;right:0}
-  .pcch{display:flex;align-items:center;gap:7px;font-size:13.5px;color:#c3ced5;cursor:pointer}
+  .pcch{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--fg);cursor:pointer}
   .pcch input{accent-color:var(--acc);width:15px;height:15px}
   .pcsl{display:flex;align-items:center;gap:8px}
   .pcsl input[type=range]{flex:1;height:18px;margin:0}
   .pcsl .v{flex:0 0 44px;text-align:right;font-size:12px;color:var(--mut);
-           font-variant-numeric:tabular-nums}
+           font-family:var(--font-mono);font-variant-numeric:tabular-nums}
   .pcsl.off{opacity:.35}
+
   .hardstops{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
-  .hshead{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--warn);
-          font-weight:600;margin-bottom:8px}
-  .hardstops ul{margin:0;padding-left:19px;line-height:1.6;font-size:13.5px;color:#c8d2d8}
+  .hshead{font-family:var(--font-mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.14em;
+          color:var(--warn);font-weight:600;margin-bottom:8px}
+  .hardstops ul{margin:0;padding-left:19px;line-height:1.62;font-size:13.5px;color:var(--fg)}
   .hardstops li{margin-bottom:4px}
-  .ack{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:11px 13px;
-       background:#141a15;border-left:3px solid var(--ok);border-radius:0 7px 7px 0;cursor:pointer}
+  .ack{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:12px 14px;
+       background:linear-gradient(90deg, rgba(52,211,153,.10), rgba(52,211,153,.02));
+       border-left:3px solid var(--ok);border-radius:0 12px 12px 0;cursor:pointer}
   .ack input{accent-color:var(--ok);width:16px;height:16px;margin-top:2px;flex:0 0 auto}
-  .ack span{font-size:13.5px;color:#cfe0cb}
+  .ack span{font-size:13.5px;color:#cfead9}
+
   .durmrow{display:flex;align-items:center;gap:10px;margin-top:12px}
-  .durmrow label{font-size:13.5px;color:#c3ced5;flex:0 0 auto}
+  .durmrow label{font-size:13.5px;color:var(--mut);flex:0 0 auto}
   .durmrow input[type=range]{flex:1;accent-color:var(--acc)}
   .durmrow .v{flex:0 0 62px;text-align:right;font-size:12.5px;color:var(--mut);
-              font-variant-numeric:tabular-nums}
+              font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
-  .chip{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:7px;
-        padding:6px 12px;font:600 13px inherit;cursor:pointer}
-  .chip.on{background:var(--acc);color:#1b1206;border-color:var(--acc)}
+  .chip{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:9px;
+        padding:6px 12px;font:600 13px var(--font-body);cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--acc2);color:var(--acc3)}
+  .chip.on{background:linear-gradient(135deg,var(--acc),var(--acc3));color:#160800;
+           border-color:transparent;box-shadow:0 4px 16px rgba(253,108,15,.35)}
+
   .applyrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;
             border-top:1px solid var(--line);padding-top:14px}
   .applymsg{font-size:13.5px;color:var(--mut)}
   .field{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--mut)}
-  .field label{flex:0 0 auto;color:#c3ced5;font-size:13.5px}
+  .field label{flex:0 0 auto;color:var(--fg);font-size:13.5px}
   .field input[type=range]{accent-color:var(--acc);height:22px}
   .field .v{flex:0 0 58px;text-align:right;font-size:12.5px;color:var(--mut);
-            font-variant-numeric:tabular-nums}
+            font-family:var(--font-mono);font-variant-numeric:tabular-nums}
   .dirty{color:var(--warn)}
   button[disabled]{opacity:.45;cursor:not-allowed}
-  .gate{font-size:13.5px;color:var(--warn);margin-top:10px}
+  .gate{font-size:13.5px;color:var(--acc2);margin-top:10px}
+
   .out{margin-top:26px}
   .btns{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-  button{border:0;border-radius:9px;padding:12px 20px;font:600 14.5px inherit;cursor:pointer}
-  .primary{background:var(--acc);color:#1b1206}
+  button{border:0;border-radius:10px;padding:12px 20px;font:600 14.5px var(--font-body);
+         cursor:pointer;transition:.15s}
+  button:not([disabled]):hover{transform:translateY(-1px)}
+  button:not([disabled]):active{transform:translateY(0)}
+  .primary{background:linear-gradient(135deg,var(--acc),var(--acc3));color:#160800;
+           box-shadow:0 6px 20px rgba(253,108,15,.28)}
+  .primary:hover{box-shadow:0 8px 26px rgba(253,108,15,.45)}
   .ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
-  textarea{width:100%;height:290px;background:#0b0e10;border:1px solid var(--line);
-           border-radius:10px;padding:14px;color:#cfe3ee;
-           font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+  .ghost:hover{border-color:var(--border-strong);color:var(--acc3)}
+  textarea{width:100%;height:290px;background:var(--panel);border:1px solid var(--line);
+           border-radius:12px;padding:14px;color:var(--fg);
+           font:12.5px/1.55 var(--font-mono);resize:vertical;outline:none}
+  textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(253,108,15,.15)}
   .save{color:var(--mut);font-size:13px;margin-top:10px}
-  code{background:#0b0e10;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px}
+  code{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+       font-family:var(--font-mono);font-size:12.5px;color:var(--cyan)}
+  a{color:var(--cyan)}
+  a:hover{color:var(--acc3)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>K250 — set your limits</h1>
+    <div class="brandrow">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <div class="brand-name">VYBESFORGE <span class="dot">//</span> K250 CONTROL</div>
+        <h1>K250 — set your limits</h1>
+      </div>
+    </div>
+    <div class="neon-rule"></div>
     <div class="lede">Three controls. Decide them now, while you're calm, and they get enforced in code.</div>
   </header>
 
@@ -112,8 +193,8 @@
 
   <div class="card">
     <h2>1 · Session &amp; safety</h2>
-    <p class="hint" style="margin-bottom:14px">Stop word and session budget live in <b>2 · AI limits</b> — they are
-      part of the contract that Apply writes. What stays here is the part that isn't a number.</p>
+    <p class="hint" style="margin-bottom:14px">The stop word and the session budget apply in <b>both modes</b> — they are not
+      part of the AI/Manual switch. What stays here is the part that isn't a number.</p>
 
     <div class="hardstops">
       <div class="hshead">The hard stops — every session, no exceptions</div>
@@ -147,8 +228,32 @@
        confirm you have read the hard stops. Unticked on every load, on purpose. -->
   <div id="belowKill" hidden>
 
+  <div class="card" id="modeCard">
+    <h2>Mode</h2>
+    <p class="hint" style="margin-bottom:10px">
+      <b>Manual</b> — you drive. The ceiling in <code>limits.json</code> is <b>out of the loop</b>
+      for these runs; you are the limit. <b>AI</b> — the contract applies: the limits below are
+      what the engine enforces. One mode at a time, so the two never mix.
+    </p>
+    <div class="chips" id="modeChips">
+      <button type="button" class="chip on" data-mode="manual">Manual — you drive</button>
+      <button type="button" class="chip" data-mode="ai">AI — the contract applies</button>
+    </div>
+  </div>
 
-  <div class="card">
+  <div class="card" id="bleCard">
+    <h2>Devices <span style="text-transform:none;color:var(--mut);font-weight:400">— find a Coyote or a K250</span></h2>
+    <p class="hint" style="margin-bottom:10px">Scans the air and lists only e-stim devices it recognises (K250-4S, Coyote V3).
+      Read-only — it finds, it does not connect; the run holds the radio. Pick one to target the next run at it.</p>
+    <div style="display:flex;gap:9px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <button type="button" class="ghost" id="bleScan" style="padding:8px 13px;font-size:13px">🔍 Scan BLE</button>
+      <span id="bleHint" style="color:var(--mut);font-size:12.5px">find a Coyote or a K250 nearby</span>
+    </div>
+    <div id="bleList" style="border:1px solid var(--line);border-radius:9px;overflow:hidden"></div>
+    <div id="bleSel" style="margin-top:7px;font-size:12.5px;color:var(--mut)"></div>
+  </div>
+
+  <div class="card" id="aiCard">
     <h2>2 · AI limits <span style="text-transform:none;color:var(--mut);font-weight:400">— the contract the engine enforces</span></h2>
     <p class="hint" style="margin-bottom:12px">These sliders <b>are</b> the limits. <b>Apply</b> writes them into
       <code>limits.json</code>, which is what the engine actually reads; nothing is enforced until you apply.
@@ -186,7 +291,7 @@
   </div>
 
   <div class="card" id="launcher">
-    <h2>3 · Manual — drive &amp; patterns <span style="text-transform:none;color:var(--mut);font-weight:400">— one click, engine enforces the limits</span></h2>
+    <h2>3 · Manual — drive &amp; patterns <span style="text-transform:none;color:var(--mut);font-weight:400">— click a pattern to play it · you drive; limits.json is out of the loop</span></h2>
     <p class="hint" style="margin-bottom:10px">
       Bridge: <code>python3 k250_launcher.py</code> (Linux/macOS) or <code>py -3 k250_launcher.py</code>
       (Windows) — then use <code>http://127.0.0.1:6969/</code>.
@@ -194,8 +299,8 @@
     </p>
     <div class="durmrow">
       <label for="driveLvl">Drive level</label>
-      <div class="v" id="driveLvlV">10%</div>
-      <input type="range" id="driveLvl" min="0" max="100" step="1" value="10">
+      <div class="v" id="driveLvlV">5%</div>
+      <input type="range" id="driveLvl" min="0" max="100" step="1" value="5">
     </div>
     <div class="gate" id="lvlWarn" style="display:none"></div>
     <div class="durmrow">
@@ -204,11 +309,16 @@
       <input type="range" id="driveSecs" min="10" max="300" step="5" value="60">
     </div>
     <div class="chips" id="durChips"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:12px 0 8px;flex-wrap:wrap">
+      <input type="text" id="patQ" placeholder="filter patterns &amp; stims… (edge, pulse, pain)"
+             style="flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px">
+      <button type="button" class="ghost" id="patRnd" style="padding:8px 12px;font-size:13px">🎲 Random</button>
+      <span style="color:var(--mut);font-size:12px" id="groupHint">…</span>
+    </div>
     <div id="driveGroups"></div>
     <div class="out" style="margin-top:18px">
       <div class="btns">
-        <button class="primary" id="driveRun">Run</button>
-        <button class="ghost" id="driveStop">Stop</button>
+        <button class="primary" id="driveStop">Stop</button>
         <button class="ghost" id="driveCopy">Copy command</button>
         <button class="ghost" id="driveClear">Clear</button>
         <button class="ghost" id="driveStatus">Check box</button>
@@ -261,8 +371,8 @@ function perChannel(){
     const off = c !== 1;
     const body = off
       ? `<span class="v locked" id="pc${c}_powerV">0% (disabled)</span>`
-      : `<span class="v" id="pc1_powerV">10%</span>
-         <input type="range" id="pc1_power" min="0" max="100" step="1" value="10">`;
+      : `<span class="v" id="pc1_powerV">5%</span>
+         <input type="range" id="pc1_power" min="0" max="100" step="1" value="5">`;
     const freq = off
       ? `<span class="v locked" id="pc${c}_freqV">off</span>`
       : `<span class="v" id="pc1_freqV">100</span>
@@ -406,109 +516,65 @@ $('dl').onclick = () => {
 read(); $('out').value = build();
 
 // ---- pattern launcher (Option B): generates the k250-scene command ----
-const DRIVE_GROUPS = [
-  { name: "Tease / gentle", patterns: [
-    ["tickles","very low continuous, the 'is it on?' base"],
-    ["light_pulse","low pulsing, gentle"],
-    ["light_stutter","low stuttering, uneven"],
-    ["teasing_pulse","medium pulsing, settle into it"],
-    ["teasing_stutter","medium stuttering, playful"],
-    ["teasing_continuous","medium steady hum"],
-    ["tide","slow swell up and down"],
-    ["drift","swell while MA drifts under it"],
-    ["buzzline","power climbs, MA wanders"],
-    ["cooldown","burst of beats then a low hum"],
-  ]},
-  { name: "Build / edge", patterns: [
-    ["edge","hover under the line, push over"],
-    ["verge","edge, but the push is a thump"],
-    ["lift","verge with power compensation"],
-    ["dread","long near-nothing, one heavy beat"],
-    ["pulse","mid MA, irregular power pulses"],
-    ["ration","2-5 beats at peak, long silence"],
-    ["crescendo","discrete escalating pulses"],
-    ["edging_pulse","high pulsing toward the edge"],
-    ["edging_wave","high wave, right at the line"],
-    ["edging_continuous","high relentless, no relief"],
-    ["tease","throttled build that never lands"],
-  ]},
-  { name: "Rhythm / beat", patterns: [
-    ["groove","locked to the thump, 2 beats/s"],
-    ["metronome","slow heavy beat, power surging"],
-    ["heartbeat","lub-dub, two surges then pause"],
-    ["knead","fast even 0<->high alternation"],
-    ["bounce","power bounces, MA rises"],
-    ["ripple","power ripples, MA glides up"],
-    ["rain","quick taps then a long hold"],
-  ]},
-  { name: "Deep / heavy", patterns: [
-    ["heavy","MA=8000, power compensated hard"],
-    ["compress","power steady, MA sinks to thump"],
-    ["ascend","both axes rising together"],
-    ["swell","ascend, then it comes back down"],
-    ["speed_sweep","power flat, MA sine-sweeps"],
-    ["speed_step","power flat, MA steps up"],
-    ["lie","power falls while MA ramps up"],
-    ["dual","power steps up, MA glides up"],
-    ["sweep_drop","climb speed, then drop instantly"],
-    ["sweep_hold_zero","dwells at both ends"],
-    ["arc","composed arc of the winners"],
-    ["high_sweep","both axes slow, out of phase"],
-    ["power_sweep","speed parked, power isolated"],
-    ["power_sweep_rich","power sweep with a shape"],
-    ["signature","every element that worked"],
-  ]},
-  { name: "Penetration / oral", patterns: [
-    ["thrust","slow deep penetration stroke"],
-    ["engulf","mouth works you, takes you deep"],
-    ["sound","sounding rod, slow and deep"],
-    ["milker","slow deep pull then fast buzz"],
-    ["flick","quick tongue-flicks"],
-    ["jelly","wobbling pulse, soft shake"],
-    ["fangs","two quick bites per cycle"],
-  ]},
-  { name: "Pain / punish", patterns: [
-    ["pain_stutter","sharp uneven stutter"],
-    ["pain_slow_ramp","slow ramp to painful, holds"],
-    ["pain_shocks","single sharp shocks, long gaps"],
-    ["stutter","irregular bursts, no rhythm"],
-    ["trap","hold, drop, come back higher"],
-    ["dice","random walk with surprise zeros"],
-    ["climb","sawtooth creep up, snap back"],
-    ["switchback","climb, snap-back is a thump"],
-    ["friction","rapid granular pulses, MA climbs"],
-  ]},
-  { name: "Calibration", patterns: [
-    ["map","step MA 0->5000, report what feels good"],
-  ]},
-];
-
-function buildDriveGroups(){
+// ---- pattern + stim launcher: ONE merged catalogue from the bridge (/groups).
+// The engine's own patterns and the imported stims sit in the same categories,
+// deduped; click an engine one to run /run, an imported one to run /run-stim.
+let GROUPS = [];
+function allItems(){
+  return GROUPS.flatMap(g => g.items.map(it => Object.assign({group: g.name}, it)));
+}
+function buildGroups(){
   const host = document.getElementById('driveGroups');
+  if (!host) return;
+  if (!GROUPS.length) { host.innerHTML = '<div class="save">stim catalogue unavailable — is the launcher running?</div>'; return; }
+  const q = (document.getElementById('patQ').value || '').trim().toLowerCase();
+  const sel = $('driveOut').dataset.stim || $('driveOut').dataset.pattern || '';
   host.innerHTML = '';
-  DRIVE_GROUPS.forEach(g => {
+  let shown = 0;
+  GROUPS.forEach(g => {
+    const items = g.items.filter(it => !q || it.label.toLowerCase().includes(q) || it.key.toLowerCase().includes(q));
+    if (!items.length) return;
+    shown += items.length;
     const card = document.createElement('div');
     card.className = 'card';
     card.style.marginBottom = '10px';
     card.style.padding = '12px 14px';
     const h = document.createElement('div');
     h.style.cssText = 'font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--acc);margin-bottom:8px;font-weight:600';
-    h.textContent = g.name;
+    h.textContent = g.name + ' · ' + items.length;
     card.appendChild(h);
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
-    g.patterns.forEach(([name, tip]) => {
+    items.forEach(it => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ghost';
-      b.style.cssText = 'padding:7px 12px;font-size:13px;border-radius:7px';
-      b.textContent = name;
-      b.title = tip;
-      b.onclick = () => setDrive(name);
+      b.dataset.key = it.key;
+      b.dataset.src = it.src;
+      b.style.cssText = 'padding:7px 12px;font-size:13px;border-radius:7px'
+        + (it.key === sel ? ';box-shadow:inset 0 0 0 2px var(--acc)' : '');
+      b.textContent = it.label;
+      b.title = it.tip;
+      b.onclick = () => (it.src === 'engine' ? setDrive(it.key) : setStim(it.key));
       wrap.appendChild(b);
     });
     card.appendChild(wrap);
     host.appendChild(card);
+  });
+  const hint = document.getElementById('groupHint');
+  if (hint) hint.textContent = shown + ' of ' + allItems().length + ' shown';
+}
+async function loadGroups(){
+  try {
+    const d = await (await fetch(LAUNCHER + '/groups')).json();
+    GROUPS = d.groups || [];
+  } catch(e) { GROUPS = []; }
+  buildGroups();
+}
+function markSelected(){
+  const sel = $('driveOut').dataset.stim || $('driveOut').dataset.pattern || '';
+  document.querySelectorAll('#driveGroups button[data-key]').forEach(b => {
+    b.style.boxShadow = (b.dataset.key === sel) ? 'inset 0 0 0 2px var(--acc)' : '';
   });
 }
 
@@ -520,14 +586,27 @@ let LEVEL = null;
 function driveCmd(){
   const secs = +$('driveSecs').value;
   const lvl = +$('driveLvl').value;
+  const stim = $('driveOut').dataset.stim || '';
+  if (stim) return `k250_stim_play --stim ${stim} --level ${lvl} --secs ${secs}`;
   const pat = $('driveOut').dataset.pattern || '';
   if (!pat) return '';
   return `k250-scene ${pat} --base ${lvl} --peak ${lvl} --secs ${secs}`;
 }
 
 function setDrive(name){
+  delete $('driveOut').dataset.stim;
   $('driveOut').dataset.pattern = name;
+  if (typeof markSelected === 'function') markSelected();
   $('driveOut').value = driveCmd();
+  playCurrent();
+}
+
+function setStim(key){
+  delete $('driveOut').dataset.pattern;
+  $('driveOut').dataset.stim = key;
+  if (typeof markSelected === 'function') markSelected();
+  $('driveOut').value = driveCmd();
+  playCurrent();
 }
 
 const DUR_PRESETS = [20, 30, 45, 60, 90, 120, 300];
@@ -547,15 +626,23 @@ const DUR_PRESETS = [20, 30, 45, 60, 90, 120, 300];
 function syncDrive(){
   $('driveSecsV').textContent = $('driveSecs').value + 's';
   $('driveLvlV').textContent = $('driveLvl').value + '%';
-  // The Manual level is decoupled from the limits: it can sit above the ceiling,
-  // and when it does that is an override — say so rather than let it be quiet.
   const lv = +$('driveLvl').value;
-  const over = LEVEL !== null && lv > LEVEL;
-  $('lvlWarn').style.display = over ? '' : 'none';
-  $('lvlWarn').textContent = over
-    ? '⚠ ' + lv + '% is above the ' + LEVEL + '% ceiling in 2 · AI limits — this run overrides limits.json ' +
-      '(the Manual drive level wins).'
-    : '';
+  // Manual mode: limits.json is out of the loop — say so, and never nag about a
+  // ceiling that does not apply. AI mode: a level above the ceiling is the
+  // wearer's explicit override and is named, not silent.
+  if (MODE === 'manual') {
+    $('lvlWarn').style.display = '';
+    $('lvlWarn').style.color = 'var(--acc)';
+    $('lvlWarn').textContent = 'Manual mode — limits.json is out of the loop for this run. You are the limit.';
+  } else {
+    const over = LEVEL !== null && lv > LEVEL;
+    $('lvlWarn').style.display = over ? '' : 'none';
+    $('lvlWarn').style.color = 'var(--warn)';
+    $('lvlWarn').textContent = over
+      ? '⚠ ' + lv + '% is above the ' + LEVEL + '% AI ceiling — the contract applies here. ' +
+        'Switch to Manual mode to drive past it.'
+      : '';
+  }
   document.querySelectorAll('#durChips .chip').forEach(b =>
     b.classList.toggle('on', +b.dataset.secs === +$('driveSecs').value));
   $('driveOut').value = driveCmd();
@@ -566,8 +653,68 @@ $('driveLvl').addEventListener('input', syncDrive);
 $('driveClear').onclick = () => { delete $('driveOut').dataset.pattern; $('driveOut').value = ''; };
 $('driveStatus').onclick = () => { $('driveOut').dataset.pattern = ''; $('driveOut').value = 'k250-status'; };
 
-// ---- one-click run via the local launcher bridge ----
+// ---- mode: Manual (limits.json out of the loop) vs AI (the contract applies) ----
 const LAUNCHER = 'http://127.0.0.1:6969';
+let MODE = 'manual';
+function setMode(m){
+  MODE = m;
+  document.querySelectorAll('#modeChips .chip').forEach(b =>
+    b.classList.toggle('on', b.dataset.mode === m));
+  const ai = $('aiCard'), man = $('launcher');
+  if (ai) ai.hidden = (m !== 'ai');
+  if (man) man.hidden = (m !== 'manual');
+  syncDrive();
+}
+document.querySelectorAll('#modeChips .chip').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+
+// ---- BLE device picker: find any Coyote or K250 and target it ----
+function targetFor(){
+  // The DEVICE decides - whatever the BLE picker selected; else the K250 box.
+  return (DEV_SEL && DEV_SEL.kind && DEV_SEL.kind !== 'other') ? DEV_SEL.kind : 'k250';
+}
+let DEVICES = [], DEV_SEL = null;
+function renderDevices(){
+  const host = $('bleList'); if (!host) return;
+  if (!DEVICES.length) { host.innerHTML = ''; return; }
+  host.innerHTML = DEVICES.map(d => {
+    const on = DEV_SEL && DEV_SEL.address === d.address;
+    const badge = d.kind === 'k250' ? 'K250' : d.kind === 'coyote' ? 'Coyote' : 'device';
+    const col = d.kind === 'k250' ? 'var(--acc)' : d.kind === 'coyote' ? 'var(--ok)' : 'var(--mut)';
+    return '<div class="bleitem" data-a="' + d.address + '" style="padding:7px 11px;border-bottom:1px solid var(--line);' +
+      'cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:10px;' +
+      (on ? 'background:rgba(253,108,15,.12);box-shadow:inset 3px 0 0 var(--acc);' : '') + '">' +
+      '<span>' + (d.name || '(no name)') + ' <span style="color:' + col + ';font-size:11px">' + badge + '</span></span>' +
+      '<span style="color:var(--mut);font-size:11.5px;white-space:nowrap">' + d.address +
+      (d.rssi != null ? ' · ' + d.rssi + 'dBm' : '') + '</span></div>';
+  }).join('');
+  host.querySelectorAll('.bleitem').forEach(el => el.onclick = () => selectDevice(el.dataset.a));
+}
+function selectDevice(addr){
+  DEV_SEL = DEVICES.find(d => d.address === addr) || null;
+  renderDevices();
+  if (!DEV_SEL) { $('bleSel').textContent = ''; return; }
+  const label = DEV_SEL.kind === 'coyote' ? 'Coyote V3' : DEV_SEL.kind === 'k250' ? 'K250-4S' : 'this device';
+  $('bleSel').innerHTML = 'using <b>' + DEV_SEL.address + '</b> — runs will play on <b>' + label + '</b>';
+}
+async function scanBle(){
+  $('bleHint').textContent = 'scanning… (6s)';
+  $('bleScan').disabled = true;
+  try {
+    const d = await (await fetch(LAUNCHER + '/devices')).json();
+    DEVICES = d.devices || [];
+    if (d.error) $('bleHint').textContent = 'scan error: ' + d.error;
+    else if (!DEVICES.length) $('bleHint').textContent = 'no K250 or Coyote found — is the box awake / the Coyote on?';
+    else {
+      $('bleHint').textContent = DEVICES.length + ' e-stim device' + (DEVICES.length === 1 ? '' : 's') + ' found';
+    }
+    renderDevices();
+  } catch(e) { $('bleHint').textContent = 'scan failed — launcher running?'; }
+  $('bleScan').disabled = false;
+}
+if ($('bleScan')) $('bleScan').onclick = scanBle;
+setMode('manual');
+
+// ---- one-click run via the local launcher bridge (LAUNCHER declared above) ----
 // The bridge also serves THIS page at http://127.0.0.1:6969/ — opened that way
 // the page and the bridge are same-origin and there is no CORS involved at all.
 function engineLine(s){
@@ -591,19 +738,38 @@ async function launcher(path, body){
     return { ok:false, message:'launcher not running — start it with: python3 k250_launcher.py' };
   }
 }
-$('driveRun').onclick = async () => {
+// Clicking a pattern/stim PLAYS IT - no Run button. If something is already
+// playing it is stopped first, then the new one starts. It loops until the
+// Duration slider is up (the engine and the stim player both honour the deadline).
+async function playCurrent(){
   if (!$('ack').checked) {
-    driveMsg('tick the hard-stops acknowledgement in section 2 first', false);
+    driveMsg('tick the hard-stops acknowledgement in 1 · Session & safety first', false);
     return;
   }
+  const stim = $('driveOut').dataset.stim;
   const pat = $('driveOut').dataset.pattern;
-  if (!pat) { driveMsg('pick a pattern first', false); return; }
-  if (+$('driveLvl').value < 1) { driveMsg('set a drive level — the slider is at 0%', false); return; }
+  if (!stim && !pat) { driveMsg('click a pattern or a stim to play', false); return; }
+  const level = +$('driveLvl').value;
+  if (level < 1) { driveMsg('set a drive level - the slider is at 0%', false); return; }
   const secs = +$('driveSecs').value;
-  driveMsg('starting ' + pat + '…');
-  const r = await launcher('/run', { pattern: pat, level: +$('driveLvl').value, secs });
+  const manual = MODE === 'manual';
+  const target = targetFor();
+  const addr = DEV_SEL ? DEV_SEL.address : null;
+  const isBox = DEV_SEL && DEV_SEL.kind === 'k250';
+  const doRun = () => stim
+    ? launcher('/run-stim', { stim, target, level, secs, manual, address: addr })
+    : launcher('/run', { pattern: pat, level, secs, manual,
+                         address: isBox ? addr : null });
+  if (RUNNING) { driveMsg('switching - stopping the current run…'); await launcher('/stop', {}); }
+  driveMsg('playing ' + (stim ? ('stim ' + stim + ' → ' + target) : ('pattern ' + pat)) +
+           ' for ' + secs + 's' + (manual ? ' · Manual (limits bypassed)' : ' · AI limits') + '…');
+  let r = await doRun();
+  if (!r.ok && /already going/i.test(r.message || '')) {
+    await launcher('/stop', {});
+    r = await doRun();
+  }
   driveMsg(r.message, r.ok);
-};
+}
 $('driveStop').onclick = async () => {
   driveMsg('stopping…');
   const r = await launcher('/stop', {});
@@ -656,7 +822,14 @@ $('driveCopy').onclick = async () => {
   try { await navigator.clipboard.writeText(v); $('driveCopy').textContent = 'Copied';
         setTimeout(()=>$('driveCopy').textContent='Copy command',1200); } catch(e){}
 };
-buildDriveGroups();
+loadGroups();
+document.getElementById('patQ').oninput = buildGroups;
+document.getElementById('patRnd').onclick = () => {
+  const pool = allItems();
+  if (!pool.length) { driveMsg('catalogue not loaded', false); return; }
+  const it = pool[Math.floor(Math.random() * pool.length)];
+  (it.src === 'engine' ? setDrive(it.key) : setStim(it.key));
+};
 syncDrive();
 
 // ---- 1 · AI limits: the page READS limits.json, Apply writes it back ----
@@ -685,16 +858,21 @@ function loadLimits(view){
   for (let c = 1; c <= 4; c++){
     if (c === 1){
       const e = (view.per_channel || {})['1'] || {};
-      set('pc1_power', e.power);
-      set('pc1_freq',  e.frequency);
-      set('pc1_slew',  e.slew);
+      // null = inherit the global limit (the file's own convention). Show the value
+      // that will ACTUALLY apply rather than leaving the slider on its markup default.
+      set('pc1_power', e.power == null ? view.power_ceiling : e.power);
+      set('pc1_freq',  e.frequency == null ? view.frequency_max : e.frequency);
+      set('pc1_slew',  e.slew == null ? view.slew : e.slew);
     }
     syncChannel(c);
   }
   read();
   LEVEL = +view.power_ceiling;
-  // the drive level is deliberately NOT set from the file any more — it is
-  // decoupled, and sits wherever it was left (the Manual level wins)
+  // The Manual level STARTS at the wearer's own tuned default (power.default_percent,
+  // inside their pleasure band) rather than a hardcoded number — so the page opens
+  // safe. During a session it is still decoupled: it sits wherever it is left, and
+  // the Manual level wins.
+  if (typeof view.power_start === 'number') $('driveLvl').value = view.power_start;
   syncDrive();
   $('out').value = build();
   $('applyMsg').classList.remove('dirty');
@@ -720,14 +898,17 @@ async function refreshLimits(){
 }
 function limitsBody(){
   const ch = perChannel();
-  const freqs = [1,2,3,4].map(c => ch[c].frequency);
-  const slws = [1,2,3,4].map(c => ch[c].slew).filter(s => s > 0);
+  // only ENABLED channels count: a disabled channel is power 0 / frequency null, and
+  // min() over those nulls produced frequency.max: 0 (the fastest buzz) on Apply.
+  const enabled = [1];
+  const freqs = enabled.map(c => ch[c].frequency).filter(v => typeof v === 'number' && v > 0);
+  const slws  = enabled.map(c => ch[c].slew).filter(s => typeof s === 'number' && s > 0);
   return {
     // the ceiling is its own control now. It used to be min(channel sliders),
     // which silently LOWERED the AI ceiling whenever an unused channel sat low —
     // the exact opposite of what someone moving one channel up intended.
     power_ceiling: +$('ceil').value,
-    frequency_max: Math.min(...freqs),
+    frequency_max: freqs.length ? Math.min(...freqs) : 10000,
     slew: slws.length ? Math.min(...slws) : 0,
     session_minutes: +$('durm').value,
     stop_word: $('stop').value.trim() || 'red',
@@ -759,12 +940,10 @@ $('apply').onclick = async () => {
 $('ack').addEventListener('change', () => {
   $('hsList').style.display = $('ack').checked ? 'none' : '';
   $('hsGate').style.display = $('ack').checked ? 'none' : '';
-  $('driveRun').disabled = !$('ack').checked;
   applyAckGate();
   $('out').value = build();
 });
 $('hsList').style.display = '';
-$('driveRun').disabled = !$('ack').checked;
 applyAckGate();          // unticked on load -> everything below the kill switch hidden
 refreshLimits();
 

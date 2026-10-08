@@ -300,7 +300,7 @@ class Player:
 
 
 # ---------------------------------------------------------- research patterns
-# Translated from the open-source Howl / Daimonia wave vocabulary
+# Translated from the open-source Howl wave vocabulary
 # (Penetration, BJ/engulf, Milker, Lick, and the "Jelly"/"Fangs" wave shapes).
 # On the K250 the second axis (MA = beat period) is what carries the character:
 # a slow thump (MA~5500) presses, MA=0 buzzes, and sliding between them IS the
@@ -309,7 +309,7 @@ class Player:
 async def _ma_glide(pl: Player, a: float, b: float, secs: float, tick: float = 0.05):
     """Smoothly move MA from a to b over `secs` seconds. The box holds MA, so
     this is a gentle interpolation -- the frequency axis glides instead of
-    stepping, which is the Daimonia signature (power and frequency move in
+    stepping, which is the source waveform signature (power and frequency move in
     counterpoint, not as discrete jumps)."""
     t0 = time.time()
     while time.time() - t0 < secs and not pl.stop and not pl.expired():
@@ -593,9 +593,9 @@ async def p_tease(pl: Player, base: float, peak: float, secs: float):
         await pl.hold(0.8, 0, tick=0.05)
 
 
-# ---------------------------------------------------------- Daimonia translations
-# The 12 eu.daimonia.app stims, rebuilt for the K250's two axes.
-# Daimonia intensity -> PW (power %); the stim's character (pulse/stutter/wave/
+# ------------------------------------------------ imported stim translations
+# The 12 imported stims, rebuilt for the K250's two axes.
+# Source intensity -> PW (power %); the stim's character (pulse/stutter/wave/
 # continuous) -> MA + PW timing. Power is the contract (base/peak); MA is free.
 
 async def p_tickles(pl: Player, base: float, peak: float, secs: float):
@@ -1386,7 +1386,7 @@ PATTERNS = {
 def find_limits(explicit=None):
     here = os.path.dirname(os.path.abspath(__file__))
     for c in (explicit, os.environ.get("K250_LIMITS"),
-              os.path.join(here, "limits.local.json"), os.path.join(here, "limits.json")):
+              os.path.join(here, "limits.json"), os.path.join(here, "limits.local.json")):
         if c and os.path.isfile(c):
             return c
     return None
@@ -1506,8 +1506,11 @@ async def main():
                          "and is always refused down the k250-scene wrapper path. "
                          "The AI limits in limits.json are changed by the user, never by a driver.")
     ap.add_argument("--limits", default=None,
-                    help="path to limits.json (default: limits.local.json or "
-                         "limits.json next to this script, else $K250_LIMITS)")
+                    help="path to limits.json (default: limits.json next to this "
+                         "script, else $K250_LIMITS; a legacy limits.local.json is "
+                         "only a last resort)")
+    ap.add_argument("--address", default=None,
+                    help="pin one BLE device by address (the page's BLE picker)")
     ap.add_argument("--frequency", type=float, default=None,
                     help="apex of the FREQUENCY axis (Multi Adjust / MA). "
                          "0 = fastest buzz, 2500 typical, 10000 = 1 thump/s")
@@ -1623,7 +1626,7 @@ async def main():
         if not session_reserve(_here, max_s, a.secs + 5):
             return 1
 
-    dev = await find()
+    dev = await find(address=a.address)
     if dev is None:
         log("K250 not found")
         return 1

@@ -56,7 +56,32 @@ def _venv_python():
 PY = _venv_python()
 PLAY = os.path.join(HERE, "k250_play.py")
 STOP = os.path.join(HERE, "k250_stop.py")
-LIMITS = os.environ.get("K250_LIMITS", os.path.join(HERE, "limits.json"))
+STIM_PLAY = os.path.join(HERE, "k250_stim_play.py")      # imported stim -> K250
+COYOTE_PLAY = os.path.join(HERE, "coyote_play.py")       # imported stim -> Coyote V3
+BLE_SCAN = os.path.join(HERE, "ble_scan.py")             # BLE device picker
+def _resolve_limits():
+    """The one limits file: $K250_LIMITS, else limits.json.
+
+    limits.json is THE file now — one contract, one place. (A legacy
+    limits.local.json is still honoured as a last resort so an older install does
+    not silently lose its ceilings, but limits.json wins.) Every page-driven run is
+    launched with `--limits <this path>`, so what the page shows and writes is
+    exactly what clamps the run.
+    """
+    for c in (os.environ.get("K250_LIMITS"),
+              os.path.join(HERE, "limits.json"),
+              os.path.join(HERE, "limits.local.json")):
+        if c and os.path.isfile(c):
+            return c
+    return os.path.join(HERE, "limits.json")
+
+
+LIMITS = _resolve_limits()
+# Manual mode's contract: an EMPTY limits file. The engine reads it and clamps
+# nothing (apply_limits on a falsy dict returns the caller's own numbers), so a
+# Manual run — the wearer's own hand — has the ceiling fully out of the loop
+# without touching the engine. Explicit and auditable, not a hidden bypass.
+MANUAL_LIMITS = os.path.join(HERE, "limits.manual.json")
 PAGE = os.path.join(HERE, "limits-form.html")
 RUNLOG = os.path.join(HERE, "launcher-run.log")
 
@@ -176,6 +201,7 @@ def _limits_view():
     pc = (d.get("channels", {}) or {}).get("per_channel", {}) or {}
     return {
         "power_ceiling": (d.get("power", {}) or {}).get("max_percent"),
+        "power_start": (d.get("power", {}) or {}).get("default_percent"),
         "frequency_max": (d.get("frequency", {}) or {}).get("max"),
         "slew": (d.get("slew", {}) or {}).get("max_percent_per_second"),
         "session_minutes": round(((d.get("session", {}) or {}).get("max_duration_s") or 1800) / 60),
@@ -300,7 +326,7 @@ def _apply_limits(p):
     # point somewhere else entirely, and a backup that lands in the wrong directory
     # is a backup nobody finds when they need it.
     backup = os.path.join(os.path.dirname(os.path.abspath(LIMITS)),
-                          f"limits.json.bak-{stamp}")
+                          f"{os.path.basename(LIMITS)}.bak-{stamp}")
     try:
         with open(LIMITS) as f:
             raw = f.read()
@@ -325,9 +351,11 @@ def _prune_backups(keep=10):
     and every one looks like every other to a human scanning a folder. Ten is plenty
     to undo a mistake; the file itself is the contract, these are just the undo."""
     d = os.path.dirname(os.path.abspath(LIMITS))
+    own = os.path.basename(LIMITS) + ".bak-"
     try:
         baks = sorted((os.path.join(d, f) for f in os.listdir(d)
-                       if f.startswith("limits.json.bak-")), key=os.path.getmtime)
+                       if f.startswith(own) or f.startswith("limits.json.bak-")),
+                      key=os.path.getmtime)
     except OSError:
         return 0
     n = 0
@@ -380,7 +408,7 @@ def _session_reset():
         return False, f"reset failed: {e}", _session_state()
 
 
-def _run_pattern(pattern, level, secs):
+def _run_pattern(pattern, level, secs, manual=False, address=None):
     """Validate + launch. Returns (ok, message)."""
     global _zero_thread
     ceiling = _power_ceiling()
@@ -393,20 +421,49 @@ def _run_pattern(pattern, level, secs):
         return False, f"secs must be 10-300 (got {secs})"
     if pattern not in _pattern_list():
         return False, f"unknown pattern '{pattern}'"
-    # the engine clamps to the ceiling anyway; we just refuse to ask above it
-    # The Manual drive level is decoupled from the limits: if it is above the
-    # file's ceiling, that is the wearer's spoken override and the engine is told
-    # by name, so the run log carries an OVERRIDE line instead of a silent raise.
-    over = level > ceiling
+    # Manual mode bypasses limits.json entirely (empty contract). AI mode applies
+    # the contract strictly: a level above the ceiling is refused, not overridden —
+    # over the ceiling is what Manual mode is for, and there the file is out of the
+    # loop completely rather than quietly raised.
+    if manual:
+        limits_path = MANUAL_LIMITS
+    else:
+        limits_path = LIMITS
+        if level > ceiling:
+            return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
+                           f"to drive past it (there limits.json is out of the loop).")
     eff = level
     cmd = [PY, PLAY, pattern, "--base", str(eff), "--peak", str(eff),
-           "--secs", str(secs), "--limits", LIMITS]
-    if over:
-        # be explicit on both counts: name the ceiling and say it is overridden
-        cmd += ["--hardcap", str(eff), "--override-ceiling"]
+           "--secs", str(secs), "--limits", limits_path]
+    if address:
+        cmd += ["--address", str(address)]
+    ok, err = _launch(cmd, pattern, manual, zero=True)
+    if not ok:
+        return False, err
+    msg = f"started {pattern} at {eff}% for {secs}s"
+    if manual:
+        msg += " — MANUAL mode: limits.json is out of the loop for this run"
+    else:
+        msg += f" (ceiling {ceiling}%)"
+    return True, msg
+
+
+def _launch(cmd, label, over, zero=True):
+    """Start a run — the ONE place the wearer's override marker is set.
+
+    Shared by /run (engine patterns) and /run-stim (imported stims -> K250/Coyote)
+    so the two paths cannot drift: a run the person in the electrodes started from
+    the page is the only thing that ever gets K250_WEARER_OVERRIDE, and it is only
+    set when the Manual level is genuinely above the file's ceiling.
+
+    `zero=True` arms the post-run K250 zeroing thread. The Coyote target passes
+    zero=False: it is a different device with its own BLE link, and coyote_play.py
+    zeroes itself — running the K250 stop tool at it would touch the wrong radio.
+    """
+    global _zero_thread
     with _lock:
         if _running["proc"] is not None and _running["proc"].poll() is None:
-            return False, "a pattern is already running — stop it first"
+            return False, "a run is already going — stop it first"
         # the post-run zeroing holds the box's single BLE connection: wait for it
         # rather than fight it (a fresh run that can't reach the box is silence)
         if _zero_thread is not None and _zero_thread.is_alive():
@@ -417,27 +474,132 @@ def _run_pattern(pattern, level, secs):
         try:
             env = dict(os.environ)
             if over:
-                # The ONLY place the wearer's level-override marker is ever set: a
-                # run the person in the electrodes started from the page. Tools and
-                # agent-driven runs never get this marker, and the engine refuses
-                # the flag without it.
                 env["K250_WEARER_OVERRIDE"] = "1"
             proc = subprocess.Popen(cmd, cwd=HERE, stdout=lf, stderr=subprocess.STDOUT,
                                     env=env)
         except Exception as e:
             lf.close()
-            return False, f"could not launch the engine: {e}"
+            return False, f"could not launch: {e}"
         _running["proc"] = proc
-        _running["pattern"] = pattern
+        _running["pattern"] = label
         _running["started"] = time.time()
         _running["logfile"] = lf
-        _last_zero.update(ok=None, message=None, pattern=pattern, at=None)
-        _zero_thread = threading.Thread(target=_zero_after, args=(proc, pattern), daemon=True)
-        _zero_thread.start()
-    msg = f"started {pattern} at {eff}% for {secs}s"
-    if over:
-        msg += (f" — OVERRIDING the {ceiling}% ceiling in limits.json "
-                f"(Manual drive level wins)")
+        _last_zero.update(ok=None, message=None, pattern=label, at=None)
+        if zero:
+            _zero_thread = threading.Thread(target=_zero_after, args=(proc, label), daemon=True)
+            _zero_thread.start()
+    return True, None
+
+
+def _devices(secs=6.0):
+    """Scan BLE and return the nearby devices, K250/Coyote flagged.
+
+    Read-only and short-lived: it scans, it never connects. The run is what holds
+    the radio, and only one connection may exist at a time — so this is a picker,
+    not a persistent link.
+    """
+    try:
+        r = subprocess.run([PY, BLE_SCAN, str(secs)], cwd=HERE, timeout=40,
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            return {"ok": False, "error": (r.stderr or "scan failed").strip()[:300], "devices": []}
+        return {"ok": True, "devices": json.loads(r.stdout or "[]")}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "devices": []}
+
+
+def _groups():
+    """The merged stim catalogue (engine patterns + imported stims, deduped, grouped).
+    Cached — it is static for the life of the process."""
+    global _GROUPS_CACHE, _GROUPS_ERROR
+    if _GROUPS_CACHE is not None:
+        return _GROUPS_CACHE
+    try:
+        import importlib
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        SC = importlib.import_module("stim_catalog")
+        _GROUPS_CACHE = SC.merged_groups()
+    except Exception as e:
+        _GROUPS_ERROR = str(e)
+        _GROUPS_CACHE = []
+    return _GROUPS_CACHE
+
+
+_GROUPS_CACHE = None
+_GROUPS_ERROR = None
+
+
+def _stims():
+    """The imported stim catalogue, flattened. Cached (it is static).
+    Always returns a list; a load failure is reported via _STIMS_ERROR."""
+    global _STIMS_CACHE, _STIMS_ERROR
+    if _STIMS_CACHE is not None:
+        return _STIMS_CACHE
+    try:
+        import importlib
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        T = importlib.import_module("stim_translate")
+        _STIMS_CACHE = list(T.list_stims(T.load_catalog()))
+    except Exception as e:
+        _STIMS_ERROR = str(e)
+        _STIMS_CACHE = []
+    return _STIMS_CACHE
+
+
+_STIMS_CACHE = None
+_STIMS_ERROR = None
+
+
+def _run_stim(stim, target, level, secs, manual=False, address=None):
+    """Translate an imported stim to the K250 or a Coyote and launch it."""
+    ceiling = _power_ceiling()
+    if not stim:
+        return False, "pick a stim"
+    if target not in ("k250", "coyote"):
+        return False, f"target must be 'k250' or 'coyote' (got {target!r})"
+    if level == 0:
+        return False, "drive level is 0 — nothing is sent at 0, on purpose"
+    if not (1 <= level <= 100):
+        return False, f"level must be 1-100 (got {level})"
+    if not (10 <= secs <= 300):
+        return False, f"secs must be 10-300 (got {secs})"
+    stims = _stims()
+    if not stims:
+        return False, f"stim catalog unavailable: {_STIMS_ERROR or 'empty'}"
+    names = {f"{s['category']}/{s['name']}" for s in stims}
+    bare = {s["name"] for s in stims}
+    if stim not in names and stim not in bare:
+        return False, f"unknown stim '{stim}'"
+    if manual:
+        limits_path = MANUAL_LIMITS
+    else:
+        limits_path = LIMITS
+        if level > ceiling:
+            return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
+                           f"to drive past it (there limits.json is out of the loop).")
+    if target == "k250":
+        cmd = [PY, STIM_PLAY, "--stim", stim, "--level", str(level),
+               "--secs", str(secs), "--limits", limits_path]
+        if address:
+            cmd += ["--address", str(address)]
+        label = f"stim:{stim}->k250"
+        ok, err = _launch(cmd, label, manual, zero=True)
+    else:
+        cmd = [PY, COYOTE_PLAY, "--stim", stim, "--level", str(level),
+               "--secs", str(secs)]
+        if manual:
+            cmd += ["--manual"]
+        if address:
+            cmd += ["--address", str(address)]
+        label = f"stim:{stim}->coyote"
+        ok, err = _launch(cmd, label, manual, zero=False)
+    if not ok:
+        return False, err
+    msg = f"started {stim} -> {target} at {level}% for {secs}s"
+    if manual:
+        msg += " — MANUAL mode: limits.json is out of the loop for this run"
     else:
         msg += f" (ceiling {ceiling}%)"
     return True, msg
@@ -534,6 +696,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, _limits_view())
         elif self.path == "/patterns":
             self._send(200, _pattern_list())
+        elif self.path == "/stims":
+            self._send(200, {"stims": _stims(), "error": _STIMS_ERROR})
+        elif self.path == "/groups":
+            self._send(200, {"groups": _groups(), "error": _GROUPS_ERROR})
+        elif self.path == "/devices":
+            self._send(200, _devices())
         elif self.path == "/status":
             with _lock:
                 proc = _running["proc"]
@@ -557,6 +725,29 @@ class Handler(BaseHTTPRequestHandler):
                                       "echoing the writes but nothing can be felt. "
                                       "Check the pads and the lead.")
                 self._send(200, out)
+        elif self.path.startswith("/static/"):
+            # brand assets (fonts, logo) for the page — a tiny static server so the
+            # page can use the real vybesforge faces instead of a system fallback
+            rel = self.path[len("/static/"):].split("?")[0]
+            root = os.path.join(HERE, "web")
+            safe = os.path.normpath(os.path.join(root, rel))
+            if not safe.startswith(root + os.sep) or not os.path.isfile(safe):
+                self._send(404, {"ok": False, "error": "not found"})
+                return
+            ctype = {".woff2": "font/woff2", ".woff": "font/woff", ".jpg": "image/jpeg",
+                     ".jpeg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml",
+                     ".css": "text/css", ".js": "application/javascript",
+                     ".ico": "image/x-icon"}.get(os.path.splitext(safe)[1].lower(),
+                                                 "application/octet-stream")
+            with open(safe, "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "max-age=86400")
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self._send(404, {"ok": False, "error": "not found",
                              "endpoints": ["/", "/limits", "/patterns", "/run", "/stop", "/status"]})
@@ -585,7 +776,26 @@ class Handler(BaseHTTPRequestHandler):
             pattern = str(body.get("pattern", "")).strip()
             level = int(body.get("level", 0))
             secs = int(body.get("secs", 0))
-            ok, msg = _run_pattern(pattern, level, secs)
+            ok, msg = _run_pattern(pattern, level, secs, manual=bool(body.get("manual")),
+                                   address=body.get("address"))
+            self._send(200 if ok else 400, {"ok": ok, "message": msg})
+        elif self.path == "/run-stim":
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(n) or b"{}")
+            except Exception:
+                self._send(400, {"ok": False, "error": "bad JSON body"})
+                return
+            stim = str(body.get("stim", "")).strip()
+            target = str(body.get("target", "k250")).strip().lower()
+            try:
+                level = int(body.get("level", 0))
+                secs = int(body.get("secs", 0))
+            except (TypeError, ValueError):
+                self._send(400, {"ok": False, "error": "level/secs must be numbers"})
+                return
+            ok, msg = _run_stim(stim, target, level, secs, manual=bool(body.get("manual")),
+                                address=body.get("address"))
             self._send(200 if ok else 400, {"ok": ok, "message": msg})
         elif self.path == "/stop":
             ok, msg = _stop()

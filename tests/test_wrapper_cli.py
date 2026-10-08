@@ -192,11 +192,11 @@ def main():
                            norm_path(field(r5.stdout, label)) == norm_path(field(r4.stdout, label)),
                            f"{field(r5.stdout, label)!r} vs {field(r4.stdout, label)!r}"))
 
-        # 6. the LIMITS-LOCAL preference must hold when K250_DIR is set -- the v3.2.18 regression.
-        #    The wrapper used to prefer limits.local.json only in the K250_DIR-empty branch, so a
-        #    K250_DIR invocation made the WRAPPER enforce limits.json while the ENGINE enforced
-        #    limits.local.json: two different ceilings on the same run. Give the clone a
-        #    limits.local.json that differs from limits.json and assert BOTH read the local file.
+        # 6. the wrapper and the engine MUST agree on WHICH limits file, in every branch --
+        #    the v3.2.18 regression was two different ceilings on the same run. The two-file
+        #    scheme is retired: limits.json is THE file, and a legacy limits.local.json is
+        #    only a last resort (used when limits.json is missing). Give the clone a
+        #    differing limits.local.json and assert both still read limits.json.
         local_ceiling = "62"
         shutil.copyfile(os.path.join(clone, "limits.json"), os.path.join(clone, "limits.local.json"))
         with open(os.path.join(clone, "limits.local.json"), "r", encoding="utf-8") as fh:
@@ -209,19 +209,30 @@ def main():
                              cwd=elsewhere, capture_output=True, text=True, timeout=60)
         w_file = field(r6w.stdout, "limits file ")
         e_file = field(r6e.stdout, "limits file ")
-        checks.append(("with limits.local.json present, wrapper uses it (K250_DIR set)",
-                       norm_path(w_file).endswith("limits.local.json"),
+        checks.append(("limits.json wins over a legacy limits.local.json (wrapper)",
+                       norm_path(w_file).endswith("limits.json"),
                        w_file or "(no path printed)"))
-        checks.append(("engine also uses limits.local.json in the same clone",
-                       norm_path(e_file).endswith("limits.local.json"),
+        checks.append(("limits.json wins over a legacy limits.local.json (engine)",
+                       norm_path(e_file).endswith("limits.json"),
                        e_file or "(no path printed)"))
-        checks.append(("wrapper + engine agree on which limits file, both preferring .local",
+        checks.append(("wrapper + engine agree on which limits file",
                        norm_path(w_file) == norm_path(e_file),
                        f"{w_file!r} vs {e_file!r}"))
         for label in ("POWER ceiling ", "POWER start ", "stop word "):
-            checks.append((f"wrapper and engine agree on the local limits: {label.strip()}",
+            checks.append((f"wrapper and engine agree on the limits: {label.strip()}",
                            field(r6w.stdout, label) == field(r6e.stdout, label),
                            f"{field(r6w.stdout, label)!r} vs {field(r6e.stdout, label)!r}"))
+
+        # 7. with limits.json gone, both fall back to a legacy limits.local.json (same file)
+        os.remove(os.path.join(clone, "limits.json"))
+        r7w = run(["--limits-show"], cwd=elsewhere, env_extra={"K250_DIR": clone})
+        r7e = subprocess.run([sys.executable, os.path.join(clone, "k250_play.py"), "--limits-show"],
+                             cwd=elsewhere, capture_output=True, text=True, timeout=60)
+        w7, e7 = field(r7w.stdout, "limits file "), field(r7e.stdout, "limits file ")
+        checks.append(("limits.json missing -> both fall back to the legacy local file",
+                       norm_path(w7).endswith("limits.local.json")
+                       and norm_path(e7).endswith("limits.local.json"),
+                       f"{w7!r} / {e7!r}"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

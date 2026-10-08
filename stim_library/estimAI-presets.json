@@ -1,0 +1,56 @@
+[
+    {
+        "name": "gemma_4",
+        "label": "gemma_4",
+        "temperature": 1,
+        "top_p": 0.95,
+        "repetition_penalty": 1,
+        "top_k": 64,
+        "min_p": 0
+    },
+    {
+        "name": "qwen-35",
+        "label": "qwen-35",
+        "temperature": 0.7,
+        "top_p": 0.8,
+        "repetition_penalty": 1,
+        "top_k": 20,
+        "min_p": 0
+    },
+    {
+        "name": "min_p",
+        "label": "min_p",
+        "temperature": 1,
+        "top_p": 0.95,
+        "repetition_penalty": 1,
+        "top_k": 0,
+        "min_p": 0.05
+    },
+    {
+        "name": "simple-1",
+        "label": "simple-1",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "repetition_penalty": 1.15,
+        "top_k": 20,
+        "min_p": 0
+    },
+    {
+        "name": "divine-intellect",
+        "label": "Divine Intellect",
+        "temperature": 1.25,
+        "top_p": 0.14,
+        "repetition_penalty": 1.15,
+        "top_k": 49,
+        "min_p": 0
+    },
+    {
+		"preset": "Simple Balanced",
+		"label": "Simple Balanced",
+		"temp": 0.7,
+		"top_k": 100,
+		"top_p": 0.92,
+		"min_p": 0.03,
+		"repetition_penalty": 1.05
+	}
+]

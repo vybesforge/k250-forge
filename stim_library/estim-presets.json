@@ -1,0 +1,93 @@
+{
+    "2B": [
+        {
+            "type": "painless",
+            "label": "Painless",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "gain": 0.5,
+            "globalVolume": 5,
+            "pleasureStimsModifier": 3,
+            "painStimsModifier": -5,
+            "maxPainThreshold": -20
+        },
+        {
+            "type": "default",
+            "label": "Default",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "gain": 0.5,
+            "globalVolume": 5,
+            "pleasureStimsModifier": 3,
+            "painStimsModifier": 0,
+            "maxPainThreshold": -13
+        },
+        {
+            "type": "painslut",
+            "label": "Painslut",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "gain": 0.5,
+            "globalVolume": 5,
+            "pleasureStimsModifier": 3,
+            "painStimsModifier": 0,
+            "maxPainThreshold": -5
+        }
+    ],
+    "DIY": [
+        {
+            "type": "painless",
+            "label": "Painless",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "globalVolume": 0,
+            "painStimsModifier": -5,
+            "maxPainThreshold": -20,
+            "maxPleasureVolume": -10,
+            "minFrequency": 500,
+            "maxFrequency": 1500
+        },
+        {
+            "type": "default",
+            "label": "Default",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "globalVolume": 0,
+            "painStimsModifier": 0,
+            "maxPainThreshold": -13,
+            "maxPleasureVolume": -10,
+            "minFrequency": 500,
+            "maxFrequency": 1500
+        },
+        {
+            "type": "painslut",
+            "label": "Painslut",
+            "description": "",
+            "icon": "",
+            "voice": null,
+            "sound": false,
+            "useApp": false,
+            "globalVolume": 0,
+            "painStimsModifier": 0,
+            "maxPainThreshold": -5,
+            "maxPleasureVolume": -10,
+            "minFrequency": 500,
+            "maxFrequency": 1500
+        }
+    ]
+}

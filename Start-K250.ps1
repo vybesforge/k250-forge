@@ -8,7 +8,7 @@
   What it does:
     * refuses to run from a folder you don't own (same preflight as install.ps1)
     * builds the venv + bleak on first run by delegating to the repo's install.ps1
-    * leaves your limits file alone (install.ps1's rule: limits.local.json wins)
+    * leaves your limits file alone (install.ps1 never overwrites limits.json)
     * starts the launcher bound to 127.0.0.1:6969 and opens your browser on it
     * Ctrl+C (or closing the window) stops the launcher
 

@@ -66,7 +66,8 @@ cd k250-forge
 ```
 
 `install.sh` builds a venv, installs `bleak`, symlinks `k250-scene` / `k250-stop` / `k250-status`
-into `~/.local/bin`, and writes a conservative `limits.local.json`.
+into `~/.local/bin`. Your ceilings live in **`limits.json`** — edit it there (or at
+`limits-form.html`) before your first run.
 
 - Needs **BlueZ running** (`systemctl status bluetooth`). `install.sh` will offer to put `~/.local/bin`
   on your `PATH`; say yes, or add it yourself later.
@@ -119,7 +120,7 @@ cd k250-forge
 a `.ps1` file at all, so the launcher bypasses that policy **for that one process** and nothing else —
 no policy is set, and nothing outlives the window.
 
-`install.ps1` builds the venv, installs `bleak`, writes a conservative `limits.local.json`, and makes the
+`install.ps1` builds the venv, installs `bleak`, and makes the
 engine answer `--limits-show` before it hands over. Nothing needs admin, and it does not touch your PATH
 or the registry. If the folder is one you cannot write to, it says so and stops there rather than leaving
 you three unrelated errors to work out.
@@ -166,8 +167,8 @@ you three unrelated errors to work out.
 .\venv\Scripts\python k250_status.py
 ```
 
-  It looks for `limits.local.json`, then `limits.json`, next to the script — or wherever
-  `--limits PATH` / the `K250_LIMITS` environment variable points.
+  It looks for `limits.json` next to the script — or wherever `--limits PATH` /
+  the `K250_LIMITS` environment variable points.
 - **What else works natively:** `k250_show.py` (setlists) and `k250_status.py` / `k250_stop.py`, as
   above. `k250_stop.py` kills a running pattern with PowerShell's `Get-CimInstance Win32_Process`
   before zeroing the pads — and if it cannot list processes it says so, rather than reporting a clean
@@ -197,6 +198,16 @@ Do this before your first scan, and any time the box has gone quiet:
 Wake it the same way if it's gone to sleep mid-session; the screen going off stops the radio.
 
 ---
+
+### Firmware
+
+**Tested on firmware `v1.08`** — that is what every tool, pattern and page here was verified
+against, and it is the version to run.
+
+A **newer `v2.00.08b` exists and is NOT tested.** The box will accept it, but nothing in this repo
+has been tried against it and it is expected to need work — the control surface and the update
+container may have moved. If you are on v2, expect to fix things rather than assume they work. Until
+v2 has been worked through, stay on `v1.08` if you can.
 
 ## Safety & limits
 
@@ -394,11 +405,10 @@ k250-launcher                     # the local bridge + the limits page (http://1
 
 ### The limits page and its bridge
 
-`limits-form.html` is the page you set the contract on, and `k250_launcher.py` is a tiny
-loopback-only server that both **serves** it and lets it **act**: press Apply and it writes
-`limits.json` (merging, never replacing — your notes and `pattern_notes` survive, and a
-timestamped backup is taken first); press Run and it plays a pattern through the same engine
-the CLI uses.
+`limits-form.html` is the whole surface — you set the contract on it *and* drive from it — and
+`k250_launcher.py` is a tiny loopback-only server that both **serves** it and lets it **act**.
+Press **Apply** and it writes `limits.json` (merging, never replacing — your notes and
+`pattern_notes` survive, and a timestamped backup is taken first).
 
 Start it and open the page it serves:
 
@@ -408,16 +418,43 @@ k250-launcher          # or: python3 k250_launcher.py   ·  Windows: py -3 k250_
 ```
 
 It binds `127.0.0.1` **only** — nothing on your network can reach it — and it answers a
-`file://` page too, so opening `limits-form.html` directly still works. Three things about it
-are deliberate and worth knowing:
+`file://` page too, so opening `limits-form.html` directly still works.
+
+**Two modes, and only one is ever visible.**
+
+- **Manual** — you drive. `limits.json` is *out of the loop* for these runs: the ceiling does not
+  clamp them. You are the limit.
+- **AI** — the contract applies. The limits are enforced, and a level above the ceiling is
+  **refused** rather than quietly overridden.
+
+Section 2 (AI limits) and section 3 (Manual drive) never show together, so the two cannot be
+confused for one another.
+
+**Click to play — there is no Run button.** Clicking a pattern or a stim plays it immediately at the
+level and Duration set above, and it **loops until the Duration is up**. Clicking another stops the
+run in progress and starts the new one; **Stop** is always one click. The hard-stops acknowledgement
+has to be ticked first, and a level of 0 plays nothing at all.
+
+**A BLE device picker chooses the target.** The Devices card scans the air and lists only the e-stim
+devices it recognises; whichever you pick is where a run goes — there is no manual target switch. It
+is read-only: it finds, it does not connect. The run holds the radio (one connection at a time, as
+always).
+
+**Imported stims sit alongside the patterns.** Section 3 carries a stim catalogue in the same
+categories as the built-in patterns, de-duplicated and given readable names. Each one is translated
+onto the box's two axes — its frequency + intensity timeline becomes `MA` + `PW` — or written to a
+Coyote V3 as that device's native frames.
+
+Three things about the bridge are deliberate and worth knowing:
 
 - **One control sets the ceiling.** The page has a single *AI power ceiling* slider; the
   per-channel rows sit under it and can only lower a channel. (It used to take the lowest of
   the four channel sliders, so leaving an unused channel low silently dragged the ceiling down.)
-- **The wearer's own level is the only override.** If the Manual drive level is above the
-  ceiling, the bridge marks the run and the engine logs `!! OVERRIDE`; every tool path refuses
-  that flag outright, so a script or an AI driver cannot raise the agreed ceiling. The limits
-  file itself is yours to edit — nothing else writes it except Apply, which backs it up first.
+- **Manual mode is the override, and it says so out loud.** Rather than a hidden raise, choosing
+  Manual states plainly that the contract is out of the loop for those runs. In AI mode the
+  ceiling is absolute: a level above it is refused, and nothing a script or an AI driver does can
+  raise it. The limits file itself is yours to edit — nothing else writes it except Apply, which
+  backs it up first.
 - **It zeroes after every run** — the engine already ends at `PW=0`, and the bridge then runs
   the stop tool once more, and says so loudly if it could not reach the box.
 
@@ -441,6 +478,14 @@ k250_session.py               session ledger -- the timer (no cooldown, no refus
 limits.json                   THE CONTRACT — power ceiling, stop word, safety toggles
 limits-form.html              the limits page: set the contract, and drive from it
 k250_launcher.py              loopback bridge (127.0.0.1:6969) that serves that page
+k250_stim_play.py             play an imported stim on the box (loops to the deadline)
+coyote_play.py                play an imported stim on a Coyote V3 (native frames) — UNTESTED
+stim_translate.py             stim -> (frequency, intensity) timeline -> box axes / Coyote frames
+stim_catalog.py               merges the patterns + imported stims into one grouped catalogue
+ble_scan.py                   BLE scan, flags the e-stim devices it recognises (read-only)
+limits.manual.json            the empty contract Manual mode runs against
+web/                          brand assets the page serves: fonts/ + images/logo-400.jpg
+stim_library/                 the imported stim catalogue: data, presets, format notes
 install.sh                    installer for Linux and macOS (bash)
 install.ps1                   installer for Windows (PowerShell)
 install.cmd                   launcher for install.ps1 — bypasses the script policy once
@@ -557,6 +602,10 @@ pattern-change fix and its regression test.
 
 - `SB` / `CS` semantics unknown.
 - Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
+- **The whole repo is verified on `v1.08`; `v2.00.08b` is untested and expected to need work.**
+- **Coyote V3 output (`coyote_play.py`) is written but has never been run against real hardware.**
+  The frame format is derived from the device's own client and round-trips in our encoder, but that
+  is not the same as hardware accepting it. Treat it as untested until someone has tried it.
 
 ## Licence
 
