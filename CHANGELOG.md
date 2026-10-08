@@ -11,7 +11,45 @@ happened is part of the record.
 
 ---
 
-## v3.7.0 — 2026-10-07
+## v3.7.1 — 2026-10-07
+
+### Fixed — the stop raced itself
+
+- Two paths zero the box: the `/stop` handler, and the automatic zero when a run ends by itself. Both
+  shell out to the stop tool, and the box allows **one connection at a time** — so when they overlapped,
+  one failed and reported *"the stop tool could NOT reach the box, it may still be energised"* for a box
+  that was already at zero. A false alarm on the one message that must never cry wolf.
+- They are now serialised behind a lock and deduped within 5 s, so a redundant second run is skipped
+  instead of colliding. `_stop()` also **waits for the engine to release the link** (the engine needs
+  ~2-3 s to catch the signal, zero, and let go) and records its own result, so `/status` reports the stop
+  that just happened rather than whatever the last automatic zero said.
+- Verified end to end through the page: a 15 % run echoes `PW 15`, a mid-run stop lands, the box ends at
+  `PW 0`, `last_zero` reports ok, and no engine is left behind.
+
+### Changed — the held link is reverted: a fresh connection per run is the default again
+
+- v3.7.0's persistent controller was ~100x faster (0.06 s against ~7 s) but it coupled every run to one
+  long-lived process. When its BLE link dropped, the **process died on an unhandled disconnect** — the
+  bridge silently fell back to spawning, and a stop could not reach the box. Faster is not worth that on
+  a path that energises a person.
+- The bridge no longer routes `/run`, `/run-stim` or `/stop` through the controller. It spawns a fresh
+  engine per run, as before: boring, and reliable. Reconnecting per run also means nothing has to stay
+  healthy for a stop to land.
+- `k250_ctl.py` remains as a standalone tool for manual held-link work (its run/stop capability and a
+  fix for the crash-on-disconnect are kept), but nothing in the page's path depends on it.
+
+### Kept from v3.7.0 — the parts that are independent of the controller
+
+- **`_stop()` checks the stop tool's exit code** and reports the failure instead of claiming "stopped".
+  This proved itself within the hour: on a sleeping box it said
+  `STOP FAILED: box not reachable — IT MAY STILL BE ENERGISED!` where the old code would have said
+  "stopped" and meant nothing.
+- **`Player.w()` refuses to raise power once a run is stopped**, so a write already in flight cannot land
+  after a stop's zero and re-energise the box.
+- The controller's runtime files stay **out of the checkout**, with the portability guards that keep a
+  named pipe from breaking a clone's test suite.
+
+ — 2026-10-07
 
 ### Added — one persistent link, so a run starts in 0.06s instead of ~7s
 

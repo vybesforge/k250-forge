@@ -97,6 +97,33 @@ _running = {"proc": None, "pattern": None, "started": 0.0}
 _zero_thread = None
 _last_zero = {"ok": None, "message": None, "pattern": None, "at": None}
 
+# TWO paths zero the box: the /stop handler, and `_zero_after` when a run ends on its
+# own. Both shell out to the stop tool, and the box allows ONE connection at a time --
+# so if they overlap, one wins and the other fails and reports "may still be energised"
+# for a box that is already at zero. Serialise them, and skip a redundant second run.
+_stop_lock = threading.Lock()
+_recent_zero = {"at": 0.0}
+STOP_DEDUPE_S = 5.0
+
+
+def _run_stop_tool(timeout=90):
+    """Run the stop tool at most once at a time. -> (rc, message, ran)."""
+    with _stop_lock:
+        if time.time() - _recent_zero["at"] < STOP_DEDUPE_S:
+            return 0, "already zeroed a moment ago", False
+        r = subprocess.run([PY, STOP], cwd=HERE, timeout=timeout,
+                           capture_output=True, text=True)
+        _recent_zero["at"] = time.time()
+        lines = [l.strip() for l in ((r.stdout or "") + (r.stderr or "")).splitlines()
+                 if l.strip()]
+        # Prefer the LOUD line: the stop tool's useful line is its first ("STOP FAILED:
+        # box not reachable -- IT MAY STILL BE ENERGISED!"); its last is a parenthetical
+        # about the Options screen, which reads like a footnote on the one message that
+        # must not read like a footnote.
+        msg = next((l for l in lines if l.upper().startswith("STOP FAILED")),
+                   lines[0] if lines else f"exit {r.returncode}")
+        return r.returncode, msg, True
+
 
 def _zero_after(proc, pattern):
     """After a run ends: SIGTERM anything left, then write PW=0 to every live channel.
@@ -111,17 +138,9 @@ def _zero_after(proc, pattern):
     except Exception:
         pass
     try:
-        r = subprocess.run([PY, STOP], cwd=HERE, timeout=90,
-                           capture_output=True, text=True)
-        lines = [l.strip() for l in ((r.stdout or "") + (r.stderr or "")).splitlines() if l.strip()]
-        # Prefer the LOUD line. The stop tool's useful line is its first ("STOP
-        # FAILED: box not reachable — IT MAY STILL BE ENERGISED!"); its last line
-        # is a parenthetical about the Options screen, which is true but reads
-        # like a footnote on the one message that must not read like a footnote.
-        msg = next((l for l in lines if l.upper().startswith("STOP FAILED")),
-                   lines[0] if lines else f"exit {r.returncode}")
-        _last_zero.update(ok=r.returncode == 0, message=msg,
-                          pattern=pattern, at=time.time())
+        rc, msg, ran = _run_stop_tool(timeout=90)
+        if ran:
+            _last_zero.update(ok=rc == 0, message=msg, pattern=pattern, at=time.time())
     except Exception as e:
         _last_zero.update(ok=False, message=f"stop tool failed: {e}",
                           pattern=pattern, at=time.time())
@@ -506,16 +525,13 @@ def _run_pattern(pattern, level, secs, manual=False, address=None):
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
     eff = level
-    # A live controller holds the link: hand it the job. Spawning would cost the ~5.7s
-    # reconnect AND could not connect at all while the controller holds it.
-    spec = {"kind": "pattern", "key": pattern, "level": eff, "base": eff, "peak": eff,
-            "secs": secs, "limits": limits_path, "manual": manual,
-            "override_ceiling": manual}
-    if _ctl_send("run " + json.dumps(spec)):
-        msg = f"started {pattern} at {eff}% for {secs}s (held link)"
-        msg += (" — Manual: limits out of the loop" if manual
-                else f" (ceiling {ceiling}%)")
-        return True, msg
+    # A fresh engine per run, every time. A held-link controller was tried and is
+    # FASTER (~0.06s vs ~7s), but it couples every run to one long-lived process
+    # staying healthy: when its link dropped, the process died, the bridge silently
+    # fell back, and a stop could not reach the box. Reconnect-per-run is the boring,
+    # reliable shape, and boring is right for something that energises a person.
+    # The controller is still there as a standalone tool for manual work; the bridge
+    # does not route through it.
     cmd = [PY, PLAY, pattern, "--base", str(eff), "--peak", str(eff),
            "--secs", str(secs), "--limits", limits_path]
     if address:
@@ -663,11 +679,6 @@ def _run_stim(stim, target, level, secs, manual=False, address=None):
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
     if target == "k250":
-        spec = {"kind": "stim", "key": stim, "level": level, "secs": secs,
-                "limits": limits_path, "manual": manual, "override_ceiling": manual}
-        if _ctl_send("run " + json.dumps(spec)):
-            return True, (f"started {stim} -> {target} at {level}% for {secs}s "
-                          f"(held link)")
         cmd = [PY, STIM_PLAY, "--stim", stim, "--level", str(level),
                "--secs", str(secs), "--limits", limits_path]
         if address:
@@ -696,14 +707,29 @@ def _run_stim(stim, target, level, secs, manual=False, address=None):
 def _stop():
     with _lock:
         proc = _running["proc"]
+        pattern = _running["pattern"]      # keep it: the stop records what it stopped
         lf = _running.get("logfile")
         _running["proc"] = None
         _running["pattern"] = None
         _running["logfile"] = None
-    # kill the pattern process first, then run the stop tool (belt and braces)
+    # Kill the pattern process first, then run the stop tool (belt and braces).
+    #
+    # WAIT for the engine to actually be gone before the stop tool runs. The engine
+    # holds the BLE link, and the box allows ONE connection at a time, so firing the
+    # stop tool at a still-dying engine makes it collide and fail -- which then reports
+    # "could not reach the box, it may still be energised" and cries wolf. Measured:
+    # the engine needs ~2-3s to catch the signal, zero, and let go of the link.
     if proc is not None and proc.poll() is None:
         try:
             proc.terminate()
+            try:
+                proc.wait(timeout=6)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    pass
         except Exception:
             pass
     if lf is not None:
@@ -711,20 +737,18 @@ def _stop():
             lf.close()
         except Exception:
             pass
-    # A held link means the stop TOOL cannot connect either — only the controller can
-    # zero the box. Route through it, and do not claim a stop we did not achieve.
-    if _ctl_alive():
-        if _ctl_send("stop"):
-            return True, "stopped (via the held link)"
-        return False, ("the controller holds the link but would not take the stop "
-                       "command — treat the box as still energised")
     try:
-        r = subprocess.run([PY, STOP], cwd=HERE, timeout=30,
-                           capture_output=True, text=True)
-        if r.returncode != 0:
+        rc, msg, ran = _run_stop_tool(timeout=60)
+        if ran:
+            # Record it, so /status reports the stop that just happened rather than
+            # whatever the last automatic zero said.
+            _last_zero.update(ok=rc == 0, message=msg, pattern=pattern,
+                              at=time.time())
+        if rc != 0:
             return False, ("the stop tool could NOT reach the box, so it may still be "
-                           "energised: " + (r.stderr or r.stdout or "").strip()[:200])
-        return True, "stopped"
+                           "energised: " + (msg or "").strip()[:200])
+        return True, ("stopped" if ran
+                      else "stopped (already at zero a moment ago)")
     except Exception as e:
         return False, f"stop tool failed: {e}"
 

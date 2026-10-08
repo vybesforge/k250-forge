@@ -255,6 +255,9 @@ async def main():
                 if line:
                     if line in ("quit", "q"):
                         break
+                    if not cl.is_connected:
+                        log("!! LINK LOST — refusing the command, the box is not reachable")
+                        break
                     if line == "stop" or line == "!":
                         # The ONLY way to stop a run while we hold the link.
                         #
@@ -318,18 +321,35 @@ async def main():
                     await asyncio.sleep(0.3)
                 if k.last:
                     _write_state(k.last)
+                if not cl.is_connected:
+                    # The link dying must never take the process down silently: the
+                    # bridge falls back to spawning without a word, the page just gets
+                    # slow again, and nobody learns why. Say it, and get out cleanly.
+                    log("!! LINK LOST — the box disconnected")
+                    if RUN["pl"] is not None:
+                        log("!! a run was in progress; the box holds its last power — "
+                            "it must be verified and zeroed")
+                    break
                 if time.time() - last_ping > 20:
-                    await k.send(READ_ALL)
+                    try:
+                        await k.send(READ_ALL)
+                    except Exception as e:
+                        log("!! keepalive failed:", type(e).__name__, e)
+                        break
                     last_ping = time.time()
 
             if RUN["pl"] is not None:
                 RUN["pl"].stop = True
                 await asyncio.sleep(0.2)
             log("TX {'PW':'0'} (safe down)")
-            await k.send({"PW": "0"})
-            await asyncio.sleep(0.8)
-            await k.send(READ_ALL)
-            await asyncio.sleep(0.6)
+            try:
+                await k.send({"PW": "0"})
+                await asyncio.sleep(0.8)
+                await k.send(READ_ALL)
+                await asyncio.sleep(0.6)
+            except Exception as e:
+                log("!! could not zero on the way out:", type(e).__name__, e)
+                log("!! the box may still be energised — use the physical kill switch")
     finally:
         try:
             os.unlink(PIDFILE)
