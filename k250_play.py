@@ -37,8 +37,9 @@ def log(*a):
     print(f"[{time.time()-T0:6.1f}]", *a, flush=True)
 
 
-def pct(p: float) -> str:
-    return str(int(round(p * 100)))
+def pct(p: float, scale: float = 100.0) -> str:
+    """A percent, in the units THIS firmware wants. v1 took percent x100."""
+    return str(int(round(p * scale)))
 
 
 class Player:
@@ -48,6 +49,8 @@ class Player:
         self.stop = False
         self.last = None
         self.ma_top = 2500.0          # apex of the speed axis (MA 0..2500)
+        self.ma_out_max: float | None = None   # the apex THIS firmware accepts, if shorter
+        self.pw_scale = 100.0         # percent -> this firmware's PW units (v2: 1)
         self.sweep_period = 8.0       # seconds per full speed sweep
         self.channels = [0]           # live channels (set by detect_channels)
         self._ch = None
@@ -250,7 +253,7 @@ class Player:
         # never read back: if something we don't know about ever zeroes it, the
         # pattern self-heals within the keepalive rather than running silent.
         # K250_PW_REFRESH=0 restores the old write-every-tick behaviour.
-        v = pct(p)
+        v = pct(p, self.pw_scale)
         now = time.time()
         last = self._pw_sent.get(ch)
         if last is not None and last[0] == v and (now - last[1]) < self.pw_refresh:
@@ -292,7 +295,10 @@ class Player:
 
         The box holds MA and PW independently — writing MA does not clear PW.
         Only a PATTERN CHANGE (PA) zeroes them."""
-        v = str(int(max(0, min(value, self.ma_cap()))))
+        num = max(0.0, min(value, self.ma_cap()))
+        if self.ma_out_max:                        # a firmware with a shorter axis
+            num = round(num * self.ma_out_max / (self.ma_top or 1.0))
+        v = str(int(num))
         if getattr(self, "_ma", None) == v:
             return
         self._ma = v
@@ -305,6 +311,44 @@ class Player:
 # On the K250 the second axis (MA = beat period) is what carries the character:
 # a slow thump (MA~5500) presses, MA=0 buzzes, and sliding between them IS the
 # gesture. Power is the shape; MA is what the shape is made of.
+
+# --- per-firmware output axes ----------------------------------------------
+# BOTH output axes moved on v2.00.08b, and getting either wrong fails SILENTLY: the
+# box clamps the value and the axis simply looks dead.
+#
+#   MA  v1 accepted the 0-10000 axis these patterns are written against; v2 tops out
+#       at 100 and returns anything above it as 100 -- measured on the box by echo,
+#       where MA 150 and MA 2500 both come back 100. Unmapped, every MA write lands
+#       on the ceiling: power moves, character never does.
+#   PW  v1 wanted percent x100; v2 takes the percent itself. Unscaled, a 5% run is
+#       sent as 500 and clamps to the box's top -- i.e. the page says 5% and the box
+#       is driven at full. Wrong in the safe direction the other way (an under-drive),
+#       so mapping it is the safe side of the bet either way.
+FW_AXES = {
+    "2": {"ma_apex": 100.0, "pw_scale": 1.0},
+}
+
+
+def _major(fv) -> str:
+    """The leading major version out of a firmware string like '2.00.08b--v2.00.08b'."""
+    digits = ""
+    for ch in str(fv or ""):
+        if ch.isdigit():
+            digits += ch
+        elif digits:
+            break
+    return digits[:1] if digits else ""
+
+
+def ma_box_max_for(fv):
+    """The MA apex this firmware accepts, or None to write the axis raw (v1)."""
+    return FW_AXES.get(_major(fv), {}).get("ma_apex")
+
+
+def pw_scale_for(fv):
+    """Multiplier from a percent to this firmware's PW units (100 on v1, 1 on v2)."""
+    return FW_AXES.get(_major(fv), {}).get("pw_scale", 100.0)
+
 
 async def _ma_glide(pl: Player, a: float, b: float, secs: float, tick: float = 0.05):
     """Smoothly move MA from a to b over `secs` seconds. The box holds MA, so
@@ -1646,6 +1690,12 @@ async def main():
 
         pl = Player(k, a.hardcap)
         pl.ma_top = a.ma_top
+        _fv = (k.last or {}).get("FV")
+        pl.ma_out_max = ma_box_max_for(_fv)
+        pl.pw_scale = pw_scale_for(_fv)
+        if pl.ma_out_max or pl.pw_scale != 100.0:
+            log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
+                f"PW = percent x{pl.pw_scale:g}")
         pl.sweep_period = a.sweep_period
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)

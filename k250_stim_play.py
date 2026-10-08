@@ -24,7 +24,8 @@ sys.path.insert(0, HERE)
 
 import stim_translate as T
 from k250_play import (Player, K250, find, READ_ALL, find_limits, load_limits,
-                       apply_limits, session_reserve, log)
+                       apply_limits, session_reserve, log, ma_box_max_for,
+                       pw_scale_for)
 
 
 def find_stim_or_die(name):
@@ -82,6 +83,12 @@ async def run(a):
 
         pl = Player(kq, a.hardcap)
         pl.ma_top = a.ma_top
+        _fv = (kq.last or {}).get("FV")
+        pl.ma_out_max = ma_box_max_for(_fv)
+        pl.pw_scale = pw_scale_for(_fv)
+        if pl.ma_out_max or pl.pw_scale != 100.0:
+            log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
+                f"PW = percent x{pl.pw_scale:g}")
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)
         live = await pl.prepare_channels()
