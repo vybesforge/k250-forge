@@ -201,13 +201,20 @@ Wake it the same way if it's gone to sleep mid-session; the screen going off sto
 
 ### Firmware
 
-**Tested on firmware `v1.08`** — that is what every tool, pattern and page here was verified
-against, and it is the version to run.
+Both shipped firmwares are supported. **On either one, set the pattern on the box by hand before a
+session** — on `v2.00.08b` choose **`Intense`** (on that firmware it is the closest thing to the old
+`Manual` slot); on `v1.08` choose **`Manual`**.
 
-A **newer `v2.00.08b` exists and is NOT tested.** The box will accept it, but nothing in this repo
-has been tried against it and it is expected to need work — the control surface and the update
-container may have moved. If you are on v2, expect to fix things rather than assume they work. Until
-v2 has been worked through, stay on `v1.08` if you can.
+- **The pattern is the one control this repo cannot set.** Power, frequency and channel selection all
+  drive over BLE on both firmwares. The pattern slot does not: `v1.08` accepted a pattern write, and
+  `v2.00.08b` refuses it outright — every name tried, including the one the box's own screen shows.
+- **Why it matters.** Left on one of the box's own generators (`Rhythm` or any other built-in), the
+  box runs its own waveform and the level you set is laid **on top of** it, rather than being the whole
+  signal — so the number on the page is not the number you feel. Put it on the manual slot and the
+  level you ask for is the level you get.
+- The two firmwares also put different scales on the wire: `v2.00.08b` rescaled both output axes
+  (frequency to 0-100, power to a plain percentage). The engine reads the firmware the box reports and
+  maps its axes accordingly, so both work without a flag; `v1.08` behaviour is unchanged.
 
 ## Safety & limits
 
@@ -315,8 +322,8 @@ JSON text, compact, on the characteristic above. Not VESC. Fields:
 
 | key | meaning | value |
 |---|---|---|
-| `PW` | power | **0..10000**, i.e. 1% = 100 |
-| `MA` | Multi Adjust — **frequency/character** | **0..10000** |
+| `PW` | power | **firmware-dependent** — `1.08`: `0..10000` (1% = 100) · `2.x`: `0..100` (the percent itself) |
+| `MA` | Multi Adjust — **frequency/character** | **`1.08`: `0..10000` · `2.x`: `0..100`** |
 | `PA` | pattern, one per channel | `["Waves","UNPLUG'D",...]` |
 | `AC` | selected channel — `PW` applies to this one | `0..3` |
 | `MP` | max power level (system cap) | `5..100` → LCD `L-05..L-100` |
@@ -330,9 +337,13 @@ Notifications are pretty JSON, numbers sometimes unquoted, and may split across 
 
 ### Other Tech Notes:
 
-1. **The scale is 0..10000, not 0..100.** The official app maps its 0–100 slider by ×100. Sending
-   `PW=10` is **0.1 %** — imperceptible, and it looks exactly like "my commands do nothing." Always
-   send `percent × 100`. Proof: cranking `MA` by hand to its maximum made the box report `MA: 10000`.
+1. **The value scales are FIRMWARE-DEPENDENT, and a wrong scale looks exactly like dead commands.**
+   On `v1.08` both `PW` and `MA` are `0..10000` and the app maps its 0–100 slider by ×100 — the proof
+   is that cranking `MA` to maximum by hand makes the box report `MA: 10000`. On `v2.00.08b` **both
+   axes are plain `0..100`**: `PW=5` is 5 %, and `MA` tops out at 100, with anything above echoed back
+   as `100`. The engine reads the firmware the box reports and maps its axes to match, so there is no
+   flag to pass; but if you write frames yourself, getting this wrong makes the box clamp silently and
+   the axis look dead.
 2. **The box holds `PW` and `MA` — and the ONLY thing that zeroes them is a PATTERN CHANGE.** Set 40 %
    and it sits there indefinitely; there is no dead-man timer, and writing `MA` does not disturb `PW`.
    But switch the wave pattern — Manual → Waves, Waves → Climb, anything — and that channel's power
@@ -545,7 +556,7 @@ connect, drive, and stop the box without guessing:
 | to do this | read this |
 |---|---|
 | Understand the device, and connect to it | **Finding the box** above, and `FINDINGS.md` — the full log, including the dead ends |
-| Talk to it correctly (frames, keys, the 0..10000 scale) | **The protocol** section, and `k250_codec.py` |
+| Talk to it correctly (frames, keys, the firmware-dependent value scales) | **The protocol** section, and `k250_codec.py` |
 | Know what it must never do | `limits.json` → `safety.hard_stops`, plus **Safety & limits** |
 | Drive it | `k250-play <key> --level N` — any pattern **or** imported stim, by name or by the label the page shows. `k250-scene <pattern> --base N --secs N` works too. On Windows, where the wrapper can't run, the engine clamps to the same ceiling itself |
 | Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
