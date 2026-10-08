@@ -132,8 +132,27 @@ def _load_limits():
 
 
 def _power_ceiling():
+    """The AI power ceiling AS THE ENGINE WILL APPLY IT.
+
+    The global (power.max_percent) is a bound, but a per-channel cap is tighter and
+    the engine applies the tighter of the two. limits.json pins ch1 at 45 while the
+    global sits at 50, so reporting the global here accepted a 46-50% request and let
+    the engine clamp it silently to 45 -- the reply claimed a level the box never got.
+
+    A ceiling is a BOUND, not a target: this reports the real one, so a refusal names
+    the figure that actually applies. Channels pinned at 0 are disabled and give
+    nothing regardless, so they do not drag the ceiling down with them.
+    """
     d = _load_limits()
-    return d.get("power", {}).get("max_percent", 50)
+    glob = d.get("power", {}).get("max_percent", 50)
+    chans = d.get("channels", {}) or {}
+    per = chans.get("per_channel", {}) or {}
+    caps = []
+    for c in (chans.get("allowed") or [1]):
+        v = (per.get(str(c)) or {}).get("power")
+        if v is not None and v > 0:
+            caps.append(v)
+    return max(caps) if caps else glob
 
 
 _PATTERNS_CACHE = None

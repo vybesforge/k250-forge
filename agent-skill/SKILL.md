@@ -47,6 +47,7 @@ used while building this repo, and it is deliberately short. The repo itself —
 | | |
 |---|---|
 | check the box | `k250-status` — firmware, battery, **live channels**, pattern/speed per channel |
+| **set the pattern FIRST** | **Ask the wearer to set it on the box by hand** — `Intense` on `v2.00.08b`, `Manual` on `v1.08`. You cannot do it: 2.x refuses every pattern write over BLE. Left on one of the box's own generators, the box's waveform runs and your level is laid on top of it instead of being the whole signal |
 | run a pattern | `k250-scene <pattern> --base N --secs N` · `k250-scene --list` for all of them |
 | run any key | `k250-play <key> --level N` — ONE entry point for patterns **and** imported stims; the key can be a pattern name, a `category/name` stim key, or the label the page shows ("Intro 6"). `k250-play --list` shows the whole catalogue. An ambiguous key is refused with the candidates, never guessed |
 | stop | `k250-stop` — zeroes every channel and kills any running pattern. Exit 1 = could not reach the box: treat as unsafe and get to it physically |
@@ -60,8 +61,10 @@ is the only figure worth acting on.
 
 ## Protocol traps that look like bugs
 
-- **Values are 0..10000, not 0..100.** The app multiplies its slider by 100. Sending `PW=50` is
-  0.5 %, i.e. nothing. Always `pct * 100`.
+- **The value scales are firmware-dependent.** `v1.08`: `PW` and `MA` are both `0..10000` (1 % = 100).
+  **`v2.00.08b`: both are plain `0..100`** — `PW=5` is 5 %, and `MA` clamps at 100 (anything above
+  echoes back as `100`). The engine maps them from the firmware the box reports. Writing frames by
+  hand means getting this right, or the box clamps silently and the axis looks dead.
 - **`PW` is never reported back.** A read-all omits it — power is only echoed when written. Nothing
   in the software can confirm power is flowing; the wearer is the only instrument. `CA`
   (`Active`/`Unplugged`) proves an electrode is *attached*, which is load, not delivery.

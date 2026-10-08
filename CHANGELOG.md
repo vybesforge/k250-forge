@@ -11,7 +11,38 @@ happened is part of the record.
 
 ---
 
-## v3.6.0 — 2026-10-07
+## v3.6.1 — 2026-10-07
+
+### Changed — the pattern is set on the box, by hand
+
+- **`2.x` refuses every `PA` (pattern slot) write**, so the tools can no longer choose the pattern —
+  they shape whatever the box is running. The README and the agent skill now say so, with the step
+  spelled out: **set it on the box before driving — `Intense` on `2.x`, `Manual` on `1.08`.**
+- This is not cosmetic. Left on one of the box's own generators (`Rhythm` or any other built-in), the
+  box's waveform runs and the level set from the page is laid **on top of** it rather than being the
+  whole signal, so the number on the page is not the number felt. On the manual slot, what you ask for
+  is what you get.
+
+### Fixed — the bridge named a looser ceiling than the channel's
+
+- `_power_ceiling()` reported the global `power.max_percent` and ignored a tighter per-channel cap, so
+  a request between the two was accepted and then clamped silently by the engine — the reply named a
+  level the box never received. It now resolves the way the engine does, per allowed channel, so a
+  refusal names the figure that actually applies. **A ceiling is a bound, not a target**, and the
+  number reported must be the number enforced.
+
+### Changed — the shipped defaults are 5 % again
+
+- `limits.json` ships at the conservative default: `max_percent` 5, `default_percent` 5, channel 1
+  inheriting the global. Any figures from a working session belong to the wearer and are not shipped.
+
+### Added — firmware-boundary probes
+
+- `probe_ma_axis.py`, `probe_pw_axis.py`, `probe_set_pattern.py` and `probe_bench_drive.py`: map what a
+  given firmware accepts on the frequency and power axes, test whether the pattern slot is writable,
+  and drive a level with a choreographed frequency routine. Run them after a firmware change.
+
+ — 2026-10-07
 
 ### Fixed — the frequency axis was dead on firmware 2.x
 
