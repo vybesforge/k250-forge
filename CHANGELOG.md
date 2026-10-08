@@ -11,7 +11,53 @@ happened is part of the record.
 
 ---
 
-## v3.5.1 — 2026-10-07
+## v3.6.0 — 2026-10-07
+
+### Fixed — the frequency axis was dead on firmware 2.x
+
+- The bench box now runs `2.00.08b`, and its **MA (frequency) axis is 0-100, not 0-10000.** Anything
+  above the new top comes straight back as 100 — measured on the box by echo, where `MA 150` and
+  `MA 2500` both return `100`. The engine's patterns are written against the 0-10000 axis, so **every
+  MA write landed on the ceiling** and the frequency axis never moved: power worked, character did
+  not. That was the entire symptom.
+- The engine now takes the apex from the firmware the box reports (`ma_box_max_for(FV)`, carried as
+  `Player.ma_out_max`) and maps its axis onto it. **v1.08 is untouched** — with no known shorter axis
+  the values go out raw, exactly as before. **No pattern changed:** every one writes `pl.ma_top * u`,
+  so a single knob moves the whole axis. Applies to `k250_play.py` and `k250_stim_play.py` alike,
+  since they share the engine.
+- `tests/test_ma_axis.py` guards it, including an assertion that the *unmapped* axis lands above the
+  box's apex — so the test fails if the bug it fixes ever comes back.
+
+### Fixed — the power axis was sending percent x100 to a box that wants percent
+
+- v1.08 wanted `PW` as percent x100 (5 % -> `500`). **v2 takes the percent itself.** Measured on the
+  box by echo: v2 accepts 1/3/5/10/20/25/30 verbatim, and `500` comes back as `100`. So an unmapped
+  5 % run did not mean 5 % on v2 — it hit the box's top. **The page said 5 % while the box was driven
+  at its maximum**, which is why a 5 % run felt like more than 5 %.
+- Both axes now come from one firmware table (`FW_AXES`): `ma_box_max_for(FV)` for the MA apex and
+  `pw_scale_for(FV)` for the power multiplier, applied where power is written. v1 behaviour is
+  unchanged, and a wrong guess in this direction fails as an under-drive, not an over-drive.
+- Verified end-to-end: an engine run at 5 % logs `PW = percent x1` and the box echoes **5**.
+
+### Added — `probe_ma_axis.py`
+
+- A cheap firmware check: sweeps MA values and prints what was sent against what the box echoed, so a
+  rescaled axis shows up in a single pass. Run it after any firmware update.
+
+### Known, NOT yet fixed — v2 refuses the `PA` (pattern) write
+
+- On v1.08 the engine took a channel off the box's own generator by writing `PA` = `Manual`. **v2
+  ignores every `PA` write** — seven frame shapes tried (blanks, a single-element list, spaces, a
+  plain string, `Manual`, `GP`, all-identical, and again with the channel selected first) and the box
+  reports its own pattern throughout, while `AC`, `PW` and `MA` writes all latch in the same session.
+- So on v2 a channel keeps the box's own generator, that generator sets its own power — the box
+  emitted `PW: 100` about once a second during a run set to 5 % — and our writes stack on top of a
+  waveform we do not own. **Treat the level we set as a floor we assert, not a ceiling on what the
+  box does.**
+- `prepare_channels()` still does not verify its write, so this fails silently. Documented plainly
+  rather than papered over.
+
+ — 2026-10-07
 
 ### Removed
 
