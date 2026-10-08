@@ -16,3 +16,5 @@ limits.json.bak-*
 limits.local.json.bak-*
 limits.json.new
 session.json
+stim_library/SOURCE.txt
+launcher-run.log

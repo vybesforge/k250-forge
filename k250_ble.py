@@ -56,7 +56,7 @@ def _matches(dev, adv=None):
     return bool(dev.name and "Kx250" in dev.name)
 
 
-async def find(timeout=12.0):
+async def find(timeout=12.0, address=None):
     """Return the box the MOMENT it answers; blind scan only as a fallback.
 
     This used to be a flat `BleakScanner.discover(timeout=12)`, and a discovery
@@ -68,11 +68,21 @@ async def find(timeout=12.0):
     The slow path is kept only for the case the filter can miss — a BlueZ scan
     race or an odd adapter — and it is NOT run after a clean timeout, or a box
     that is asleep would cost double the wait.
+
+    `address` lets a caller pin one device (from the page's BLE picker); when
+    given, only that address matches. Additive — the default finds by name as
+    before.
     """
     from bleak import BleakScanner          # lazy: see the note at the top of this file
+    want = (address or "").upper() or None
+
+    def ok(d, a):
+        if want is not None:
+            return bool(d.address and d.address.upper() == want)
+        return _matches(d, a)
+
     try:
-        dev = await BleakScanner.find_device_by_filter(
-            lambda d, a: _matches(d, a), timeout=timeout)
+        dev = await BleakScanner.find_device_by_filter(ok, timeout=timeout)
         if dev is not None:
             return dev
         return None
@@ -80,7 +90,7 @@ async def find(timeout=12.0):
         pass
     res = await BleakScanner.discover(timeout=timeout, return_adv=True)
     for addr, (dev, adv) in res.items():
-        if _matches(dev, adv):
+        if ok(dev, adv):
             return dev
     return None
 

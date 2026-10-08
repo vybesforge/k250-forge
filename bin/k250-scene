@@ -38,14 +38,14 @@ if [ -z "${K250_DIR:-}" ] && [ -f "$HERE/k250_play.py" ]; then
 fi
 DIR="${K250_DIR:-$HERE}"          # where the modules, the ledger and the helper live
 
-# The limits file preference MUST match the engine's (k250_play.py find_limits): a
-# user-editable limits.local.json wins over the shipped limits.json, and this has to
+# The limits file preference MUST match the engine's (k250_play.py find_limits):
+# limits.json is THE file; a legacy limits.local.json is only a last resort. This has to
 # hold whether K250_DIR is set or not. When it only applied in the K250_DIR-empty
 # branch, a K250_DIR invocation made the WRAPPER enforce limits.json while the ENGINE
 # enforced limits.local.json -- two different ceilings on the same run. That's the
 # safety contract, so derive it from DIR (which is K250_DIR or HERE) in one place.
-DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.local.json}"
-[ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.json}"
+DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.json}"
+[ -f "$DEFAULT_LIMITS" ] || DEFAULT_LIMITS="${K250_LIMITS:-$DIR/limits.local.json}"
 
 # Bail out LOUDLY if the modules are not there. A silent fallback (`|| echo
 # "$HOME/k250-forge"` above) sends you to a directory that is not your clone and

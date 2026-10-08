@@ -6,7 +6,7 @@
       .\install.ps1
 
   Nothing here needs admin, and nothing here edits your PATH or the registry. Everything it
-  writes lives in this folder; the only file it adds is limits.local.json.
+  writes lives in this folder; it adds no files of its own.
 
   If PowerShell refuses to run it ("running scripts is disabled on this system"), bypass the
   policy for this one run:
@@ -130,12 +130,10 @@ Write-Host ""
 
 # 3. your own limits file
 Write-Host "[3/3] limits"
-$Local = Join-Path $Here 'limits.local.json'
-if (Test-Path -LiteralPath $Local) {
-    Write-Host "      limits.local.json already exists -- left alone"
+if (Test-Path -LiteralPath (Join-Path $Here 'limits.json')) {
+    Write-Host "      editing limits.json (the one limits file -- there is no separate local copy)"
 } else {
-    Copy-Item -LiteralPath (Join-Path $Here 'limits.json') -Destination $Local
-    Write-Host "      wrote limits.local.json (a copy of the conservative default)"
+    Write-Host "      limits.json is MISSING -- restore it from the repo before running anything."
 }
 Write-Host ""
 
@@ -156,7 +154,7 @@ Write-Host "  .\venv\Scripts\python k250_stop.py                 STOP NOW (kills
 Write-Host ""
 Write-Host "Wake the box before scanning: power on, tap the gear, then the remote-control icon."
 Write-Host "Turn Bluetooth on. Never run two patterns at once -- the box takes one BLE connection."
-Write-Host "Edit limits.local.json -- or regenerate it at limits-form.html -- before your first run."
+Write-Host "Edit limits.json -- or regenerate it at limits-form.html -- before your first run."
 Write-Host ""
 Write-Host "-- giving this to an AI agent --------------------------------------------"
 Write-Host "Point it at this folder (or the repo) and say:"

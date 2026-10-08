@@ -11,6 +11,59 @@ happened is part of the record.
 
 ---
 
+## v3.4.0 — 2026-10-07
+
+### Added — Manual / AI modes, and the page shows only one at a time
+
+- **A Mode switch** at the top of the page. **Manual** is you driving — `limits.json` is out of the
+  loop for these runs, and you are the limit. **AI** is the contract applying — the limits are
+  enforced, and a level above the ceiling is *refused* rather than silently overridden. Section 2
+  (AI limits) and section 3 (Manual drive) never show together, so the two cannot be mixed up.
+- **Click-to-play.** There is no Run button any more: clicking a pattern or a stim plays it immediately
+  at the chosen level, and it **loops until the Duration is up**. Clicking another stops the current
+  run and starts the new one. Stop stays one click. The hard-stops acknowledgement is still required,
+  and a level of 0 plays nothing.
+- **A BLE device picker.** A Devices card scans and lists only the e-stim devices it recognises, and
+  the picked device decides where a run goes — there is no manual K250/Coyote choice. It is
+  read-only: it finds, it does not connect; the run holds the radio.
+- **An imported stim catalogue.** A local stim library can be converted to the box's (frequency,
+  intensity) axes, or written to a Coyote V3 as its native 20-byte `B0` frames. Imported stims sit in
+  the same categories as the built-in patterns, de-duplicated, with readable names. **The library data
+  itself is not in this repository** — on a fresh clone the feature is simply empty, by design.
+- **Coyote V3 output is written but UNVERIFIED.** It has never been run against real hardware. Treat
+  it as untested until it has been.
+
+### Added — the page wears the brand
+
+- The page now uses the shared forge palette, the self-hosted faces (Inter / Space Grotesk / JetBrains
+  Mono), the monogram mark and the neon rule. The fonts and the mark are served by the bridge's
+  `/static` route out of `web/`.
+
+### Changed — one limits file, and it ships at 5 %
+
+- **`limits.local.json` is retired; `limits.json` is the one contract.** The engine, the wrapper and
+  the launcher all resolve the same file, and every page-driven run is launched with
+  `--limits <that path>` — so what the page shows and writes is exactly what clamps the run. A legacy
+  local file is honoured only when `limits.json` is missing. `install.sh` and `install.ps1` no longer
+  create one.
+- **The shipped defaults are deliberately low: 5 % for everyone.** The ceiling, the AI start figure and
+  channel 1 all sit at 5 % out of the box, so nothing starts high by accident. Raise them only on an
+  explicit, spoken request from the wearer.
+- **The Manual level now starts at the file's `default_percent`** instead of a hardcoded number, so the
+  page opens at the wearer's own starting figure rather than above it.
+
+### Fixed
+
+- **The page read a different limits file than the engine enforced.** The page read and wrote
+  `limits.json` while the engine preferred `limits.local.json`, so an Apply could edit a file that
+  nothing enforced. Both now resolve the same file.
+- **Limits backups were misnamed.** Every backup was written as `limits.json.bak-*` regardless of which
+  file was actually written. They are named after the real file now.
+- **A per-channel `null` displayed the wrong value.** The file stores `null` to mean "inherit the global
+  limit"; the page left the slider on its markup default instead of showing the value that applies.
+
+---
+
 ## v3.3.4 — 2026-09-18
 
 ### Added — the page is gated behind the acknowledgement, and channels 2-4 are off

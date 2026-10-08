@@ -113,11 +113,10 @@ echo
 
 # 3. your own limits file
 echo "[3/3] limits"
-if [ ! -f "$HERE/limits.local.json" ]; then
-  cp "$HERE/limits.json" "$HERE/limits.local.json"
-  echo "      wrote limits.local.json (a copy of the conservative default)"
+if [ ! -f "$HERE/limits.json" ]; then
+  echo "      limits.json is MISSING — restore it from the repo before running anything." >&2
 else
-  echo "      limits.local.json already exists — left alone"
+  echo "      editing limits.json (the one limits file — there is no separate local copy)"
 fi
 echo
 echo "Done."
@@ -127,7 +126,7 @@ echo "  k250-scene --list           all patterns"
 echo "  k250-scene --limits-show    your active ceilings"
 echo "  k250-stop                   STOP NOW (kills the pattern, zeroes every channel)"
 echo
-echo "Edit limits.local.json — or regenerate it at limits-form.html — before your first run."
+echo "Edit limits.json — or regenerate it at limits-form.html — before your first run."
 echo "Never run two k250-scene at once: the box accepts one BLE connection at a time."
 echo
 echo "── giving this to an AI agent ────────────────────────────────────────────"

@@ -10,7 +10,7 @@
     "note": "NOT a limit -- a reporting rule for whoever is driving. The pack idles in the 20-30% band during bench work, so a charge figure above this says nothing useful; mention it at or below this, or if the box drops off BLE and low charge is the plausible cause. It has gone flat mid-scene before; this is the threshold for caring, not a safety limit."
   },
   "power": {
-    "max_percent": 10,
+    "max_percent": 5,
     "default_percent": 5,
     "pleasure_band": [
       5,
@@ -19,11 +19,11 @@
     "note": "The level. Never above max_percent. Below the pleasure band is dull, above it reads as pain -- which can be wanted, but deliberately. Raise max_percent only on an explicit, spoken request from the wearer."
   },
   "frequency": {
-    "max": 2500,
-    "note": "Multi Adjust (MA). NOT a level and NOT a rate of change -- it is the CHARACTER: low = fast buzz, high = slow heavy thumps. It is a beat period, roughly MA/10000 seconds, so 2500 ~= several beats a second and 10000 ~= 1 beat/s. (The companion app calls this control 'speed' internally, which is misleading; the box labels it Multi Adjust.) Slow beats deliver less average energy, so patterns often raise power as frequency rises."
+    "max": 10000,
+    "note": "Multi Adjust (MA). The CHARACTER: 0 = fastest buzz, 10000 = one slow beat a second. Full range available -- power is the level, this is not."
   },
   "slew": {
-    "max_percent_per_second": 25,
+    "max_percent_per_second": 50,
     "note": "How fast the POWER dial is allowed to move. Low = smooth glides, high = snappy/chop, 0 = unlimited. This is not the same limit as the ceiling: a safe ceiling reached in one jump still hurts, so slew is limited separately. Power only -- frequency steps stay instant because several patterns depend on them."
   },
   "channels": {
@@ -57,7 +57,7 @@
     "per_channel_note": "Different channels sit on different skin, so one global ceiling is the wrong shape -- a cap that is right for one placement is wrong for another. Set any field here to override the global for that channel; null means use the global. Example: {\"1\":{\"power\":50,\"frequency\":2500,\"slew\":25},\"2\":{\"power\":20,\"frequency\":1200,\"slew\":10}}"
   },
   "session": {
-    "max_duration_s": 1800,
+    "max_duration_s": 4800,
     "max_duration_s_ceiling": 14400,
     "note": "max_duration_s is ENFORCED: k250-scene keeps a session ledger and refuses to start once the budget is used up (a new session begins after 15 quiet minutes). Default 30 min; the form allows up to 4 hours (14400 s). To deliberately start a fresh session anyway: k250-scene --reset-session. If the wearer can't report (asleep, gagged, alone, not typing), do NOT raise power -- hold the ceiling and prefer longer over harder."
   },
