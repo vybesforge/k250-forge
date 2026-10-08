@@ -65,7 +65,7 @@ cd k250-forge
 ./install.sh
 ```
 
-`install.sh` builds a venv, installs `bleak`, symlinks `k250-scene` / `k250-stop` / `k250-status`
+`install.sh` builds a venv, installs `bleak`, symlinks `k250-play` / `k250-scene` / `k250-stop` / `k250-status`
 into `~/.local/bin`. Your ceilings live in **`limits.json`** — edit it there (or at
 `limits-form.html`) before your first run.
 
@@ -395,6 +395,8 @@ What testing settled, in the order it turned out to matter:
 ## Tools
 
 ```
+k250-play <key> [--level N --secs N --limits FILE --address ADDR]
+k250-play --list                  # EVERY key in one list: engine patterns + imported stims
 k250-scene <pattern> [--base N --peak N --secs N --hardcap N --ma-top N --sweep-period N]
 k250-scene --list                 # all patterns (same as: python k250_play.py --list)
 k250-scene --limits-show          # the active ceiling
@@ -545,7 +547,7 @@ connect, drive, and stop the box without guessing:
 | Understand the device, and connect to it | **Finding the box** above, and `FINDINGS.md` — the full log, including the dead ends |
 | Talk to it correctly (frames, keys, the 0..10000 scale) | **The protocol** section, and `k250_codec.py` |
 | Know what it must never do | `limits.json` → `safety.hard_stops`, plus **Safety & limits** |
-| Drive it | `k250-scene <pattern> --base N --secs N`. On Windows, where the wrapper can't run, the engine clamps to the same ceiling itself |
+| Drive it | `k250-play <key> --level N` — any pattern **or** imported stim, by name or by the label the page shows. `k250-scene <pattern> --base N --secs N` works too. On Windows, where the wrapper can't run, the engine clamps to the same ceiling itself |
 | Stop it | `k250-stop` — the correct response to a stop word, and to "I feel nothing" |
 | See what's connected | `k250-status` |
 | See what patterns exist | `k250_play.py --list` — works on every platform, no box needed |

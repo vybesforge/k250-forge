@@ -313,6 +313,8 @@
       <input type="text" id="patQ" placeholder="filter patterns &amp; stims… (edge, pulse, pain)"
              style="flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px">
       <button type="button" class="ghost" id="patRnd" style="padding:8px 12px;font-size:13px">🎲 Random</button>
+      <button type="button" class="primary" id="driveStopTop" title="Stop now — zeroes every channel"
+              style="padding:8px 14px;font-size:13px">Stop</button>
       <span style="color:var(--mut);font-size:12px" id="groupHint">…</span>
     </div>
     <div id="driveGroups"></div>
@@ -770,11 +772,15 @@ async function playCurrent(){
   }
   driveMsg(r.message, r.ok);
 }
-$('driveStop').onclick = async () => {
+async function doStop(){
   driveMsg('stopping…');
   const r = await launcher('/stop', {});
   driveMsg(r.message, r.ok);
-};
+}
+// Two Stop buttons — the one beside Random at the top of the picker, and the
+// original under the grid. Identical handler, so neither can drift from the other.
+$('driveStop').onclick = doStop;
+if ($('driveStopTop')) $('driveStopTop').onclick = doStop;
 // poll status every 2s so the page reflects what's actually running
 setInterval(async () => {
   try {

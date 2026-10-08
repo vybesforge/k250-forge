@@ -48,6 +48,7 @@ used while building this repo, and it is deliberately short. The repo itself —
 |---|---|
 | check the box | `k250-status` — firmware, battery, **live channels**, pattern/speed per channel |
 | run a pattern | `k250-scene <pattern> --base N --secs N` · `k250-scene --list` for all of them |
+| run any key | `k250-play <key> --level N` — ONE entry point for patterns **and** imported stims; the key can be a pattern name, a `category/name` stim key, or the label the page shows ("Intro 6"). `k250-play --list` shows the whole catalogue. An ambiguous key is refused with the candidates, never guessed |
 | stop | `k250-stop` — zeroes every channel and kills any running pattern. Exit 1 = could not reach the box: treat as unsafe and get to it physically |
 | your ceilings | `k250-scene --limits-show` · `python k250_play.py --limits-show` on Windows |
 | no bash (Windows) | `venv\Scripts\python k250_play.py …` — the engine reads `limits.json` itself, so the ceiling still applies |

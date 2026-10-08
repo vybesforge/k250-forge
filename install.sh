@@ -54,7 +54,7 @@ echo
 BIN="${HOME}/.local/bin"
 mkdir -p "$BIN"
 echo "[2/3] linking tools into $BIN"
-for t in k250-scene k250-stop k250-status k250-launcher; do
+for t in k250-play k250-scene k250-stop k250-status k250-launcher; do
   ln -sf "$HERE/bin/$t" "$BIN/$t"
   echo "      $BIN/$t"
 done
@@ -122,12 +122,14 @@ echo
 echo "Done."
 echo
 echo "  k250-status                 see the box: battery, live channels, speed"
-echo "  k250-scene --list           all patterns"
+echo "  k250-play --list            EVERY key: engine patterns + imported stims"
+echo "  k250-play <key>             run any of them by name (pattern or stim)"
+echo "  k250-scene --list           engine patterns only"
 echo "  k250-scene --limits-show    your active ceilings"
 echo "  k250-stop                   STOP NOW (kills the pattern, zeroes every channel)"
 echo
 echo "Edit limits.json — or regenerate it at limits-form.html — before your first run."
-echo "Never run two k250-scene at once: the box accepts one BLE connection at a time."
+echo "Never run two of these at once: the box accepts one BLE connection at a time."
 echo
 echo "── giving this to an AI agent ────────────────────────────────────────────"
 echo "Point it at this folder (or the repo) and say:"

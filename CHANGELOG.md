@@ -11,6 +11,79 @@ happened is part of the record.
 
 ---
 
+## v3.5.0 — 2026-10-07
+
+### Added — one entry point for everything
+
+- **`k250-play <key>`** — a single tool for both kinds of thing. The key may be an engine
+  pattern name (`tide`, `crawl`), an imported stim key (`edge/edge_pulse_ease`), or the
+  label the page shows (`Intro 6`, `Sine swell · slow`). An **ambiguous key is refused
+  with the candidates** rather than silently guessed, and an unknown one says so.
+- **`k250-play --list`** — every key in one list, grouped, each marked `pattern` or `stim`.
+- It is a dispatcher, never a bypass: patterns hand off to `k250-scene` and stims to
+  `k250_stim_play.py`, so the ceiling, the frequency cap, the slew limiter, the session
+  accounting and the wearer-only override lock are the same ones those tools already
+  enforce.
+
+### Added — a Stop button beside Random
+
+- The picker is long, so the panic button should never be a scroll away. A second **Stop**
+  now sits next to **Random** at the top of the grid. Both run the identical handler, so
+  neither can drift from the other.
+
+### Added — the patterns the page was hiding
+
+- The catalogue carried 60 of the engine's 64 patterns. **`crawl` and `pain_edge` are now
+  offered.** `creep` is not: `crawl` is its own documented redo (its docstring calls it
+  "the honest redo of creep"), so the superseded original stays callable by name but is no
+  longer listed alongside its replacement.
+
+### Removed — the Calibration group
+
+- The Calibration panel is gone from the picker, with all four of its entries: `map`,
+  `flat`, and the two calibration stims. Calibration is a setup task, not a scene, and it
+  does not belong in the list you reach for mid-session.
+- `map` and `flat` are still engine patterns and still runnable by name (`k250-play flat`);
+  they are simply no longer offered on the page.
+
+### Changed — the engine's own patterns read as words
+
+- Engine patterns are displayed with spaces and a capital instead of their raw key —
+  *Light pulse*, *Teasing stutter*, *Sweep hold zero*. **The key is unchanged**
+  (`light_pulse`, `sweep_hold_zero`): that is still what you type, what the README
+  documents, and what `k250-play` matches first.
+
+### Changed — de-duplicated by what a stim plays, not by what it is called
+
+- A name that appeared twice was already dropped. Now any stim whose **playable timeline
+  is identical** to one already kept is dropped as well, so differently-named clones of a
+  single signal collapse into one entry. The imported side went from 103 keys to 95:
+  nothing reachable before is unreachable now — it simply is not offered twice.
+- Where two identical stims carried different names, the better name wins; that choice is
+  written down in `KEEP_NAMES` rather than left to dictionary order.
+
+### Changed — names that said nothing now say something
+
+- **`Volume …` → `… swell …`** (`volume` is the source's word for amplitude): *Sine
+  swell · fast / medium / slow*, *Squeeze swell · 2B …*, *Frustration sine swell*, *Max
+  amplitude calibration*.
+- **`Intro 1`–`7`** were seven identical labels differing only by a digit. They are a
+  descending-frequency staircase, so each now carries its own figure: *Intro 1 · 600 Hz*
+  … *Intro 7 · 150 Hz*.
+- **`Orgasmic (unsync) old` / `old2`** → *Orgasmic (unsynced) · 1500 Hz / 700 Hz / 500 Hz*.
+- **`T&D n` → `Tease & deny n`**; `(unsync)` and `(unsynced)` are now one spelling; the
+  `2 strong 1 light` set numbers 1–3 instead of 1, 2, 4.
+- These labels are **measured from each stim's own data** when the catalogue is built, so
+  they cannot drift out of step with the signal they describe.
+
+### Added — a test for the catalogue
+
+- `tests/test_stim_catalog.py` guards the lot: no two keys share a label, no two keys play
+  the identical signal, every offered key resolves to something runnable, the Intro
+  staircase is whole, and key resolution finds each kind of key — and refuses to guess.
+
+---
+
 ## v3.4.0 — 2026-10-07
 
 ### Added — Manual / AI modes, and the page shows only one at a time
