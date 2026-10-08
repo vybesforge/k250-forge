@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# k250-play — ONE entry point: run any pattern or imported stim by name.
+#
+# Usage:
+#   k250-play <key> [--level N] [--secs N] [--limits FILE] [--address ADDR]
+#   k250-play --list
+#
+# <key> may be:
+#   * an engine pattern name     tide, edge, crawl, sweep_hold_zero
+#   * an imported stim key       edge/edge_pulse_ease, EB-1-P/Intro6longPulseShortPause
+#   * the label the page shows   "Intro 6", "Sine swell · slow", "Tease & deny 3"
+#
+# An ambiguous key is refused with the candidates rather than guessing.
+#
+# SAFETY: this is a dispatcher, never a bypass. Engine patterns hand off to
+# k250-scene and stims to k250_stim_play.py, so the ceiling, the frequency cap,
+# the slew limiter, the session accounting and the wearer-only override lock are
+# exactly the ones those tools already enforce. --level is a flat level (base and
+# peak are set to the same value), and it is clamped to the ceiling like any other.
+#
+# One BLE connection at a time: never run two of these at once.
+set -euo pipefail
+
+# --- resolve our own location so a clone works from anywhere (bin/ -> repo root) ---
+SELF="${BASH_SOURCE[0]}"
+if readlink -f "$SELF" >/dev/null 2>&1; then
+  SELF="$(readlink -f "$SELF")"
+else
+  # readlink -f is GNU-only; macOS and Git Bash need the portable symlink walk
+  while [ -L "$SELF" ]; do
+    _t="$(readlink "$SELF")"
+    case "$_t" in /*) SELF="$_t" ;; *) SELF="$(dirname "$SELF")/$_t" ;; esac
+  done
+  SELF="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd -P)/$(basename "$SELF")"
+fi
+HERE="$(cd "$(dirname "$SELF")/.." 2>/dev/null && pwd || echo "$HOME/k250-forge")"
+DIR="${K250_DIR:-$HERE}"
+
+if [ -n "${K250_PY:-}" ]; then
+  PY="$K250_PY"
+elif [ -x "$DIR/venv/bin/python" ]; then
+  PY="$DIR/venv/bin/python"
+else
+  PY="$(command -v python3 || command -v python)"
+fi
+
+if [ ! -f "$DIR/stim_catalog.py" ]; then
+  echo "k250-play: no stim_catalog.py in $DIR" >&2
+  echo "  (set K250_DIR, or run it from inside the checkout)" >&2
+  exit 1
+fi
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  sed -n '2,22p' "$SELF" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+if [ "${1:-}" = "--list" ] || [ "$#" -eq 0 ]; then
+  if [ "$#" -eq 0 ]; then
+    echo "k250-play: no key given — showing the catalogue." >&2
+    echo >&2
+  fi
+  exec "$PY" "$DIR/stim_catalog.py"
+fi
+
+KEY="$1"; shift
+
+# --- resolve the key to (src, canonical key, label) ---
+if ! RESOLVED="$("$PY" -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+import stim_catalog as SC
+try:
+    src, key, label = SC.resolve(sys.argv[2])
+except LookupError as e:
+    print("ERR|" + str(e)); raise SystemExit(3)
+print("%s|%s|%s" % (src, key, label))
+' "$DIR" "$KEY")"; then
+  echo "k250-play: ${RESOLVED#ERR|}" >&2
+  exit 1
+fi
+
+SRC="${RESOLVED%%|*}"
+REST="${RESOLVED#*|}"
+CANON="${REST%%|*}"
+LABEL="${REST#*|}"
+
+# --- pull out our own flags: --level maps to each tool's shape ---
+LEVEL=""; ARGS=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --level) LEVEL="${2:-}"; shift 2 ;;
+    --level=*) LEVEL="${1#*=}"; shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+
+echo "k250-play: $LABEL  [$SRC $CANON]" >&2
+
+if [ "$SRC" = "engine" ]; then
+  if [ -n "$LEVEL" ]; then
+    # a flat level: base and peak the same, so there is no glide to argue about
+    exec "$DIR/bin/k250-scene" "$CANON" --base "$LEVEL" --peak "$LEVEL" ${ARGS[@]+"${ARGS[@]}"}
+  fi
+  exec "$DIR/bin/k250-scene" "$CANON" ${ARGS[@]+"${ARGS[@]}"}
+fi
+
+if [ -n "$LEVEL" ]; then
+  exec "$PY" "$DIR/k250_stim_play.py" --stim "$CANON" --level "$LEVEL" ${ARGS[@]+"${ARGS[@]}"}
+fi
+exec "$PY" "$DIR/k250_stim_play.py" --stim "$CANON" ${ARGS[@]+"${ARGS[@]}"}

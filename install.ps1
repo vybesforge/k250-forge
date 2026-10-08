@@ -122,7 +122,7 @@ Write-Host ""
 
 # 2. nothing to link
 #
-# install.sh symlinks k250-scene / k250-stop / k250-status onto your PATH. Those wrappers are
+# install.sh symlinks k250-play / k250-scene / k250-stop / k250-status onto your PATH. Those wrappers are
 # bash, so there is no Windows equivalent -- and none is needed: the engine and the stop tool
 # enforce limits.json themselves.
 Write-Host "[2/3] no PATH step -- call the engine directly; it enforces limits.json itself"
