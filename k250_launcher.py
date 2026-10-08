@@ -33,6 +33,10 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# One definition of where the controller's runtime files live, shared with k250_ctl.py.
+# k250_codec is pure stdlib, so this costs the bridge nothing at startup.
+from k250_codec import runtime_dir
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -129,6 +133,56 @@ def _load_limits():
             return json.load(f)
     except Exception:
         return {}
+
+
+_CTL_DIR = runtime_dir()
+CTL_FIFO = os.path.join(_CTL_DIR, "ctl.fifo")
+CTL_PID = os.path.join(_CTL_DIR, "ctl.pid")
+CTL_STATE = os.path.join(_CTL_DIR, "ctl.state")
+
+
+def _ctl_alive():
+    """True when a live controller holds the link.
+
+    It matters because a held link locks EVERYTHING else out: a spawned engine cannot
+    connect at all, so using the spawn path anyway would look like a silent no-op."""
+    try:
+        with open(CTL_PID) as f:
+            pid = int((f.read() or "0").strip())
+    except Exception:
+        return False
+    if pid <= 0:
+        return False
+    return os.path.exists(f"/proc/{pid}") if os.path.isdir("/proc") else True
+
+
+def _ctl_send(line):
+    """Hand one command to the controller. False = no live controller.
+
+    Opening the FIFO write-only and non-blocking raises ENXIO when nobody is reading,
+    which is the same question as liveness -- so this is the check as well as the send.
+    """
+    if not _ctl_alive():
+        return False
+    try:
+        fd = os.open(CTL_FIFO, os.O_WRONLY | os.O_NONBLOCK)
+    except OSError:
+        return False
+    try:
+        os.write(fd, (line + "\n").encode())
+    except Exception:
+        return False
+    finally:
+        os.close(fd)
+    return True
+
+
+def _ctl_state():
+    try:
+        with open(CTL_STATE) as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 
 def _power_ceiling():
@@ -452,6 +506,16 @@ def _run_pattern(pattern, level, secs, manual=False, address=None):
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
     eff = level
+    # A live controller holds the link: hand it the job. Spawning would cost the ~5.7s
+    # reconnect AND could not connect at all while the controller holds it.
+    spec = {"kind": "pattern", "key": pattern, "level": eff, "base": eff, "peak": eff,
+            "secs": secs, "limits": limits_path, "manual": manual,
+            "override_ceiling": manual}
+    if _ctl_send("run " + json.dumps(spec)):
+        msg = f"started {pattern} at {eff}% for {secs}s (held link)"
+        msg += (" — Manual: limits out of the loop" if manual
+                else f" (ceiling {ceiling}%)")
+        return True, msg
     cmd = [PY, PLAY, pattern, "--base", str(eff), "--peak", str(eff),
            "--secs", str(secs), "--limits", limits_path]
     if address:
@@ -599,6 +663,11 @@ def _run_stim(stim, target, level, secs, manual=False, address=None):
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
     if target == "k250":
+        spec = {"kind": "stim", "key": stim, "level": level, "secs": secs,
+                "limits": limits_path, "manual": manual, "override_ceiling": manual}
+        if _ctl_send("run " + json.dumps(spec)):
+            return True, (f"started {stim} -> {target} at {level}% for {secs}s "
+                          f"(held link)")
         cmd = [PY, STIM_PLAY, "--stim", stim, "--level", str(level),
                "--secs", str(secs), "--limits", limits_path]
         if address:
@@ -642,9 +711,19 @@ def _stop():
             lf.close()
         except Exception:
             pass
+    # A held link means the stop TOOL cannot connect either — only the controller can
+    # zero the box. Route through it, and do not claim a stop we did not achieve.
+    if _ctl_alive():
+        if _ctl_send("stop"):
+            return True, "stopped (via the held link)"
+        return False, ("the controller holds the link but would not take the stop "
+                       "command — treat the box as still energised")
     try:
-        subprocess.run([PY, STOP], cwd=HERE, timeout=30,
-                       capture_output=True, text=True)
+        r = subprocess.run([PY, STOP], cwd=HERE, timeout=30,
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            return False, ("the stop tool could NOT reach the box, so it may still be "
+                           "energised: " + (r.stderr or r.stdout or "").strip()[:200])
         return True, "stopped"
     except Exception as e:
         return False, f"stop tool failed: {e}"
@@ -722,6 +801,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/devices":
             self._send(200, _devices())
         elif self.path == "/status":
+            held = _ctl_alive()
+            ctl = _ctl_state() if held else None
             with _lock:
                 proc = _running["proc"]
                 running = proc is not None and proc.poll() is None
@@ -733,6 +814,10 @@ class Handler(BaseHTTPRequestHandler):
                        "zeroing": bool(_zero_thread is not None and _zero_thread.is_alive()),
                        "last_zero": dict(_last_zero),
                        "session": _session_state(),
+                       "held_link": held,
+                       "ctl": ({"running": ctl.get("running"),
+                                "key": ctl.get("key"),
+                                "box": ctl.get("box")} if ctl else None),
                        "elapsed_s": (round(time.time() - _running["started"], 1)
                                      if running and _running.get("started") else None),
                        "log_tail": _tail()}

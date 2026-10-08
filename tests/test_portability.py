@@ -255,6 +255,31 @@ def main():
         checks.append(("skill names the stop file", "limits.json" in sk, ""))
     else:
         checks.append(("agent-skill/SKILL.md present", False, "missing"))
+    # ---- the checkout must stay COPYABLE -------------------------------------
+    # Running the controller must never be able to break these suites. Its FIFO is a
+    # named pipe, and shutil.copytree refuses one outright -- which is exactly how it
+    # broke test_install.py and test_wrapper_cli.py the first time the controller ran.
+    import stat as _stat
+    import k250_codec
+    _rd = os.path.realpath(k250_codec.runtime_dir())
+    _root = os.path.realpath(ROOT)
+    checks.append(("controller runtime state lives outside the checkout",
+                   not (_rd == _root or _rd.startswith(_root + os.sep)), _rd))
+    _fifos = []
+    for _dp, _dn, _fn in os.walk(_root):
+        parts = _dp.split(os.sep)
+        if ".git" in parts or "venv" in parts or "__pycache__" in parts:
+            continue
+        for _f in _fn:
+            _p = os.path.join(_dp, _f)
+            try:
+                if _stat.S_ISFIFO(os.stat(_p, follow_symlinks=False).st_mode):
+                    _fifos.append(os.path.relpath(_p, _root))
+            except OSError:
+                pass
+    checks.append(("no named pipes in the checkout (a copy would fail)",
+                   not _fifos, "; ".join(_fifos) or "clean"))
+
 
     for label, ok, note in checks:
         print(f"  {'ok  ' if ok else 'FAIL'}  {label}" + (f"  — {note}" if note else ""))
