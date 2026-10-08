@@ -64,23 +64,28 @@ checks.append(("a bare 'v2.0' is recognised too",
                ma_box_max_for("v2.0") == 100.0, ma_box_max_for("v2.0")))
 checks.append(("v1.08 keeps the raw MA axis",
                ma_box_max_for("1.08--v1.08") is None, ma_box_max_for("1.08--v1.08")))
-checks.append(("an unreadable firmware keeps v1 behaviour (fails safe)",
-               ma_box_max_for("") is None and ma_box_max_for(None) is None,
+# An unreadable firmware must take the SMALL units, not v1's. The old check here
+# asserted v1's behaviour and called it "fails safe" -- but on v2 hardware v1's x100
+# units mean FULL POWER, which is the opposite of safe. The drivers refuse to drive
+# outright; these checks cover the helpers behind them.
+checks.append(("an unreadable firmware takes the SMALL MA apex, not the raw axis",
+               ma_box_max_for("") == 100.0 and ma_box_max_for(None) == 100.0,
                (ma_box_max_for(""), ma_box_max_for(None))))
 checks.append(("v2 PW is the percent itself",
                pw_scale_for("2.00.08b--v2.00.08b") == 1.0, pw_scale_for("2.00.08b--v2.00.08b")))
 checks.append(("v1 PW stays percent x100",
                pw_scale_for("1.08--v1.08") == 100.0, pw_scale_for("1.08--v1.08")))
-checks.append(("an unreadable firmware keeps percent x100",
-               pw_scale_for("") == 100.0, pw_scale_for("")))
+checks.append(("an unreadable firmware NEVER takes percent x100 (that is full power on v2)",
+               pw_scale_for("") == 1.0 and pw_scale_for(None) == 1.0,
+               (pw_scale_for(""), pw_scale_for(None))))
 
 checks.append(("v2 refuses the pattern write, so do not attempt it",
                pa_writable_for("2.00.08b--v2.00.08b") is False,
                pa_writable_for("2.00.08b--v2.00.08b")))
 checks.append(("v1 accepts the pattern write",
                pa_writable_for("1.08--v1.08") is True, pa_writable_for("1.08--v1.08")))
-checks.append(("an unreadable firmware keeps trying (v1 behaviour)",
-               pa_writable_for("") is True, pa_writable_for("")))
+checks.append(("an unreadable firmware does not claim a PA write it cannot verify",
+               pa_writable_for("") is False, pa_writable_for("")))
 
 # --- the MA mapping -----------------------------------------------------------
 v2 = asyncio.run(ma_writes("2.00.08b--v2.00.08b", 10000.0, [0, 2500, 5000, 10000]))

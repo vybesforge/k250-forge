@@ -25,7 +25,7 @@ sys.path.insert(0, HERE)
 import stim_translate as T
 from k250_play import (Player, K250, find, READ_ALL, find_limits, load_limits,
                        apply_limits, session_reserve, log, ma_box_max_for,
-                       pw_scale_for, pa_writable_for)
+                       pw_scale_for, pa_writable_for, FW_AXES, _major)
 
 
 def find_stim_or_die(name):
@@ -76,21 +76,29 @@ async def run(a):
         await kq.start()
         await asyncio.sleep(0.35)
         await kq.send(READ_ALL)
+        # Wait for FV, not merely for a reply. The box can send an early partial state,
+        # and {} satisfies "not None" -- which is how a run once started knowing nothing
+        # and took v1's power scale as its default (24% written as 2400: full power).
         t0 = time.time()
-        while kq.last is None and time.time() - t0 < 2.0:
+        while not (kq.last or {}).get("FV") and time.time() - t0 < 6.0:
             await asyncio.sleep(0.05)
         log(f"state before: {json.dumps(kq.last or {}, ensure_ascii=False)}")
 
         pl = Player(kq, a.hardcap)
         pl.ma_top = a.ma_top
         _fv = (kq.last or {}).get("FV")
+        if not _fv or _major(_fv) not in FW_AXES:
+            log(f"!! REFUSING TO DRIVE: firmware {_fv!r} is unknown, so the box's power")
+            log("!! units are unknown. Guessing v1 units on v2 hardware means FULL power.")
+            return 1
         pl.ma_out_max = ma_box_max_for(_fv)
         pl.pw_scale = pw_scale_for(_fv)
         pl.pa_writable = pa_writable_for(_fv)
-        if pl.ma_out_max or pl.pw_scale != 100.0:
-            log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
-                f"PW = percent x{pl.pw_scale:g}, "
-                f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
+        # ALWAYS log the axes: gating this on pw_scale != 100 made the dangerous case
+        # (scale unknown and defaulted) the only silent one.
+        log(f"axes    : firmware {_fv} — MA apex {pl.ma_out_max or 'raw'}, "
+            f"PW = percent x{pl.pw_scale:g}, "
+            f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)
         live = await pl.prepare_channels()
