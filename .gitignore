@@ -18,3 +18,5 @@ limits.json.new
 session.json
 stim_library/SOURCE.txt
 launcher-run.log
+ctl.pid
+ctl.state

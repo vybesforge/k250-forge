@@ -11,7 +11,41 @@ happened is part of the record.
 
 ---
 
-## v3.6.2 — 2026-10-07
+## v3.7.0 — 2026-10-07
+
+### Added — one persistent link, so a run starts in 0.06s instead of ~7s
+
+- A fresh BLE connection costs **~5.7 s** on this box (measured); every frame after it costs **~0.05 s**.
+  Spawning a process per click was paying the connect cost for every run — and the state reads that
+  looked like the culprit were 50 ms all along.
+- `k250_ctl.py` now HOLDS the link open and runs patterns and stims on it (`run {...}`, `stop`, plus the
+  raw-frame commands it already had). Measured: **FIFO write -> playing: 0.06 s.** The connect is paid
+  once, when the controller starts.
+- The bridge routes `/run`, `/run-stim` and `/stop` through the controller whenever one holds the link,
+  and falls back to the spawn path when none does — so nothing depends on it being up.
+- `/status` still works while the link is held: the controller publishes the box's state and what it is
+  running, because nothing else can connect to ask it.
+
+### Fixed — three that would have bitten later
+
+- **`stop` did not reliably stop.** Setting the engine's stop flag only *asks* a pattern to end, and not
+  every pattern checks it in every loop — a stop left the box running. Stop now flags, cancels the job,
+  and **zeroes directly from the controller**, so it never depends on the pattern's cooperation.
+- **A stopped run could still re-energise the box.** A power write already in flight could land *after*
+  the stop's zero. `Player.w()` now refuses to raise power once stopped (zero writes still pass), closing
+  that window at the source rather than racing it.
+- **`_stop()` reported success it had not achieved** — it ignored the stop tool's exit code, so a box it
+  could not reach still reported "stopped". It now reports the failure and says the box may be energised.
+
+### Changed — the controller's runtime files moved out of the checkout
+
+- `ctl.fifo` lived in the repo root, and **a named pipe in a source tree makes `shutil.copytree` fail** —
+  so merely *running* the controller broke the test suite. FIFO, pid and state now live in
+  `~/.cache/k250/` via `k250_codec.runtime_dir()`.
+- `test_portability.py` gained two checks: runtime state must sit outside the checkout, and there must be
+  no named pipes inside it. The pipe check was mutation-tested — it goes red on an injected FIFO.
+
+ — 2026-10-07
 
 ### Fixed — every click spent two BLE round trips on a write that cannot work
 

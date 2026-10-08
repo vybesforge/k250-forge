@@ -253,6 +253,13 @@ class Player:
         p = max(0.0, min(p, self.cap_for(ch, "power", self.hardcap)))
         p = self._slew_ch(ch, p)
 
+        # A STOPPED run must never raise power again. `stop` is set on a stop request
+        # and on abort; without this, a write already in flight can land AFTER the
+        # stop's zero and briefly re-energise the box. Zero writes still go through,
+        # so the shutdown path is unaffected.
+        if self.stop and p > 0:
+            return
+
         # Skip the write if the box already holds this exact value on this channel.
         # The box PERSISTS PW (verified on the box): it does not need re-sending, and
         # those redundant frames are what make its own LCD churn while driving.

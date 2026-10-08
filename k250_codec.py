@@ -2,6 +2,23 @@
 
 Reverse-engineered from the konnector.com web app (public JS).
 """
+import os
+
+
+def runtime_dir() -> str:
+    """Where the controller keeps its FIFO / pid / state — NOT the checkout.
+
+    A named pipe inside the source tree breaks anything that copies the tree:
+    `shutil.copytree` refuses a FIFO outright, so simply RUNNING the controller made
+    the test suite fail. Runtime state does not belong in a source tree anyway, and
+    this keeps the checkout clean and readable.
+    """
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"),
+                                                            ".cache")
+    d = os.path.join(base, "k250")
+    os.makedirs(d, exist_ok=True)
+    return d
+
 
 ADDR = "AA:BB:CC:11:22:33"          # placeholder: a random static LE address that
                                         # changes on power-cycle. Do not record or hardcode
