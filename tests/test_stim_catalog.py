@@ -79,6 +79,11 @@ ugly = sorted(it["label"] for it in items
               and ("_" in it["label"] or it["label"] != it["label"].capitalize()))
 checks.append(("engine patterns display as words, not raw keys", not ugly, ugly))
 
+# an override naming a stim the catalogue cannot build is a label nobody can reach
+built = {it["key"].split("/", 1)[-1] for it in items}
+unreachable = sorted(k for k in SC.LABEL_OVERRIDES if k not in built)
+checks.append(("every label override is reachable", not unreachable, unreachable))
+
 # --- 4. the Intro staircase is whole, and named by its own numbers ------------
 intro = sorted(int(it["label"].split()[1]) for it in items
                if it["label"].startswith("Intro ") and it["label"].endswith(" Hz"))

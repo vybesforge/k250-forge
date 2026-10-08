@@ -11,7 +11,20 @@ happened is part of the record.
 
 ---
 
-## v3.5.0 — 2026-10-07
+## v3.5.1 — 2026-10-07
+
+### Removed
+
+- Four entries in `LABEL_OVERRIDES` named stims the catalogue can no longer build, so
+  those labels were unreachable: `maxVolumeCalibration` and `lightPleasureCalibration`
+  (the Calibration group is gone), and `minIntensity` and `waterfall2BMediumLowFreq` (both
+  dropped by the duplicate-signal check, in favour of Continuous light and Milking feeling
+  respectively). The overrides went with the entries.
+- The rendered catalogue is unchanged: the built list was fingerprinted before and after
+  and came back identical (154 keys, same names, same order). Every remaining override is
+  reachable — there is now a check that fail-able labels do not sit in the file.
+
+ — 2026-10-07
 
 ### Added — one entry point for everything
 
