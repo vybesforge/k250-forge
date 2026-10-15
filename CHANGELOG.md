@@ -11,6 +11,21 @@ happened is part of the record.
 
 ---
 
+## v3.7.3 — 2026-10-14
+
+### Changed — the README states the firmware status honestly
+
+- The Status section claimed **"the whole repo is verified on `v1.08`; `v2.00.08b` is untested and
+  expected to need work."** That had been stale since the firmware-2 work landed — the bench box runs
+  `2.00.08b` and is driven by this repo exactly like `v1.08` (the engine maps both axes from the
+  firmware the box reports), and firmware-2 behaviour was verified by echo on the real box. The line
+  is corrected to say both shipped firmwares are supported and verified on real hardware.
+- The opening line now credits both fixtures (`v1.08`, and `v2.00.08b` after the bench box was
+  updated) that everything here was measured against.
+- Docs only: no engine, tool, test or limits-value change.
+
+---
+
 ## v3.7.2 — 2026-10-08
 
 ### Fixed (SAFETY) — an unreadable firmware drove the box at FULL power
