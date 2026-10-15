@@ -11,6 +11,31 @@ happened is part of the record.
 
 ---
 
+## v3.7.4 — 2026-10-14
+
+### Added — `tools/publish.py`, the release-ritual helper that builds and attaches the Windows ZIP
+
+Releases were shipping asset-less: the last portable ZIP attached to any release was
+**v3.3.3**, and everything after (v3.3.4, v3.7.2, v3.7.3) had none. The old helper
+(`bench/gh_publish.py`) was pruned with its folder, so the ritual silently lost its asset
+step. `tools/publish.py` is the replacement, kept **in the repo** so it cannot vanish again:
+
+- **`tools/publish.py`** (or `--tag v3.X.Y`) builds `k250-forge-windows-<tag>.zip` from
+  `git archive` **at the tag** (not a fresh clone of main, which could ship code newer than
+  the release it is attached to) plus the one-click launcher files when they exist there,
+  and attaches it to that tag's GitHub release (creating it if missing).
+- **Idempotent**: skips if the asset is already attached (`--force` rebuilds + re-uploads);
+  re-running after a manual publish never duplicates.
+- **Ships nothing stale**: a byte-for-byte check compares the installers and engine inside
+  the zip against the tag and refuses to publish on any mismatch.
+- Needs `GH_TOKEN`/`GITHUB_TOKEN` in the environment (a file, never in chat); the wrapper
+  `~/.hermes/scripts/k250-publish` loads it from `~/.hermes/.env`.
+
+No engine, behaviour, test or limits-value change — the running tools are identical to
+v3.7.3; this is the ritual plumbing that puts a download on every release again.
+
+---
+
 ## v3.7.3 — 2026-10-14
 
 ### Changed — the README states the firmware status honestly
