@@ -5,8 +5,8 @@ computer, and write your own patterns.
 
 It does two things the stock companion app doesn't: it talks to the box **directly over Bluetooth
 LE**, and it **generates patterns** — timed compositions of power and frequency — rather than only
-replaying the handful the box ships with. Everything here was measured against real hardware
-(firmware `v1.08--18c4987-250114-01hGMT`), one pattern at a time, with the box's own LCD as the
+replaying the handful the box ships with. Everything here was measured against real hardware (firmware `v1.08--18c4987-250114-01hGMT`, and
+`v2.00.08b` after the bench box was updated), one pattern at a time, with the box's own LCD as the
 witness.
 
 Built so a human **or an AI agent** can drive the hardware without being able to exceed limits the
@@ -614,8 +614,12 @@ pattern-change fix and its regression test.
 ## Status / honest gaps
 
 - `SB` / `CS` semantics unknown.
-- Firmware `v1.08`'s DFU container is encrypted; no plaintext recovered.
-- **The whole repo is verified on `v1.08`; `v2.00.08b` is untested and expected to need work.**
+- **Platform and firmware status (Oct 2026):** the repo is verified end-to-end on real hardware on
+  **Linux, macOS and Windows** (install, engine, limits contract, driving the box over BLE). Both
+  shipped firmwares are supported: the bench box runs **`v2.00.08b`** and is driven by this repo the
+  same as `v1.08` — the engine reads the firmware the box reports and maps both axes accordingly (see
+  the [Firmware](#firmware) section). Firmware `v1.08`'s DFU container is encrypted; no plaintext
+  recovered.
 - **Coyote V3 output (`coyote_play.py`) is written but has never been run against real hardware.**
   The frame format is derived from the device's own client and round-trips in our encoder, but that
   is not the same as hardware accepting it. Treat it as untested until someone has tried it.
