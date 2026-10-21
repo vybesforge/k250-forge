@@ -418,6 +418,8 @@ k250-launcher                     # the local bridge + the limits page (http://1
 
 ### The limits page and its bridge
 
+![The k250 limits page — set the contract, then drive from it](web/images/screenshot-limit-page.png)
+
 `limits-form.html` is the whole surface — you set the contract on it *and* drive from it — and
 `k250_launcher.py` is a tiny loopback-only server that both **serves** it and lets it **act**.
 Press **Apply** and it writes `limits.json` (merging, never replacing — your notes and
