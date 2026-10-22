@@ -11,6 +11,25 @@ happened is part of the record.
 
 ---
 
+## v3.7.5 — 2026-10-22
+
+### Changed — v2 firmware's recommended box pattern is `Stroke` (with `Intense` as the fallback); v1 stays `Manual`
+
+Docs- and log-message-only. No engine behaviour, limits value or test changed — but the
+"which pattern do I set on the box" guidance was pointing at the wrong slot for v2.
+
+- **README (Firmware section):** on `v2.00.08b` set the box to **`Stroke`** (the deliberate
+  hand-stroking built-in generator, the preferred option), with **`Intense`** as the second
+  choice; on `v1.08` keep **`Manual`** (the best option there, since nothing competes with a
+  manual). The note explaining *why* was reworked so it no longer implies leaving v2 off
+  `Manual` is a mistake — on v2 the box is on its own generator no matter what (the repo
+  cannot write the slot there), so the question is which generator to start from.
+- **`k250_play.py`** — the runtime log line on v2 now says the pattern is set on the box by
+  hand to `Stroke` (with `Intense` as fallback) instead of `Intense`. Comment/print only.
+- Adds the limits-page screenshot that has been in `web/images/` since October to the README.
+
+---
+
 ## v3.7.4 — 2026-10-14
 
 ### Added — `tools/publish.py`, the release-ritual helper that builds and attaches the Windows ZIP

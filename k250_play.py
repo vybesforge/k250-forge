@@ -196,7 +196,8 @@ class Player:
             # log line announcing a change that never happened. The pattern is the
             # wearer's to set on the box; we shape what it runs.
             print("   pattern   : this firmware refuses PA writes — the pattern is set on "
-                  "the box by hand (Intense on 2.x); shaping what it runs", flush=True)
+                  "the box by hand (Stroke on 2.x, Intense as fallback); shaping what it runs",
+                  flush=True)
             return self.channels
         pa = await self.read_state("PA")
         if not isinstance(pa, list):
