@@ -201,17 +201,20 @@ Wake it the same way if it's gone to sleep mid-session; the screen going off sto
 
 ### Firmware
 
-Both shipped firmwares are supported. **On either one, set the pattern on the box by hand before a
-session** — on `v2.00.08b` choose **`Intense`** (on that firmware it is the closest thing to the old
-`Manual` slot); on `v1.08` choose **`Manual`**.
+Both shipped firmwares are supported. **On either one, set the pattern on the box for the session** —
+on `v2.00.08b` choose **`Stroke`** (the preferred option on that firmware), with **`Intense`** as the
+second choice; on `v1.08` choose **`Manual`** (the best option there).
 
 - **The pattern is the one control this repo cannot set.** Power, frequency and channel selection all
-  drive over BLE on both firmwares. The pattern slot does not: `v1.08` accepted a pattern write, and
-  `v2.00.08b` refuses it outright — every name tried, including the one the box's own screen shows.
-- **Why it matters.** Left on one of the box's own generators (`Rhythm` or any other built-in), the
-  box runs its own waveform and the level you set is laid **on top of** it, rather than being the whole
-  signal — so the number on the page is not the number you feel. Put it on the manual slot and the
-  level you ask for is the level you get.
+  drive over BLE on both firmwares. The pattern slot does not: `v1.08` **does** accept a pattern write,
+  and `v2.00.08b` **refuses** it outright — every name tried, including the one the box's own screen
+  shows. So on `v2` the box stays on one of its own built-in generators no matter what you ask for, and
+  the choice is the wearer's by hand: **`Stroke`** drives the character this box does best, with
+  `Intense` as the fallback.
+- **Why it matters.** On `v2` the box runs its own generator and the level you set is laid **on top of**
+  that waveform, rather than being the whole signal — so the number on the page is not exactly the
+  number you feel. Picking `Stroke` gives you the most deliberate built-in waveform to start from. On
+  `v1`, `Manual` is the right slot precisely because nothing competes: what you write is what you get.
 - The two firmwares also put different scales on the wire: `v2.00.08b` rescaled both output axes
   (frequency to 0-100, power to a plain percentage). The engine reads the firmware the box reports and
   maps its axes accordingly, so both work without a flag; `v1.08` behaviour is unchanged.
