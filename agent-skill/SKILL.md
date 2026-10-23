@@ -76,6 +76,13 @@ is the only figure worth acting on.
   Bluetooth settings — a paired connection locks the tool out; let the tool scan.
 - **The box stops advertising when it sleeps.** A scan that finds nothing is usually that: wake it
   (press any knob ~1 s) and put it on Options → Remote App Control.
+- **The box also stops advertising while connected** — so after a mid-session drop it won't
+  re-advertise on its own. Recovery, cheapest first: (1) `bluetoothctl disconnect <addr>` to clear
+  the stale link on OUR side (a killed controller leaves BlueZ holding a phantom connection that
+  keeps the box silent — check `bluetoothctl devices Connected` before blaming the box); (2) if that
+  fails, power-cycle the box or toggle BLE mode off/on. A drop mid-session is **not reliably
+  recoverable by software** — treat it as "run over, use the physical kill switch," and use the
+  connect-time signal warning (≤ -80 dBm) to catch fragility before the drop.
 - **The LCD glitches while you drive it** — tab jumping, smearing. Cosmetic, and a useful sign that
   writes are landing. Not a bug to chase.
 - In Manual mode `PW` = Power Multiplier and `MA` = Link Delay (seconds), not frequency. `MA` is a
