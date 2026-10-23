@@ -47,7 +47,7 @@ used while building this repo, and it is deliberately short. The repo itself —
 | | |
 |---|---|
 | check the box | `k250-status` — firmware, battery, **live channels**, pattern/speed per channel |
-| **set the pattern FIRST** | **Ask the wearer to set it on the box by hand** — `Intense` on `v2.00.08b`, `Manual` on `v1.08`. You cannot do it: 2.x refuses every pattern write over BLE. Left on one of the box's own generators, the box's waveform runs and your level is laid on top of it instead of being the whole signal |
+| **set the pattern FIRST** | **Ask the wearer to set it on the box by hand** — `Stroke` on `v2.00.08b` (preferred, `Intense` as fallback), `Manual` on `v1.08`. You cannot do it: 2.x refuses every pattern write over BLE. Left on one of the box's own generators, the box's waveform runs and your level is laid on top of it instead of being the whole signal |
 | run a pattern | `k250-scene <pattern> --base N --secs N` · `k250-scene --list` for all of them |
 | run any key | `k250-play <key> --level N` — ONE entry point for patterns **and** imported stims; the key can be a pattern name, a `category/name` stim key, or the label the page shows ("Intro 6"). `k250-play --list` shows the whole catalogue. An ambiguous key is refused with the candidates, never guessed |
 | stop | `k250-stop` — zeroes every channel and kills any running pattern. Exit 1 = could not reach the box: treat as unsafe and get to it physically |
