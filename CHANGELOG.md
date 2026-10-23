@@ -11,6 +11,27 @@ happened is part of the record.
 
 ---
 
+## v3.8.2 — 2026-10-22
+
+### Changed — agent-skill: document how to recover a box that won't advertise after a drop
+
+Docs-only. The portable `agent-skill/SKILL.md` (the copy agents load from a clone) now
+carries the recovery procedure verified live on 2026-10-22:
+
+- The box **stops advertising while connected**, so after a mid-session drop it won't
+  re-advertise on its own.
+- Recovery order, cheapest first: (1) `bluetoothctl disconnect <addr>` to clear the stale
+  link on OUR side (a killed controller leaves BlueZ holding a phantom connection that
+  keeps the box silent — check `bluetoothctl devices Connected` before blaming the box);
+  (2) if that fails, power-cycle the box or toggle BLE mode off/on.
+- A drop mid-session is **not reliably recoverable by software** — treat it as "run over,
+  use the physical kill switch," and use the connect-time signal warning (≤ -80 dBm) to
+  catch fragility before the drop.
+
+No engine, behaviour, limits or test change — the running tools are identical to v3.8.1.
+
+---
+
 ## v3.8.1 — 2026-10-22
 
 ### Changed — drop the mid-session signal ladder; report battery + signal at connect
