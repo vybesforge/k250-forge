@@ -67,18 +67,7 @@ RECONNECT_BACKOFF_CAP = 10.0
 # Signal floor (dBm): weaker than this at CONNECT time and the controller flags it.
 # BLE is clean up to roughly -75 dBm; past ~-85 writes start dropping and a real drop
 # is imminent. The box sits around -50 up close, so a weak connect is a loud warning.
-WEAK_SIGNAL_DBM = -75
-
-# Mid-session signal ladder (C2). The box keeps advertising while connected, so a
-# sidecar sampler (k250_signal.py) reads its RSSI passively and writes signal.state;
-# the controller applies this ladder each serve-loop tick.
-#   warn    -- at/below this: log + surface it, keep playing (fragile but working).
-#   cutoff  -- at/below this: CANCEL the run and zero the box WHILE the link is still
-#              alive. A drop past ~-85 means we cannot zero on exit (no dead-man
-#              timer), so cutting at -82 catches it coming, not after.
-SIGNAL_WARN_DBM = -77
-SIGNAL_CUTOFF_DBM = -82
-SIGNALFILE = os.path.join(RUNTIME, "signal.state")
+WEAK_SIGNAL_DBM = -80
 
 # what is going on right now, so `stop` can reach it
 RUN = {"task": None, "pl": None, "key": None}
@@ -233,11 +222,11 @@ def _flag_signal(where, present, rssi):
     """Flag a weak connection to the operator at CONNECT time (initial or reconnect).
 
     RSSI is only meaningful when the box is present; a '?' (unknown) is logged but
-    not flagged, and a present-but-unknown signal is not treated as weak. Weaker than
-    WEAK_SIGNAL_DBM is a loud warning: writes may start dropping even while the link
-    still echoes, and a real drop is imminent at that strength. This is the early
-    tell the box's own state cannot give (BC/battery rides in the box's JSON and
-    says nothing about the RF link).
+    not flagged, and a present-but-unknown signal is not treated as weak. At or worse
+    than WEAK_SIGNAL_DBM (-80) we alert that the connection may be flaky. That's
+    the practical limit: the box stops advertising while connected, so a mid-session
+    drop cannot be reliably re-found -- an early weak-signal alert is the honest,
+    useful tell, not a promise of reconnect.
     """
     if not present:
         return
@@ -246,22 +235,9 @@ def _flag_signal(where, present, rssi):
         return
     if rssi <= WEAK_SIGNAL_DBM:
         log(f"!! !! WEAK SIGNAL -- {where} at {rssi} dBm (floor {WEAK_SIGNAL_DBM}). "
-            f"Connection is in range but fragile; a drop is imminent.")
+            f"Connection may be flaky; if it drops it may not be re-findable.")
     else:
         log(f"   signal (connect/{where}): {rssi} dBm -- good")
-
-
-def signal_ladder(rssi):
-    """Classify a mid-session RSSI: 'cutoff' (zero the box now), 'warn' (fragile,
-    keep playing), or 'ok'. Pure so it is unit-testable. None (unknown) -> 'ok'
-    (never cut on a missing reading -- the sampler may just be mid-scan)."""
-    if rssi is None:
-        return "ok"
-    if rssi <= SIGNAL_CUTOFF_DBM:
-        return "cutoff"
-    if rssi <= SIGNAL_WARN_DBM:
-        return "warn"
-    return "ok"
 
 
 async def probe_box_via_subprocess() -> bool:
@@ -289,14 +265,20 @@ async def probe_box_via_subprocess() -> bool:
         f"""\
         import asyncio, sys
         sys.path.insert(0, {HERE!r})
-        from k250_ble import find
         async def _m():
-            d = await find(timeout=8)
-            if d is None:
+            from bleak import BleakScanner
+            devs = await BleakScanner.discover(timeout=8, return_adv=True)
+            hit = None
+            rssi = None
+            for _addr, (dv, adv) in devs.items():
+                if dv.name and "Kx250" in dv.name:
+                    hit = dv
+                    rssi = getattr(adv, "rssi", None)
+                    break
+            if hit is None:
                 print("NOBOX")
             else:
-                rssi = getattr(d, "rssi", None)
-                print("BOX", rssi if rssi is not None else "?")
+                print("BOX", hit.address, rssi if rssi is not None else "?")
         asyncio.run(_m())
         """
     )
@@ -306,17 +288,23 @@ async def probe_box_via_subprocess() -> bool:
         out = r.stdout.decode(errors="replace").strip()
         if "BOX" in out:
             parts = out.split()
+            addr = parts[1] if len(parts) > 1 else None
+            # A present-but-addressless probe is NOT a usable box -- connecting to
+            # None crashes BleakClient. Treat it as not-present so the loop re-probes.
+            if not addr:
+                return False, None, None
             try:
-                return True, int(parts[1])
+                rssi = int(parts[2])
             except (IndexError, ValueError):
-                return True, None
-        return False, None
+                rssi = None
+            return True, rssi, addr
+        return False, None, None
     except Exception as e:
         log("   (probe subprocess failed:", type(e).__name__, e, ")")
-        return False, None
+        return False, None, None
 
 
-async def hold_link(queue, quit_now):
+async def hold_link(addr, queue, quit_now):
     """Connect once, serve the FIFO until `quit` or the link dies.
 
     Returns the reason:
@@ -328,7 +316,7 @@ async def hold_link(queue, quit_now):
     a drop mid-run leaves the box energised (no dead-man timer), so the caller
     reconnects and zeroes rather than silently walking away.
     """
-    async with BleakClient(ADDR, timeout=30) as cl:
+    async with BleakClient(addr, timeout=30) as cl:
         k = K250(cl)
         await k.start()
         log("notifications on; link HELD OPEN")
@@ -339,6 +327,9 @@ async def hold_link(queue, quit_now):
         if k.last:
             _write_state(k.last)
         log("firmware:", FW["fv"])
+        _bc = (k.last or {}).get("BC")
+        if _bc is not None:
+            log(f"battery: {_bc}%")
 
         last_ping = time.time()
         while not quit_now.is_set():
@@ -432,38 +423,6 @@ async def hold_link(queue, quit_now):
                     log("!! keepalive failed:", type(e).__name__, e)
                     return "lost"
                 last_ping = time.time()
-
-            # ---- mid-session signal ladder (C2) ----
-            # Read the sidecar sampler's RSSI and apply warn/cutoff. The cutoff is the
-            # safety win: it cancels the run and zeroes the box WHILE the link is still
-            # alive, because past ~-85 dBm a drop means we cannot zero on exit (no
-            # dead-man timer). Catch it coming, not after.
-            try:
-                with open(SIGNALFILE) as _sf:
-                    _sig = json.load(_sf)
-                _rssi = _sig.get("rssi")
-                _ladder = signal_ladder(_rssi)
-                if _ladder == "cutoff":
-                    log(f"!! !! SIGNAL CUTOFF -- {_rssi} dBm (floor {SIGNAL_CUTOFF_DBM}). "
-                        "Cancelling the run and zeroing while the link is still alive.")
-                    _task = RUN["task"]
-                    if RUN["pl"] is not None:
-                        RUN["pl"].stop = True
-                    if _task is not None and not _task.done():
-                        _task.cancel()
-                    try:
-                        await k.send({"PW": "0"})
-                        log("   PW=0 (signal cutoff)")
-                    except Exception as _e:
-                        log("   could not zero on signal cutoff:", type(_e).__name__, _e)
-                elif _ladder == "warn":
-                    log(f"!! weak signal -- {_rssi} dBm (warn floor {SIGNAL_WARN_DBM}); "
-                        "still playing but fragile")
-            except FileNotFoundError:
-                pass
-            except Exception as _e:
-                log("   (signal read failed:", type(_e).__name__, _e, ")")
-
         if RUN["pl"] is not None:
             RUN["pl"].stop = True
             await asyncio.sleep(0.2)
@@ -508,24 +467,12 @@ async def main():
 
     loop.add_reader(fd, on_fifo)
 
-    # Spawn the signal sampler (sidecar process) so we can watch RSSI mid-session.
-    # It only scans passively -- never connects -- so it cannot wedge the held link.
-    sampler = None
-    try:
-        import subprocess
-        sampler = subprocess.Popen(
-            [sys.executable, os.path.join(HERE, "k250_signal.py")],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        log("signal sampler started (pid", sampler.pid, ")")
-    except Exception as e:
-        log("   (could not start signal sampler:", type(e).__name__, e, ")")
-
     try:
         # The controller is a held-link server: it must not die just because the box
         # was off the air when it launched (asleep / left the remote-control screen /
         # cable out). Startup discovery shares the same patient re-probe loop as a
         # mid-session drop -- find until it has a box or the operator sends `quit`.
-        box_present, rssi = await probe_box_via_subprocess()
+        box_present, rssi, box_addr = await probe_box_via_subprocess()
         _flag_signal("connect", box_present, rssi)
         backoff = RECONNECT_BACKOFF
         while not quit_now.is_set():
@@ -539,7 +486,7 @@ async def main():
                 # continuously (no long sleep up front) -- a box that re-advertises is
                 # grabbed the moment it does. Only grow the backoff between failed
                 # probes, so a box that has genuinely been gone a while stops hammering.
-                box_present, rssi = await probe_box_via_subprocess()
+                box_present, rssi, box_addr = await probe_box_via_subprocess()
                 if not box_present:
                     try:
                         import subprocess
@@ -556,7 +503,7 @@ async def main():
                     _flag_signal("reconnect", True, rssi)
 
             try:
-                reason = await hold_link(queue, quit_now)
+                reason = await hold_link(box_addr, queue, quit_now)
             except Exception as e:
                 # An unexpected exception in the serve loop must NEVER silently kill the
                 # controller -- a dead controller leaves the box energised (no dead-man
@@ -588,12 +535,6 @@ async def main():
             os.unlink(PIDFILE)
         except OSError:
             pass
-        if sampler is not None:
-            try:
-                sampler.terminate()
-                log("signal sampler stopped")
-            except Exception as e:
-                log("   (could not stop signal sampler:", type(e).__name__, e, ")")
     log("link closed")
     return 0
 

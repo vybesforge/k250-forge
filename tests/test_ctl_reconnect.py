@@ -28,10 +28,10 @@ def _setup(reason_fn, box_present=lambda n: True):
         calls["probe"] += 1
         if box_present(calls["probe"]):
             calls["present"] += 1
-            return True, -50          # strong signal so the flag path stays quiet
-        return False, None
+            return True, -50, "EB:29:F1:14:42:6B"   # strong signal, real addr
+        return False, None, None
 
-    async def fake_hold_link(queue, quit_now):
+    async def fake_hold_link(addr, queue, quit_now):
         calls["hold"] += 1
         if quit_now.is_set():
             return "quit"
@@ -128,6 +128,18 @@ def test_clean_quit_exits_without_reconnect():
     print("PASS  clean quit exits with no reconnect")
 
 
+def _flag_for_rssi(rssi):
+    """Capture what _flag_signal logs for a given signal strength (present box)."""
+    out = []
+    orig = C.log
+    C.log = lambda *a: out.append(" ".join(str(x) for x in a))
+    try:
+        C._flag_signal("connect", True, rssi)
+    finally:
+        C.log = orig
+    return "\n".join(out)
+
+
 def test_weak_signal_is_flagged_at_connect():
     """A connect-time RSSI below the floor (WEAK_SIGNAL_DBM) must produce a WEAK SIGNAL
     log line -- the early RF tell the box's own JSON cannot give."""
@@ -135,11 +147,11 @@ def test_weak_signal_is_flagged_at_connect():
     orig_log = C.log
     C.log = lambda *a: captured.append(" ".join(str(x) for x in a))
     try:
-        # reuse the harness but hand it a probe stub that returns a WEAK RSSI
         async def weak_probe():
-            return True, -90          # below WEAK_SIGNAL_DBM (-75) -> must flag
+            return True, -90, "EB:29:F1:14:42:6B"   # below WEAK_SIGNAL_DBM (-80) -> must flag
+        # also assert the exact boundary flags (-80) via a direct call
+        assert "WEAK SIGNAL" in _flag_for_rssi(-80), "exact -80 must flag as weak"
         ctx, td, orig, calls = _setup(lambda _n: "quit", box_present=lambda n: True)
-        # override the harness's probe with the weak-RSSI one
         C.probe_box_via_subprocess = weak_probe
         try:
             asyncio.run(C.main())
@@ -161,7 +173,7 @@ def test_strong_signal_is_not_flagged():
     C.log = lambda *a: captured.append(" ".join(str(x) for x in a))
     try:
         async def strong_probe():
-            return True, -45
+            return True, -45, "EB:29:F1:14:42:6B"
         ctx, td, orig, calls = _setup(lambda _n: "quit", box_present=lambda n: True)
         C.probe_box_via_subprocess = strong_probe
         try:
@@ -176,18 +188,6 @@ def test_strong_signal_is_not_flagged():
     print("PASS  strong connect is not flagged")
 
 
-def test_signal_ladder_classification():
-    """The mid-session ladder (C2): warn at/below SIGNAL_WARN_DBM, cutoff at/below
-    SIGNAL_CUTOFF_DBM, ok above, and never cut on an unknown (None) reading."""
-    assert C.signal_ladder(-45) == "ok", "strong signal should be ok"
-    assert C.signal_ladder(-77) == "warn", "at warn floor should warn"
-    assert C.signal_ladder(-80) == "warn", "between floors should warn"
-    assert C.signal_ladder(-82) == "cutoff", "at cutoff floor should cut"
-    assert C.signal_ladder(-90) == "cutoff", "below cutoff should cut"
-    assert C.signal_ladder(None) == "ok", "unknown reading must never cut"
-    print("PASS  signal ladder: ok/-45, warn/-77..-80, cutoff/-82..-90, None->ok")
-
-
 if __name__ == "__main__":
     test_reconnect_after_drop_retried_repeatedly()
     test_probe_waits_for_box_before_attempting_connection()
@@ -195,5 +195,4 @@ if __name__ == "__main__":
     test_clean_quit_exits_without_reconnect()
     test_weak_signal_is_flagged_at_connect()
     test_strong_signal_is_not_flagged()
-    test_signal_ladder_classification()
     print("CTL RECONNECT: PASS")

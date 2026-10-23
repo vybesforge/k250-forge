@@ -11,6 +11,32 @@ happened is part of the record.
 
 ---
 
+## v3.8.1 — 2026-10-22
+
+### Changed — drop the mid-session signal ladder; report battery + signal at connect
+
+Live testing (2026-10-22) proved the box **stops advertising while connected**, so a
+mid-session drop cannot be reliably re-found — the reconnect loop structurally can't
+see a silent box. Rather than promise a reconnect that can't work, this release is
+honest about it:
+
+- **Removed the mid-session RSSI sampler and the warn/cutoff ladder** (`k250_signal.py`
+  deleted). The box doesn't advertise while connected, so there's no live signal to
+  act on mid-session.
+- **Connect-time reporting instead:** on initial connection the controller logs the
+  box's **battery** (`battery: N%`) and **signal strength** (`signal: N dBm -- good`,
+  or a loud `WEAK SIGNAL` warning at ≤ -80 dBm: "Connection may be flaky; if it drops
+  it may not be re-findable"). That's the honest, useful tell — it warns *before* a
+  drop instead of pretending to recover after one.
+- **Probe reads RSSI from `AdvertisementData`** (`discover(return_adv=True)`), not the
+  `BLEDevice` — the device object's `.rssi` is often None on this box, the
+  advertisement's is always populated.
+- **Reconnect kept but scoped honestly:** the subprocess probe + 10s backoff + serve-loop
+  guard remain (they help when the box re-advertises), but the message no longer implies
+  a drop is recoverable. A drop mid-session means "use the physical kill switch."
+
+---
+
 ## v3.8.0 — 2026-10-22
 
 ### Added — held-link reconnect, weak-signal flag + mid-session signal ladder, and a patient firmware read
