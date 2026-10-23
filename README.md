@@ -13,6 +13,8 @@ Built so a human **or an AI agent** can drive the hardware without being able to
 wearer agreed to. [Install](#install) is next; the full safety contract is under
 [Safety & limits](#safety--limits), and the reverse-engineering detail after that.
 
+Part of the **vybesforge** forge — [vybesforge.com](https://vybesforge.com).
+
 ---
 
 ## ⚠️ At your own risk — read this first
@@ -645,7 +647,8 @@ that matters is in the code (`limits.json` is enforced, not requested) and in th
 
 If this saved you a fortnight of reverse-engineering — the protocol, the pattern vocabulary, the fact
 that "I feel nothing" means *less* power — there's a tip cup at
-**[ko-fi.com/vybesforge](https://ko-fi.com/vybesforge)**. Nothing here is paywalled, nothing will be,
+**[ko-fi.com/vybesforge](https://ko-fi.com/vybesforge)**, and the rest of the forge lives at
+**[vybesforge.com](https://vybesforge.com)**. Nothing here is paywalled, nothing will be,
 and the ceiling clamping works identically whether or not anyone ever tips.
 
 ## Versions
