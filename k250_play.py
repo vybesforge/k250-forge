@@ -1723,7 +1723,22 @@ async def main():
         # that is how a run once started knowing nothing, took v1's power scale as the
         # default, and wrote 24% to the box as 2400 -- i.e. full power. Wait for FV.
         t0 = time.time()
-        while not (k.last or {}).get("FV") and time.time() - t0 < 6.0:
+        # Wait for the box's ANSWER rather than guessing at a fixed sleep -- and wait
+        # for the FIELD we actually need. The box can send an early partial reply, and
+        # "k.last is not None" is satisfied by {} exactly as well as by a real state:
+        # that is how a run once started knowing nothing, took v1's power scale as the
+        # default, and wrote 24% to the box as 2400 -- i.e. full power. Wait for FV.
+        # Be PATIENT and re-ask: on a fresh connect the box can be slow to echo FV, and
+        # a too-short single-shot timeout refused to drive a perfectly good box (a user
+        # on 2.009 read that as "the bot won't work with my firmware" -- it was a read
+        # timeout, not a version problem). Any 2.x is supported; only an unknown MAJOR
+        # is refused, and that is a safety refusal, not a version gate.
+        while not (k.last or {}).get("FV") and time.time() - t0 < 12.0:
+            if time.time() - t0 > 3.0 and int((time.time() - t0) / 3.0) != int((time.time() - 0.05 - t0) / 3.0):
+                try:
+                    await k.send(READ_ALL)      # re-ask every ~3s, don't just wait
+                except Exception:
+                    pass
             await asyncio.sleep(0.05)
         log(f"state before: {json.dumps(k.last or {}, ensure_ascii=False)}")
 
@@ -1731,9 +1746,10 @@ async def main():
         pl.ma_top = a.ma_top
         _fv = (k.last or {}).get("FV")
         if not _fv:
-            log("!! REFUSING TO DRIVE: the box never reported its firmware, so its power")
-            log("!! units are unknown. Guessing v1 units on v2 hardware means FULL power,")
-            log("!! so this run stops here. Wake the box onto the remote-control screen.")
+            log("!! REFUSING TO DRIVE: the box never reported its firmware within 12s, so its")
+            log("!! power units are unknown. This is a READ TIMEOUT, not a version problem --")
+            log("!! any 2.x is supported. Wake the box onto the remote-control screen and retry.")
+            return 1
             return 1
         if _major(_fv) not in FW_AXES:
             log(f"!! REFUSING TO DRIVE: firmware {_fv} is not in the known table, so its")

@@ -80,16 +80,33 @@ async def run(a):
         # and {} satisfies "not None" -- which is how a run once started knowing nothing
         # and took v1's power scale as its default (24% written as 2400: full power).
         t0 = time.time()
-        while not (kq.last or {}).get("FV") and time.time() - t0 < 6.0:
+        # Wait for FV, not merely for a reply. The box can send an early partial state,
+        # and {} satisfies "not None" -- which is how a run once started knowing nothing
+        # and took v1's power scale as its default (24% written as 2400: full power).
+        # Be PATIENT and re-ask: a fresh connect can be slow to echo FV, and a too-short
+        # single-shot timeout refused a perfectly good box (a user on 2.009 read that as
+        # "the bot won't work with my firmware" -- it was a read timeout, not a version
+        # problem). Any 2.x is supported; only an unknown MAJOR is refused.
+        while not (kq.last or {}).get("FV") and time.time() - t0 < 12.0:
+            if time.time() - t0 > 3.0 and int((time.time() - t0) / 3.0) != int((time.time() - 0.05 - t0) / 3.0):
+                try:
+                    await kq.send(READ_ALL)      # re-ask every ~3s, don't just wait
+                except Exception:
+                    pass
             await asyncio.sleep(0.05)
         log(f"state before: {json.dumps(kq.last or {}, ensure_ascii=False)}")
 
         pl = Player(kq, a.hardcap)
         pl.ma_top = a.ma_top
         _fv = (kq.last or {}).get("FV")
-        if not _fv or _major(_fv) not in FW_AXES:
-            log(f"!! REFUSING TO DRIVE: firmware {_fv!r} is unknown, so the box's power")
-            log("!! units are unknown. Guessing v1 units on v2 hardware means FULL power.")
+        if not _fv:
+            log("!! REFUSING TO DRIVE: the box never reported its firmware within 12s, so its")
+            log("!! power units are unknown. This is a READ TIMEOUT, not a version problem --")
+            log("!! any 2.x is supported. Wake the box onto the remote-control screen and retry.")
+            return 1
+        if _major(_fv) not in FW_AXES:
+            log(f"!! REFUSING TO DRIVE: firmware {_fv!r} is not in the known table, so its")
+            log("!! power units are unknown. Measure it and add it to FW_AXES first.")
             return 1
         pl.ma_out_max = ma_box_max_for(_fv)
         pl.pw_scale = pw_scale_for(_fv)

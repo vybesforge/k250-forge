@@ -11,6 +11,43 @@ happened is part of the record.
 
 ---
 
+## v3.8.0 — 2026-10-22
+
+### Added — held-link reconnect, weak-signal flag + mid-session signal ladder, and a patient firmware read
+
+The big one: the held-link controller (`k250_ctl.py`) no longer dies when the box drops
+mid-session, and it now watches the RF link, not just the box's own state.
+
+- **Reconnect that actually reconnects.** A dropped link is re-probed from a **fresh
+  subprocess** (the controller's own long-lived in-process `find()` was seen to miss an
+  advertising box after a hard drop — live regression, 2026-10-22), with a backoff that
+  grows to a 10s cap so a returning box is grabbed fast and a truly-gone one isn't
+  hammered. The controller only exits on `quit`. A serve-loop error now zeroes the box
+  via a fresh `k250-stop` instead of dying and leaving it energised.
+- **Weak-signal flag at connect.** The probe reports the box's RSSI; a connect at or
+  below -75 dBm logs a loud `WEAK SIGNAL` warning — the early RF tell the box's own
+  JSON (battery/pattern) cannot give.
+- **Mid-session signal ladder (C2).** A sidecar sampler (`k250_signal.py`) passively
+  scans the box's RSSI every ~2s (it never connects, so it can't wedge the held link)
+  and writes `signal.state`. The controller applies a ladder each tick: **warn at -77
+  dBm** (keep playing, fragile), **cutoff at -82 dBm** (cancel the run and zero the box
+  *while the link is still alive* — past ~-85 a drop means we can't zero on exit, so
+  this catches it coming, not after). An unknown reading never cuts.
+- **Patient firmware read.** The FV wait is now 12s and re-asks the box every ~3s
+  instead of one silent 6s wait. A too-short single-shot timeout refused a perfectly
+  good box, and a user on 2.009 read that as "the bot won't work with my firmware" —
+  it was a read timeout, not a version problem. Any 2.x is supported; only an unknown
+  *major* is refused, and that is a safety refusal, not a version gate. Same fix in
+  `k250_stim_play.py`.
+- **Bug fixes found while wiring it up:** the reconnect probe and sampler were matching
+  the box by the codec's placeholder address (which never matches a real device) — both
+  now match by name (`Kx250`), the durable identity (the box's address changes on
+  power-cycle). `k250_stim_play.py` and `k250_signal.py` added to the sync whitelist so
+  they ship with future syncs. `agent-skill/SKILL.md` updated to match the v2 pattern
+  guidance (Stroke preferred, Intense fallback).
+
+---
+
 ## v3.7.5 — 2026-10-22
 
 ### Changed — v2 firmware's recommended box pattern is `Stroke` (with `Intense` as the fallback); v1 stays `Manual`
