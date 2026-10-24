@@ -118,6 +118,12 @@ async def run(a):
             f"PA {'writable' if pl.pa_writable else 'refused by the box'}")
         pl.max_rate = a.max_rate
         pl.override_power = bool(a.override_ceiling)
+        if a.channel_caps:
+            try:
+                pl.channel_caps = json.loads(a.channel_caps)
+                log(f"per-channel caps: {pl.channel_caps}")
+            except Exception as e:
+                log(f"ignoring bad --channel-caps ({e})")
         live = await pl.prepare_channels()
         log(f"live channels: {[c + 1 for c in live]}")
         pl.deadline = time.time() + a.secs
@@ -142,6 +148,12 @@ async def run(a):
                     dt = t - (time.time() - cyc)
                     if dt > 0:
                         await asyncio.sleep(dt)
+                    # A stop that landed during the gap must not wait for the next
+                    # event: check again right before the write, or a stop lands up
+                    # to one event gap late (the box holds power with no dead-man
+                    # timer, so a late stop is a real safety gap).
+                    if pl.stop or pl.expired():
+                        break
                     await pl.ma(ma)
                     await pl.w(pw)
         finally:

@@ -11,6 +11,30 @@ happened is part of the record.
 
 ---
 
+## v3.8.3 — 2026-10-23
+
+### Fixed — imported stims ignored per-channel caps; a stop could land one event gap late
+
+Two bugs reported by an external user who built a Windows desktop app on top of the repo
+(full write-up in `FINDINGS.md` §8), both verified against source and guarded by a new
+test (`tests/test_stim_play_fixes.py`, fake box, no radio):
+
+- **`k250_stim_play.run()` computed `a.channel_caps` from the limits file but never handed
+  it to the `Player`** — so an imported stim ran with per-channel caps silently off. The
+  engine's own `k250_play.py` main() did the assignment; the stim launcher now does the
+  same, so `cap_for()` clamps imported stims exactly as it clamps patterns.
+- **The stim runner's `await asyncio.sleep(dt)` between events meant a stop landed only on
+  the next write** — up to one event gap late. The loop now re-checks the stop flag right
+  after the sleep, before the write, so a stop set mid-gap lands immediately instead of
+  after one more frame. (The box holds power with no dead-man timer, so a late stop is a
+  real safety gap.)
+
+The new test fails on the unfixed code (cap ignored → writes to 37% past a 30% cap; a write
+lands after the stop flag is set) and passes on the fixed code (writes clamp to 30%; zero
+writes after the stop). Full suite green.
+
+---
+
 ## v3.8.2 — 2026-10-22
 
 ### Changed — agent-skill: document how to recover a box that won't advertise after a drop
