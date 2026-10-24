@@ -11,6 +11,17 @@ happened is part of the record.
 
 ---
 
+## v3.8.6 — 2026-10-24
+
+### Changed — SECURITY.md says what the support level actually is
+
+v3.8.5 pointed reporters at a contact address and promised a reply before publication.
+Neither is true: this is a best-effort, one-person project with no security contact. The
+file now says so plainly — open a public GitHub issue, expect no reply or timeline, and
+the licence lets you fix it yourself. Docs-only.
+
+---
+
 ## v3.8.5 — 2026-10-24
 
 ### Fixed — the bridge refuses control requests that did not come from your own local page
