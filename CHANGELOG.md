@@ -11,6 +11,45 @@ happened is part of the record.
 
 ---
 
+## v3.8.5 — 2026-10-24
+
+### Fixed — the bridge refuses control requests that did not come from your own local page
+
+The launcher binds `127.0.0.1` only, which keeps the network out — but not the wearer's own
+browser, which is on `127.0.0.1` too. A website open in another tab could POST to
+`http://127.0.0.1:6969/run` with a `text/plain` body: browsers send that shape cross-site
+**without a CORS preflight** ("simple request"), the bridge parsed the body as JSON regardless of
+its type, and the box fired — `manual: true` meaning no ceiling — while the page never learned
+whether it had worked (the response is opaque). A DNS-rebinding page (`evil.example` resolving to
+`127.0.0.1`) got the same plus every GET. Confirmed against the live bridge before fixing.
+
+Now, on every POST: `Content-Type` must be `application/json` (so a cross-site attempt must
+preflight, and the preflight only passes for an origin the bridge echoes), an `Origin` that is
+not `null` (a `file://` page), `127.0.0.1`, `localhost` or `[::1]` is refused outright, and on
+every route a `Host` header that is not the bridge's own name is refused. Refusals are 403 and
+never reach the engine. The page's own requests already carried `application/json`, so nothing
+about normal use changes; a hand-written `curl` now needs `-H 'Content-Type: application/json'`
+(the documented examples always had it). `tests/test_bridge_origin.py` runs a real
+`ThreadingHTTPServer` on an ephemeral port with the engine stubbed, covers the allowed shapes and
+every refused one, and was mutation-tested (gate removed → 8 checks red).
+
+`/run` now answers 400 to a non-numeric `level`/`secs` instead of a traceback, matching `/run-stim`.
+
+### Removed — reverse-engineering scratch out of the public tree
+
+`beautify.py`, `extract.py`, `fetch_missing.py`, `fw_analyze.py`, `headers.txt` (a curl header
+dump of the vendor site), `scan_connect.py`, `vesc_probe.py`, `k250_read.py`, `k250_watch.py`.
+All September bench scratch superseded by the real tools; `FINDINGS.md` §6 already described them
+as not in this repo. They remain in the history under earlier tags.
+
+### Added
+
+- `SECURITY.md` — how to report a safety/security problem, and what counts as one.
+- `tests/run_all.sh` — runs every suite as the scripts they are and prints one verdict
+  (`unittest discover` never worked on them; nothing said so).
+
+---
+
 ## v3.8.4 — 2026-10-23
 
 ### Fixed — the launcher clears a stale BlueZ link to the box after every run

@@ -785,6 +785,45 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    _LOCAL_ORIGINS = ("http://127.0.0.1:", "http://localhost:", "http://[::1]")
+
+    def _origin_ok(self, origin):
+        """A page is local if it is file:// ("null") or served from loopback.
+
+        Any other Origin is a website in the wearer's browser; it gets no CORS
+        header AND (on POST) no side effect."""
+        return (origin == "null" or origin.startswith(self._LOCAL_ORIGINS))
+
+    def _host_ok(self):
+        """DNS-rebinding guard: a request for evil.example that happens to resolve
+        to 127.0.0.1 arrives with Host: evil.example. We only answer to our own
+        name, so a rebound page gets 403 on every route, read or write."""
+        host = (self.headers.get("Host") or "").strip().lower()
+        if not host:
+            return True  # HTTP/1.0 clients (curl -0, old tools) send none
+        host = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+        return host in ("127.0.0.1", "localhost", "[::1]")
+
+    def _post_allowed(self):
+        """A control write must be a deliberate JSON request from a local page.
+
+        Why both checks: a browser sends a cross-site POST with
+        Content-Type: text/plain WITHOUT a CORS preflight ("simple request") -
+        so a website the wearer has open could fire /run with manual:true, no
+        ceiling, and the opaque response would never tell the page it worked.
+        Requiring application/json forces a preflight, and the preflight only
+        succeeds for an Origin _cors() is willing to echo. Refusing a foreign
+        Origin outright covers clients that skip CORS entirely."""
+        if not self._host_ok():
+            return False, "bad Host header (DNS rebinding?) - refused"
+        origin = self.headers.get("Origin")
+        if origin is not None and not self._origin_ok(origin):
+            return False, "cross-site request refused - only a local page may drive the box"
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return False, "Content-Type must be application/json"
+        return True, ""
+
     def _cors(self):
         """Let a LOCAL FILE page talk to the bridge, and nothing else.
 
@@ -799,10 +838,7 @@ class Handler(BaseHTTPRequestHandler):
         allow = None
         if origin is None:
             allow = "*"
-        elif (origin == "null"                      # file:///... page
-              or origin.startswith("http://127.0.0.1:")
-              or origin.startswith("http://localhost:")
-              or origin.startswith("http://[::1]")):  # a local app's preview pane
+        elif self._origin_ok(origin):               # file:// page or a loopback-served one
             allow = origin
         if allow:
             self.send_header("Access-Control-Allow-Origin", allow)
@@ -826,6 +862,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if not self._host_ok():
+            self._send(403, {"ok": False, "error": "bad Host header - refused"})
+            return
         if self.path in ("/", "/index.html", "/limits-form.html"):
             # Serve the page itself from here. Opened over http://127.0.0.1:6969/
             # the page is SAME-ORIGIN with the bridge, so no CORS at all — the
@@ -909,6 +948,10 @@ class Handler(BaseHTTPRequestHandler):
                              "endpoints": ["/", "/limits", "/patterns", "/run", "/stop", "/status"]})
 
     def do_POST(self):
+        ok, why = self._post_allowed()
+        if not ok:
+            self._send(403, {"ok": False, "error": why})
+            return
         if self.path == "/session/reset":
             ok, msg, st = _session_reset()
             self._send(200 if ok else 500, {"ok": ok, "message": msg, "session": st})
@@ -930,8 +973,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, {"ok": False, "error": "bad JSON body"})
                 return
             pattern = str(body.get("pattern", "")).strip()
-            level = int(body.get("level", 0))
-            secs = int(body.get("secs", 0))
+            try:
+                level = int(body.get("level", 0))
+                secs = int(body.get("secs", 0))
+            except (TypeError, ValueError):
+                self._send(400, {"ok": False, "error": "level/secs must be numbers"})
+                return
             ok, msg = _run_pattern(pattern, level, secs, manual=bool(body.get("manual")),
                                    address=body.get("address"))
             self._send(200 if ok else 400, {"ok": ok, "message": msg})
