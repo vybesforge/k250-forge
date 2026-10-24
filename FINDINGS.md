@@ -188,3 +188,35 @@ Design pattern "beats" around it and have the operator flip by hand. `SB` is rea
    (c) craft our own DFU image and see if the box enforces only the version bytes. Also mine the
    APK for the DFU implementation.
 4. Keep the device in **Firmware Update Mode** only when doing DFU work; never leave it there.
+
+## 8. Field findings — external user, Windows desktop app (2026-10-23)
+
+Reported by a user who built a Windows desktop app on top of this repo (in-process, nothing
+upstream modified) and spent a day on read-only experiments with `k250_read.py` and one
+cable after a strong-sensation incident. Logs available on request.
+
+### Protocol behavior (one box, one cable — observations, not transferable numbers)
+
+- **`PA` is not a live cable reading.** A channel's `PA` entry is only evaluated when that
+  channel is selected via `AC`, and the result sticks until the next selection. At `AC: -1`
+  (fresh power-on) the array is defaults. After a factory reset it reads `Rhythm` ×4 with or
+  without a cable, through a power-cycle and an unplug/replug, until a channel is selected.
+- **Selecting a channel with the cable in marks that channel plugged.** Any routine that
+  walks `AC` 0..3 (this repo's `k250_stop.py` does; the user's end-of-run zero did too)
+  re-labels the single cable as whichever channel was selected last and leaves the box there
+  after disconnect. The jacks are unlabelled and the box's numbering isn't physical. The user
+  now writes `AC: 0` only, reads back, and requires slot 1 = pattern, slots 2–4 = `UNPLUG'D`
+  before driving. Driving channel 1 demonstrably reaches the cable; no evidence for the others.
+- **`MA` reads 0 at both ends of the Multi Adjust knob** with one cable, before and after a
+  factory reset — the field doesn't reflect the knob in that configuration.
+
+### Code-level (v3.8.x)
+
+- `k250_stim_play.run()` computes `a.channel_caps` from limits but never assigns
+  `pl.channel_caps` (k250_play.py's own main does), so imported stims ignore per-channel caps.
+- The stim runner's `await asyncio.sleep(dt)` between events means a stop lands only on the
+  next write — up to the event gap late.
+
+### Minor
+
+- The box's reply never includes `PW`, so a written power level can't be audited after the fact.
