@@ -477,6 +477,13 @@ Three things about the bridge are deliberate and worth knowing:
   backs it up first.
 - **It zeroes after every run** — the engine already ends at `PW=0`, and the bridge then runs
   the stop tool once more, and says so loudly if it could not reach the box.
+- **Only your own local page may drive it.** Loopback binding alone is not enough — your
+  browser is on 127.0.0.1 too, and a website you have open could otherwise POST to `/run`
+  with a `text/plain` body (a cross-site request browsers send with no preflight) and start a
+  Manual-mode run you never saw. So every POST must be `Content-Type: application/json` from a
+  local origin (`file://`, `127.0.0.1`, `localhost`), anything else is refused with 403, and a
+  request whose `Host` header is not the bridge's own name (DNS rebinding) is refused on every
+  route. `tests/test_bridge_origin.py` guards it. See `SECURITY.md`.
 
 Patterns (`k250_play.py`) cover sweeps, hard drops, denial loops (`trap`, `ration`, `dread`), climbs
 (`climb`, `switchback`), chaos (`stutter`, `dice`) and compositions (`arc`, `signature`).
@@ -510,9 +517,10 @@ install.sh                    installer for Linux and macOS (bash)
 install.ps1                   installer for Windows (PowerShell)
 install.cmd                   launcher for install.ps1 — bypasses the script policy once
 FINDINGS.md                   full reverse-engineering log, verdicts, dead ends
+SECURITY.md                   how to report a safety/security problem, and what counts as one
 LICENSE                       Apache-2.0
 agent-skill/SKILL.md          portable operator skill — two hard rules, drop-in for an agent
-tests/                        nine suites, all runnable from any clone:
+tests/                        the suites, all runnable from any clone:
   test_pattern_change.py        regression: a PA change must clear the frequency cache
                                 and seed slew to zero
   test_limits_enforcement.py    the limits file beats the command line, on every entry point
@@ -529,9 +537,17 @@ tests/                        nine suites, all runnable from any clone:
   test_stop_parsers.py          k250-stop finds the right processes on POSIX and Windows
   test_install.py               the installer's PATH handling: K250_ADD_PATH writes the rc line,
                                 non-interactive runs write nothing, later runs do not duplicate
+  test_bridge_origin.py         the bridge refuses cross-site POSTs, non-JSON POSTs and foreign
+                                Host headers; the engine is never reached by a refused request
+  run_all.sh                    runs every suite and prints one verdict
 ```
 
-Run them all: `for t in tests/test_*.py; do venv/bin/python "$t"; done`
+Run them all: `tests/run_all.sh` (or `for t in tests/test_*.py; do venv/bin/python "$t"; done`).
+They are self-contained scripts, not `unittest` cases — `python -m unittest discover` will not run them.
+
+A note for anyone who clones and tunes: `limits.json` is tracked, shipped at the 5% default. Pulling
+a new version can replace a ceiling you raised with 5% again — downward, so harmless, but re-apply
+yours from the page afterwards.
 
 Everything lives in one folder — the modules are flat because they import each other by name, and
 `bin/` holds the shell tools that get symlinked onto your `PATH`.
