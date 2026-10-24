@@ -125,6 +125,33 @@ def _run_stop_tool(timeout=90):
         return r.returncode, msg, True
 
 
+def _clear_stale_link():
+    """After a run, clear any stale BlueZ link to the box.
+
+    A run that ends abnormally (killed, crashed, or a stop that could not reach
+    the box) can leave BlueZ holding a phantom connection. The box stops
+    advertising while connected, so that stale link keeps it silent until
+    cleared. This is the documented 'box won't advertise after a drop' recovery,
+    done automatically after every run instead of by hand. Matches by name
+    (Kx250) because the box's address is a random static LE address that changes
+    on power-cycle. Safe to run when nothing is connected: it just finds nothing.
+    """
+    try:
+        out = subprocess.run(["bluetoothctl", "devices", "Connected"],
+                             capture_output=True, text=True, timeout=10).stdout
+    except Exception:
+        return
+    for line in out.splitlines():
+        m = re.match(r"Device\s+([0-9A-Fa-f:]{17})\s+(\S+)", line)
+        if m and "Kx250" in m.group(2):
+            addr = m.group(1)
+            try:
+                subprocess.run(["bluetoothctl", "disconnect", addr],
+                               capture_output=True, text=True, timeout=10)
+            except Exception:
+                pass
+
+
 def _zero_after(proc, pattern):
     """After a run ends: SIGTERM anything left, then write PW=0 to every live channel.
 
@@ -144,6 +171,7 @@ def _zero_after(proc, pattern):
     except Exception as e:
         _last_zero.update(ok=False, message=f"stop tool failed: {e}",
                           pattern=pattern, at=time.time())
+    _clear_stale_link()
 
 
 def _load_limits():

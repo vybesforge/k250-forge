@@ -11,6 +11,24 @@ happened is part of the record.
 
 ---
 
+## v3.8.4 — 2026-10-23
+
+### Fixed — the launcher clears a stale BlueZ link to the box after every run
+
+A run that ends abnormally (killed, crashed, or a stop that could not reach the box)
+can leave BlueZ holding a phantom connection. The box stops advertising while connected,
+so that stale link keeps it silent until cleared — which previously meant a manual
+`bluetoothctl disconnect` before the next run. The launcher now does it automatically:
+after the post-run zeroing, it finds any connected `Kx250` by name (the box's address is a
+random static LE address that changes on power-cycle) and disconnects it. Safe when nothing
+is connected — it just finds nothing.
+
+Verified live: a SIGKILL'd process left the box silent and `Connected` in BlueZ; the
+cleanup cleared the link and the box re-advertised on its own. Guarded by
+`tests/test_stale_link_cleanup.py` (mocked `bluetoothctl`).
+
+---
+
 ## v3.8.3 — 2026-10-23
 
 ### Fixed — imported stims ignored per-channel caps; a stop could land one event gap late
