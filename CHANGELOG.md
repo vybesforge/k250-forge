@@ -11,6 +11,51 @@ happened is part of the record.
 
 ---
 
+## v3.9.0 — 2026-11-09
+
+### Added — the `hr_follow` pattern: POWER *and* SPEED ride your heart rate
+
+`k250_play.py` gains `hr_follow`, a pattern where **both output axes follow the
+sampled heart rate** — not just power. As HR moves between a calm floor and a hard
+ceiling it slides POWER (between the caller's base and peak) and SPEED/MA (between a
+buzzy and a thumpy end) together. The **direction is the operator's choice**:
+
+- `K250_HR_DIR=up` — effort escalates: HR up ⇒ power up, buzz faster (MA down)
+- `K250_HR_DIR=down` — strain eases: HR up ⇒ power down, buzz slower (MA up)
+
+Bands default to the values tuned live on the box (`K250_HR_LO` 105 → `K250_HR_HI`
+140 bpm; both override-able). A **stale or missing HR holds at the calm end and never
+escalates on silence** — the failsafe learned the hard way when a watch link dropped
+mid-scene. Power clamps to the ceiling, MA to `ma_cap`.
+
+It reads a heart-rate trace file the companion driver writes, because exactly one
+process may hold the watch link and one may drive the box:
+
+```bash
+python hr_drive.py --trace ~/hr_trace.jsonl --feed-only      # stream HR, don't touch the box
+K250_HR_TRACE=~/hr_trace.jsonl K250_HR_DIR=down \
+  k250-scene hr_follow --base 20 --peak 60 --secs 600         # the pattern drives, following HR
+```
+
+`hr_drive.py` still offers its original standalone driver mode (raw PW creep/ease via
+the held-link FIFO) and now also `--trace FILE` to emit `{"hr":N}` samples, and
+`--feed-only` to stream HR without writing to the box (so it can't fight a pattern).
+Its watch address resolves from `GARMIN_HR_ADDR` or `~/.config/k250/hr-watch.addr` and
+refuses to run without one — never a hardcoded MAC. The existing `mirror` pattern
+(beats *at* your heart rate) is now also listed under a **Heart rate** group on the
+page alongside `hr_follow`.
+
+### Fixed — scanning no longer dies with `org.bluez.Error.InProgress`
+
+`k250_ble.py`, `ble_scan.py`, `k250_ctl.py` and `k250_status.py` now use the filtered
+scan (`BleakScanner.find_device_by_filter`) instead of a fresh active `discover()`,
+which reliably raises `org.bluez.Error.InProgress` when a previous scanner has not
+released the adapter. `k250_status.py` also retries the find up to three times so a
+cold-start miss straight after another scan becomes a real answer instead of a false
+negative.
+
+---
+
 ## v3.8.6 — 2026-10-24
 
 ### Changed — SECURITY.md says what the support level actually is

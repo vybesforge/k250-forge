@@ -1418,6 +1418,209 @@ async def p_signature(pl: Player, base: float, peak: float, secs: float):
             await asyncio.sleep(0.1)
 
 
+def _mirror_trace():
+    """Load a heart trace: JSONL from garmin-hr ({"hr":N}), a JSON list, or
+    comma-separated bpm. Returns smoothed beat intervals in seconds."""
+    path = os.environ.get("K250_MIRROR_TRACE", "")
+    hrs = []
+    if path and os.path.isfile(path):
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    s = json.loads(line)
+                    if isinstance(s, dict) and s.get("hr"):
+                        hrs.append(float(s["hr"]))
+                    elif isinstance(s, (int, float)):
+                        hrs.append(float(s))
+                except Exception:
+                    for tok in line.replace(",", " ").split():
+                        try:
+                            hrs.append(float(tok))
+                        except Exception:
+                            pass
+    if not hrs:
+        hrs = [float(x) for x in os.environ.get("K250_MIRROR_HR", "90").replace(",", " ").split()]
+    tail = hrs[-40:] or [90.0]
+    mean = sum(tail) / len(tail)
+    peak = max(tail)
+    # three shapes: his rate, his hardest rate, and a mean -- smoothed, bounded
+    return [60.0 / max(40.0, min(190.0, r)) for r in (mean, peak, mean)]
+
+
+async def p_mirror(pl: Player, base: float, peak: float, secs: float):
+    """THE MIRROR: the box beats at his own heart rate, then drags him down,
+    then overdrives him above it. Needs a trace (K250_MIRROR_TRACE jsonl or
+    K250_MIRROR_HR bpm); falls back to 90 bpm so it always runs."""
+    intervals = _mirror_trace()
+    hi = min(pl.hardcap, peak)
+    lo = base * 0.25
+    await pl.ma(0)                         # fast carrier: the BEAT is the power
+                                           # envelope, not the MA axis
+    t0 = time.time()
+    p1 = secs * 0.30                       # mirror
+    p2 = secs * 0.75                       # drag
+    print(f"      MIRROR: {60.0/intervals[0]:.0f} bpm -> drag -> surge  "
+          f"(base={base} peak={peak} hi={hi} lo={lo} hardcap={pl.hardcap})", flush=True)
+
+    def beat(iv):
+        # lub-dub, then rest -- the shape of a heart, not a metronome
+        return [(0.16, hi), (0.12, lo), (0.22, hi * 0.85), (max(0.10, iv - 0.50), lo)]
+
+    while time.time() - t0 < secs and not pl.stop:
+        el = time.time() - t0
+        if el < p1:
+            iv = intervals[0]
+        elif el < p2:
+            u = (el - p1) / max(1e-6, p2 - p1)
+            iv = intervals[0] * (1.0 + 0.85 * u)   # one beat slower, and slower
+        else:
+            u = min(1.0, (el - p2) / max(1e-6, secs - p2))
+            iv = intervals[1] * (0.85 - 0.28 * u)  # above his own hardest rate
+        for hold_s, pw in beat(iv):
+            if pl.stop or pl.expired():
+                return
+            _p = min(hi, pw) if pw > lo else lo
+            if os.environ.get("K250_MIRROR_DEBUG"):
+                print(f"      DBG beat {hold_s:.2f}s p={_p}", flush=True)
+            await pl.hold(hold_s, _p, tick=0.04)
+
+
+# --- heart-rate FOLLOW: speed AND power ride the wearer's own pulse -----------
+#
+# A live counterpart to `mirror`. `mirror` paces beats AT your heart rate; this
+# MOVES the output with it: as HR climbs from a floor to a ceiling the pattern
+# slides both axes -- POWER between base and peak, SPEED (MA) between a buzzy
+# and a thumpy end -- and the DIRECTION is the operator's choice:
+#
+#   K250_HR_DIR=up    effort -> more intense:  HR up => power UP, buzz FASTER (MA down)
+#   K250_HR_DIR=down  strain -> ease off:      HR up => power DOWN, buzz SLOWER (MA up)
+#
+# HR is read from a trace the driver (`hr_drive.py --trace FILE`) appends to, so
+# the box tracks a live BLE heart rate while it runs. Power still comes from the
+# caller's base/peak and clamps to the ceiling; MA stays inside ma_cap. A stale
+# trace (no fresh sample) EASES to base and holds there -- it never escalates on
+# silence. K250_HR_STALE seconds (default 5) is the freshness window.
+
+def _hr_line_tail(path, tail_bytes=4096):
+    """Read the newest HR sample from a JSONL/number trace without slurping the
+    whole file. Returns float or None. Accepts {"hr":N}, a bare number, or a
+    comma/space list (last token wins)."""
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            fh.seek(max(0, size - tail_bytes))
+            chunk = fh.read().decode("utf-8", "replace")
+    except Exception:
+        return None
+    for line in reversed(chunk.splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            s = json.loads(line)
+            if isinstance(s, dict) and s.get("hr"):
+                return float(s["hr"])
+            if isinstance(s, (int, float)):
+                return float(s)
+        except Exception:
+            for tok in reversed(line.replace(",", " ").split()):
+                try:
+                    return float(tok)
+                except Exception:
+                    continue
+    return None
+
+
+async def p_hr_follow(pl: Player, base: float, peak: float, secs: float):
+    """HR-FOLLOW: both axes ride the wearer's heart rate. Direction configurable.
+
+    Secs is a real deadline (pl.expired() ends it). Polls the trace a few times a
+    second, smooths HR, and maps it to a 0..1 position between HR_LO and HR_HI."""
+    trace = (os.environ.get("K250_HR_TRACE")
+             or os.environ.get("K250_MIRROR_TRACE") or "")
+    static = os.environ.get("K250_HR_BPM") or os.environ.get("K250_MIRROR_HR")
+    direction = (os.environ.get("K250_HR_DIR", "up") or "up").strip().lower()
+    if direction not in ("up", "down"):
+        direction = "up"
+    lo = float(os.environ.get("K250_HR_LO", "105"))    # bpm at the calm end: below this he's
+                                                       # coasting, so "up" starts climbing here
+    hi = float(os.environ.get("K250_HR_HI", "140"))    # bpm at the hard end: above this is work.
+                                                       # Tuned live on the box 2026-11-09 (MM notes:
+                                                       # push <105, ease >140; stale -> hold low).
+    if hi <= lo:
+        hi = lo + 1.0
+    stale = float(os.environ.get("K250_HR_STALE", "5.0"))
+    ma_fast = float(os.environ.get("K250_HR_MA_FAST", "0"))      # buzzy end
+    ma_slow = float(os.environ.get("K250_HR_MA_SLOW", "2500"))   # thumpy end
+    tick = 0.2
+
+    def read_hr():
+        if trace and os.path.isfile(trace):
+            return _hr_line_tail(trace)
+        if static:
+            try:
+                return float(str(static).replace(",", " ").split()[0])
+            except Exception:
+                return None
+        return None
+
+    hi_pw = min(pl.hardcap, peak)
+    lo_pw = max(0.0, min(base, hi_pw))
+    ema = None
+    last_seen = 0.0
+    warned_stale = False
+    print(f"      HR-FOLLOW: dir={direction} band={lo:.0f}-{hi:.0f}bpm "
+          f"pw={lo_pw}-{hi_pw} ma={ma_fast:.0f}..{ma_slow:.0f} timers={secs:.0f}s",
+          flush=True)
+    t0 = time.time()
+    while time.time() - t0 < secs and not pl.stop:
+        if pl.expired():
+            return
+        hr = read_hr()
+        now = time.time()
+        if hr is not None:
+            last_seen = now
+            # light EMA so a single noisy sample doesn't jerk the box
+            ema = hr if ema is None else (0.75 * ema + 0.25 * hr)
+        fresh = (ema is not None) and (now - last_seen) <= stale
+
+        if not fresh:
+            # no fresh HR: ease to the calm end and hold. NEVER escalate on silence.
+            if not warned_stale:
+                print("      HR-FOLLOW: HR stale/missing -- holding at base (not escalating)",
+                      flush=True)
+                warned_stale = True
+            await pl.ma(ma_slow if direction == "down" else ma_fast)
+            await pl.w(lo_pw)
+            await asyncio.sleep(tick)
+            continue
+        warned_stale = False
+        if ema is None:      # fresh==True implies ema set; guard keeps it explicit
+            await asyncio.sleep(tick)
+            continue
+        pos = max(0.0, min(1.0, (ema - lo) / (hi - lo)))   # 0 = calm, 1 = hard
+
+        if direction == "up":
+            # effort escalates: HR up => power up, buzz faster (MA toward ma_fast)
+            pw = lo_pw + (hi_pw - lo_pw) * pos
+            ma = ma_slow - (ma_slow - ma_fast) * pos
+        else:
+            # strain eases: HR up => power down, buzz slower/gentler (MA toward ma_slow)
+            pw = hi_pw - (hi_pw - lo_pw) * pos
+            ma = ma_fast + (ma_slow - ma_fast) * pos
+
+        if os.environ.get("K250_HR_DEBUG"):
+            print(f"      DBG hr={ema:.0f} pos={pos:.2f} pw={pw:.1f} ma={ma:.0f}",
+                  flush=True)
+        await pl.ma(ma)
+        await pl.w(pw)
+        await asyncio.sleep(tick)
+
+
 PATTERNS = {
     "tide": p_tide, "stutter": p_stutter, "trap": p_trap,
     "climb": p_climb, "dice": p_dice, "edge": p_edge,
@@ -1447,7 +1650,7 @@ PATTERNS = {
     "edging_continuous": p_edging_continuous,
     "pain_stutter": p_pain_stutter, "pain_slow_ramp": p_pain_slow_ramp,
     "pain_shocks": p_pain_shocks,
-    "flat": p_flat,
+    "flat": p_flat, "mirror": p_mirror, "hr_follow": p_hr_follow,
 }
 
 

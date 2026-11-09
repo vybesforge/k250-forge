@@ -60,6 +60,10 @@ ENGINE_GROUPS = [
         ("ripple", "power ripples, MA glides up"),
         ("rain", "quick taps then a long hold"),
     ]),
+    ("Heart rate", [
+        ("hr_follow", "POWER + SPEED ride your pulse (dir: up=escalate / down=ease)"),
+        ("mirror", "beats at your own heart rate, then drags and surges"),
+    ]),
     ("Deep / heavy", [
         ("heavy", "MA=8000, power compensated hard"),
         ("compress", "power steady, MA sinks to thump"),

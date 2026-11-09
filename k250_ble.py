@@ -88,11 +88,16 @@ async def find(timeout=12.0, address=None):
         return None
     except Exception:
         pass
-    res = await BleakScanner.discover(timeout=timeout, return_adv=True)
-    for addr, (dev, adv) in res.items():
-        if ok(dev, adv):
-            return dev
-    return None
+
+    # Fallback: a second filtered pass. `BleakScanner.discover()` opens a
+    # separate active scan and reliably dies with
+    # org.bluez.Error.InProgress when a previous scanner has not released the
+    # adapter — so it is not a safe fallback here. The filtered scan returns as
+    # soon as it matches, and a clean miss just means the box is asleep.
+    try:
+        return await BleakScanner.find_device_by_filter(ok, timeout=timeout)
+    except Exception:
+        return None
 
 
 async def main():

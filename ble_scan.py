@@ -29,16 +29,45 @@ def classify(name, uuids):
 
 async def scan(secs=6.0, only_estim=True):
     """Scan and return devices. `only_estim` (default) keeps just K250/Coyote —
-    the page's picker is for our devices, not the neighbours' headphones."""
+    the page's picker is for our devices, not the neighbours' headphones.
+
+    Uses the filtered scan, NOT `BleakScanner.discover()`. `discover()` opens a
+    fresh active scan and fails with `org.bluez.Error.InProgress` whenever a
+    previous scanner has not released the adapter; the filtered scan returns as
+    soon as it matches and degrades to an empty list instead of exploding.
+    """
     from bleak import BleakScanner
-    res = await BleakScanner.discover(timeout=secs, return_adv=True)
-    out = []
-    for addr, (dev, adv) in res.items():
-        name = dev.name or getattr(adv, "local_name", "") or ""
-        kind = classify(name, getattr(adv, "service_uuids", None))
-        if only_estim and kind == "other":
-            continue
-        out.append({"address": addr, "name": name, "rssi": getattr(adv, "rssi", None), "kind": kind})
+
+    found = {}
+
+    def on_adv(d, adv):
+        name = d.name or getattr(adv, "local_name", "") or ""
+        found[d.address] = {
+            "address": d.address,
+            "name": name,
+            "rssi": getattr(adv, "rssi", None),
+            "kind": classify(name, getattr(adv, "service_uuids", None)),
+        }
+
+    # A raw scanner session, held open for the whole window. Do NOT use
+    # find_device_by_filter here: on this bleak/BlueZ build the filter callback
+    # fires once and the session closes, so the picker saw a single device (or
+    # none) and reported an empty list while the box was plainly on the air.
+    scanner = BleakScanner(detection_callback=on_adv)
+    try:
+        await scanner.start()
+        await asyncio.sleep(max(secs, 4.0))
+    except Exception:
+        pass
+    finally:
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
+
+    out = list(found.values())
+    if only_estim:
+        out = [d for d in out if d["kind"] != "other"]
     # our devices first, then strongest signal
     out.sort(key=lambda d: (d["kind"] == "other", -(d["rssi"] if d["rssi"] is not None else -999)))
     return out

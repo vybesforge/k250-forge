@@ -267,18 +267,24 @@ async def probe_box_via_subprocess() -> bool:
         sys.path.insert(0, {HERE!r})
         async def _m():
             from bleak import BleakScanner
-            devs = await BleakScanner.discover(timeout=8, return_adv=True)
-            hit = None
-            rssi = None
-            for _addr, (dv, adv) in devs.items():
+            hits = []
+
+            def _cb(dv, adv):
                 if dv.name and "Kx250" in dv.name:
-                    hit = dv
-                    rssi = getattr(adv, "rssi", None)
-                    break
-            if hit is None:
+                    hits.append((dv, adv))
+                    return True          # stop at the first match
+                return False
+
+            try:
+                await BleakScanner.find_device_by_filter(_cb, timeout=8)
+            except Exception:
+                pass
+            if not hits:
                 print("NOBOX")
             else:
-                print("BOX", hit.address, rssi if rssi is not None else "?")
+                dv, adv = hits[0]
+                rssi = getattr(adv, "rssi", None)
+                print("BOX", dv.address, rssi if rssi is not None else "?")
         asyncio.run(_m())
         """
     )

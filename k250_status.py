@@ -15,7 +15,15 @@ PATTERNS = ["Climb", "Combo", "Intense", "Manual", "Orgasm",
 
 
 async def main():
-    dev = await find()
+    # First call is often a miss straight after a previous scan released the
+    # adapter; a retry turns a cold-start false negative into a real answer.
+    dev = None
+    for attempt in range(3):
+        dev = await find()
+        if dev is not None:
+            break
+        await asyncio.sleep(1.0)
+
     if dev is None:
         print("K250 NOT FOUND — it only advertises when awake and on the right screen.\n"
               "  1. press any knob ~1 s to power it on (side LED glows red)\n"
