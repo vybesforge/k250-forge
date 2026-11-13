@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""HR-driven K250 — the dial follows Dylan's heart, not a script.
+"""HR-driven K250 — the dial follows the wearer's heart, not a script.
 
-Reads the Garmin fenix 6X's BLE heart-rate service (0x180D / 0x2A37).
+Reads a standard BLE heart-rate service (0x180D / 0x2A37) — e.g. a Garmin watch.
 
 Two ways to use it:
 
@@ -53,10 +53,12 @@ def resolve_addr():
     sys.exit("error: no heart-rate watch address. Set GARMIN_HR_ADDR or put one MAC "
              "in ~/.config/k250/hr-watch.addr (one line). Refusing to guess a MAC.")
 
-MIN_LEVEL   = 20
-MAX_LEVEL   = 68
-FLOOR_BPM   = 105      # below this, he's coasting -> push
-SPIKE_BPM   = 140      # above this, EASE
+MIN_LEVEL   = int(os.environ.get("HR_MIN_LEVEL", 20))
+MAX_LEVEL   = int(os.environ.get("HR_MAX_LEVEL", 68))
+FLOOR_BPM   = int(os.environ.get("HR_PUSH_BPM", 105))   # below this, the wearer is coasting -> push
+SPIKE_BPM   = int(os.environ.get("HR_EASE_BPM", 145))   # above this, EASE
+# Wearer calibration (measured live): high effort reads as pain well above 110 bpm, so
+# 90-110 bpm is NOT a spike and must not trigger easing. Default ease threshold 145.
 STEP_UP     = 2
 STEP_DOWN   = 6
 TICK        = 1.0

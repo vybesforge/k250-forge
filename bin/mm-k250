@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""mm-k250 — MM-driven K250 control over the LAN bridge.
+
+Lets MM (or any agent on this box) drive the K250 exactly the way the VR room does:
+  mm-k250 <pattern> <base> <peak> <secs>
+  mm-k250 stop
+Reads the bridge token from ~/.config/mm-vr-bridge/token. The bridge shells to the
+sanctioned k250-scene engine, so the wearer's limits.json is always enforced.
+
+Usage / patterns (see k250-scene --list): tide, climb, edge, swell, power_sweep, ...
+"""
+import json, os, sys, urllib.request, urllib.error
+
+HOST = os.environ.get("MM_BRIDGE", "http://127.0.0.1:8791")
+TOK = (os.environ.get("MM_BRIDGE_TOKEN") or open(os.path.expanduser("~/.config/mm-vr-bridge/token")).read().strip())
+
+def post(rel, body):
+    req = urllib.request.Request(HOST + rel, data=json.dumps(body).encode(),
+                                 headers={"Authorization": "Bearer " + TOK, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            print(r.status, r.read().decode(errors="replace")[:400])
+    except urllib.error.HTTPError as e:
+        print("HTTP", e.code, e.read().decode(errors="replace")[:300]); sys.exit(e.code)
+
+def main():
+    a = sys.argv[1:]
+    if not a:
+        print(__doc__); return
+    if a[0] == "stop":
+        post("/k250/stop", {}); return
+    p, base, peak, secs = a[0], float(a[1]), float(a[2]), float(a[3])
+    post("/k250/run", {"pattern": p, "base": base, "peak": peak, "secs": secs})
+
+if __name__ == "__main__":
+    main()

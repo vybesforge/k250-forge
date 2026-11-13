@@ -91,7 +91,7 @@ RUNLOG = os.path.join(HERE, "launcher-run.log")
 
 # the running pattern process (one at a time — the box takes one BLE connection)
 _lock = threading.Lock()
-_running = {"proc": None, "pattern": None, "started": 0.0}
+_running = {"proc": None, "pattern": None, "started": 0.0, "via_ctl": False}
 # the post-run zeroing thread + its result, so the page can show whether the box
 # is definitely back at zero afterwards
 _zero_thread = None
@@ -553,13 +553,27 @@ def _run_pattern(pattern, level, secs, manual=False, address=None):
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
     eff = level
-    # A fresh engine per run, every time. A held-link controller was tried and is
-    # FASTER (~0.06s vs ~7s), but it couples every run to one long-lived process
-    # staying healthy: when its link dropped, the process died, the bridge silently
-    # fell back, and a stop could not reach the box. Reconnect-per-run is the boring,
-    # reliable shape, and boring is right for something that energises a person.
-    # The controller is still there as a standalone tool for manual work; the bridge
-    # does not route through it.
+    # Route AI-mode runs through a LIVE held-link controller when one is up, so the
+    # BLE connection survives between runs and rests at zero instead of being torn
+    # down and re-established (the connect/reconnect churn is what made the link
+    # flaky). The controller holds the link open, zeroes after the run, and the
+    # NEXT run reuses it -- no disconnect, no re-find.
+    #
+    # Manual-override runs still take the SPAWN path on purpose: the held controller
+    # reads override from the run spec, not from the K250_WEARER_OVERRIDE env marker
+    # the spawn path enforces -- routing a Manual run through it would silently drop
+    # that safety gate. And when no controller is alive we fall back to spawn so the
+    # page still works. Spawn is also the documented reliable shape for anything
+    # that must start clean on an unknown process state.
+    if not manual and _ctl_alive() and _ctl_send("run " + json.dumps({
+            "kind": "pattern", "key": pattern, "base": eff, "peak": eff,
+            "secs": secs, "limits": limits_path})):
+        _running["via_ctl"] = True
+        _running["pattern"] = pattern
+        _running["started"] = time.time()
+        _running["proc"] = None
+        msg = f"started {pattern} at {eff}% for {secs}s (via held link, ceiling {ceiling}%)"
+        return True, msg
     cmd = [PY, PLAY, pattern, "--base", str(eff), "--peak", str(eff),
            "--secs", str(secs), "--limits", limits_path]
     if address:
@@ -706,12 +720,25 @@ def _run_stim(stim, target, level, secs, manual=False, address=None):
         if level > ceiling:
             return False, (f"{level}% is above the {ceiling}% AI ceiling — switch to Manual mode "
                            f"to drive past it (there limits.json is out of the loop).")
+    label = f"stim:{stim}->k250"      # defined up front (used on the held-link route too)
     if target == "k250":
+        # Route AI-mode K250 stims through a live held-link controller when one is
+        # up (connection survives, rests at zero between runs) — same rule as /run.
+        # Manual-override stims and the Coyote target stay on the spawn path (the
+        # override marker / separate BLE radio respectively demand it).
+        if not manual and _ctl_alive() and _ctl_send("run " + json.dumps({
+                "kind": "stim", "key": stim, "level": level, "secs": secs,
+                "limits": limits_path})):
+            _running["via_ctl"] = True
+            _running["pattern"] = label
+            _running["started"] = time.time()
+            _running["proc"] = None
+            msg = f"started {stim} -> k250 at {level}% for {secs}s (via held link, ceiling {ceiling}%)"
+            return True, msg
         cmd = [PY, STIM_PLAY, "--stim", stim, "--level", str(level),
                "--secs", str(secs), "--limits", limits_path]
         if address:
             cmd += ["--address", str(address)]
-        label = f"stim:{stim}->k250"
         ok, err = _launch(cmd, label, manual, zero=True)
     else:
         cmd = [PY, COYOTE_PLAY, "--stim", stim, "--level", str(level),
@@ -733,13 +760,37 @@ def _run_stim(stim, target, level, secs, manual=False, address=None):
 
 
 def _stop():
+    # A held-link controller OWNS the box's one BLE connection. While it is alive,
+    # the spawn path (k250_stop.py as a subprocess) CANNOT reach the box -- it
+    # collides with the held link, retries, and cries "STOP FAILED: box not
+    # reachable -- IT MAY STILL BE ENERGISED!" for a box that is fine and idle.
+    # So: if a controller is alive, ALWAYS route the stop through its FIFO. That
+    # sets power low (PW=0) from the controller and cancels any running job, and it
+    # keeps the link warm so the next pattern begins at once -- which is the whole
+    # point of the held link. Do NOT gate this on `via_ctl`: after a ctl-routed run
+    # ends, via_ctl is already reset, and a plain /stop between patterns must still
+    # go over the held link rather than spawn a stop tool that cannot connect.
     with _lock:
+        if _ctl_alive():
+            via = True          # remembered outside the lock
+        else:
+            via = False
         proc = _running["proc"]
         pattern = _running["pattern"]      # keep it: the stop records what it stopped
         lf = _running.get("logfile")
         _running["proc"] = None
         _running["pattern"] = None
         _running["logfile"] = None
+        _running["via_ctl"] = False
+    if via:
+        sent = _ctl_send("stop")
+        if not sent:
+            return False, ("the held link is gone — cannot route the stop through it; "
+                           "verify the box power with the kill switch")
+        time.sleep(0.3)
+        _last_zero.update(ok=True, message="stop sent to the held link", pattern=pattern,
+                          at=time.time())
+        return True, "stopped (via held link)"
     # Kill the pattern process first, then run the stop tool (belt and braces).
     #
     # WAIT for the engine to actually be gone before the stop tool runs. The engine
@@ -896,10 +947,18 @@ class Handler(BaseHTTPRequestHandler):
             ctl = _ctl_state() if held else None
             with _lock:
                 proc = _running["proc"]
-                running = proc is not None and proc.poll() is None
+                # A controller-routed run keeps NO spawned engine; its liveness is the
+                # controller's RUN state (the FIFO command is fire-and-forget). So a
+                # "via_ctl" run is running iff the controller says it is.
+                via = _running.get("via_ctl")
+                if via:
+                    run_input = (ctl or {}).get("running") or False
+                    running = bool(run_input)
+                else:
+                    running = proc is not None and proc.poll() is None
                 out = {"running": running,
                        "pattern": _running["pattern"] if running else None,
-                       "pid": proc.pid if running else None,
+                       "pid": proc.pid if (running and proc) else None,
                        "exit_code": None if (proc is None or running) else proc.returncode,
                        "live_channels": _live_channels(),
                        "zeroing": bool(_zero_thread is not None and _zero_thread.is_alive()),

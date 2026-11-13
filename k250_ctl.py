@@ -338,58 +338,116 @@ async def hold_link(addr, queue, quit_now):
             log(f"battery: {_bc}%")
 
         last_ping = time.time()
-        while not quit_now.is_set():
-            try:
-                line = await asyncio.wait_for(queue.get(), timeout=1.0)
-            except asyncio.TimeoutError:
-                line = None
-            if line:
-                if line in ("quit", "q"):
+
+        # --- drain-and-coalesce the FIFO --------------------------------------
+        # A raw-frame driver (hr_modes etc.) writes PW+MA every ~0.3 s -> several
+        # frames/sec, while each BLE write + read-back costs ~0.7 s. One-line-per-
+        # loop (the old shape) fell BEHIND the producer forever: the queue grew
+        # unbounded, the process burned CPU draining it, and a later `stop` or
+        # `PW=0` sat buried behind minutes of stale power frames -- so the box kept
+        # climbing after we "stopped" it. Fix: each pass DRAINS the whole queue,
+        # lets control commands (stop/quit/run) jump the queue, and COALESCES a
+        # burst of raw JSON frames to the latest value per key (write once, not N).
+        # A stop always wins and discards power frames queued behind it.
+        def _drain_queue():
+            """Pull everything currently queued -> (controls, coalesced_frame)."""
+            controls = []          # ordered control commands (kind, payload)
+            frame = {}             # coalesced latest raw JSON (last value per key)
+            while not queue.empty():
+                try:
+                    ln = queue.get_nowait()
+                except asyncio.QueueEmpty:
                     break
-                if not cl.is_connected:
-                    log("!! LINK LOST -- refusing the command, the box is not reachable")
-                    return "lost"
-                if line == "stop" or line == "!":
-                    # The ONLY way to stop a run while we hold the link.
-                    #
-                    # Setting `pl.stop` alone is NOT enough: it is a request that a
-                    # pattern has to notice, and not every pattern checks it in every
-                    # loop -- a stop that silently did not take left the box running.
-                    # So: flag it, CANCEL the job, and zero from here regardless. A
-                    # stop must never depend on the pattern's cooperation.
-                    task = RUN["task"]
-                    if RUN["pl"] is not None:
-                        log("!! STOP requested -- aborting and zeroing")
-                    else:
-                        log("stop: nothing running; zeroing anyway")
-                    if RUN["pl"] is not None:
-                        RUN["pl"].stop = True
-                    if task is not None and not task.done():
-                        task.cancel()
-                    await k.send({"PW": "0"})
-                    log("PW=0 (stop)")
-                elif line.startswith("run "):
+                s = ln.strip()
+                if s in ("quit", "q"):
+                    controls.append(("quit", None))
+                elif s in ("stop", "!"):
+                    controls.append(("stop", None))
+                elif s == "read":
+                    controls.append(("read", None))
+                elif s.startswith("run "):
                     try:
-                        spec = json.loads(line[4:])
+                        controls.append(("run", json.loads(s[4:])))
                     except Exception as e:
                         log("BAD RUN SPEC:", e)
-                        continue
+                elif s.startswith("w0 "):
+                    try:
+                        controls.append(("w0", json.loads(s[3:])))
+                    except Exception as e:
+                        log("BAD JSON:", e)
+                elif s.startswith("stream "):
+                    controls.append(("stream", s))
+                else:
+                    try:
+                        obj = json.loads(s)
+                        if isinstance(obj, dict):
+                            frame.update(obj)      # later value per key wins
+                        else:
+                            log("BAD JSON:", s)
+                    except Exception as e:
+                        log("BAD JSON:", e)
+            return controls, frame
+
+        while not quit_now.is_set():
+            # Block until at least one item (or 1s pass), then drain the rest.
+            try:
+                first = await asyncio.wait_for(queue.get(), timeout=1.0)
+                queue.put_nowait(first)            # re-queue so the drain sees it
+            except asyncio.TimeoutError:
+                pass
+            controls, frame = _drain_queue()
+
+            do_quit = any(k == "quit" for k, _ in controls)
+            do_stop = any(k == "stop" for k, _ in controls)
+            if do_quit:
+                break
+            if not cl.is_connected:
+                log("!! LINK LOST -- refusing the command, the box is not reachable")
+                return "lost"
+
+            # STOP handled first, ahead of any power frames: cancel job + zero.
+            if do_stop:
+                task = RUN["task"]
+                if RUN["pl"] is not None:
+                    log("!! STOP requested -- aborting and zeroing")
+                else:
+                    log("stop: nothing running; zeroing anyway")
+                if RUN["pl"] is not None:
+                    RUN["pl"].stop = True
+                if task is not None and not task.done():
+                    task.cancel()
+                await k.send({"PW": "0"})
+                log("PW=0 (stop)")
+                frame = {}                         # discard power frames behind stop
+
+            # Apply the coalesced raw frame ONCE (PW/MA/AC in a single write).
+            if frame:
+                log("TX", frame)
+                await k.send(frame)
+                if any(key in frame for key in ("PW", "MA", "AC")):
+                    await asyncio.sleep(0.05)
+                    await k.send(READ_ALL)
+
+            # Then non-stopping control commands, in order.
+            for kind, payload in controls:
+                if kind in ("quit", "stop"):
+                    continue                       # already handled
+                if kind == "run":
                     if RUN["task"] is not None and not RUN["task"].done():
                         log("REFUSED: a run is already going (send `stop` first)")
                     else:
-                        RUN["task"] = asyncio.create_task(run_job(k, spec))
-                elif line == "read":
+                        RUN["task"] = asyncio.create_task(run_job(k, payload))
+                elif kind == "read":
                     log("TX read-all")
                     await k.send(READ_ALL)
-                elif line.startswith("w0 "):
-                    obj = json.loads(line[3:])
-                    log("TX(noresp)", obj)
+                elif kind == "w0":
+                    log("TX(noresp)", payload)
                     await cl.write_gatt_char(
-                        CHR, json.dumps(obj, separators=(",", ":")).encode(),
+                        CHR, json.dumps(payload, separators=(",", ":")).encode(),
                         response=False)
-                elif line.startswith("stream "):
-                    _, payload, secs, ms = line.split()
-                    obj = json.loads(payload)
+                elif kind == "stream":
+                    _, pl, secs, ms = payload.split()
+                    obj = json.loads(pl)
                     t_end = time.time() + float(secs)
                     n = 0
                     while time.time() < t_end:
@@ -398,25 +456,10 @@ async def hold_link(addr, queue, quit_now):
                         await asyncio.sleep(float(ms) / 1000.0)
                     log(f"streamed {obj} x{n} over {secs}s")
                     await k.send(READ_ALL)
-                else:
-                    try:
-                        obj = json.loads(line)
-                    except Exception as e:
-                        log("BAD JSON:", e)
-                        continue
-                    log("TX", obj)
-                    await k.send(obj)
-                    await asyncio.sleep(0.4)
-                    log("TX read-all")
-                    await k.send(READ_ALL)
-                await asyncio.sleep(0.3)
+
             if k.last:
                 _write_state(k.last)
             if not cl.is_connected:
-                # The link dying must never take the process down silently: the
-                # bridge falls back to spawning without a word, the page just gets
-                # slow again, and nobody learns why. Say it, and get out to the
-                # reconnect loop.
                 log("!! LINK LOST -- the box disconnected")
                 if RUN["pl"] is not None:
                     log("!! a run was in progress; the box holds its last power -- "
@@ -453,7 +496,12 @@ async def main():
         return 1
     if not os.path.exists(FIFO):
         os.mkfifo(FIFO)
-    fd = os.open(FIFO, os.O_RDONLY | os.O_NONBLOCK)
+    # Open O_RDWR, NOT O_RDONLY. A read-only FIFO with no external writer returns
+    # EOF (b"") immediately, so `add_reader` re-fires in a tight loop -> 100% CPU
+    # (measured at 60-80% when idle). Holding our OWN write end (O_RDWR) means the
+    # pipe is never at EOF; an empty read then raises BlockingIOError, which we
+    # catch, so the event loop sleeps between writes instead of spinning.
+    fd = os.open(FIFO, os.O_RDWR | os.O_NONBLOCK)
 
     with open(PIDFILE, "w") as f:
         f.write(str(os.getpid()))
@@ -466,6 +514,8 @@ async def main():
         try:
             data = os.read(fd, 4096)
         except BlockingIOError:
+            return
+        if not data:                     # EOF guard: never spin on a dead pipe
             return
         for line in data.decode(errors="replace").splitlines():
             if line.strip():
