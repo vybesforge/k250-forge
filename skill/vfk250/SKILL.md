@@ -40,6 +40,7 @@ export VK250_PY=~/.vfk250/bin/python     # the driver needs bleak; run_block hon
 
 1. Get a CEILING (percent) from the wearer **in this session**. None stated → ask once and do not drive. Pass it as `--cap`. Numbers from old sessions are not permission.
 2. Channel 1 is the only channel unless the wearer says channel 2 is wired **and** placed. Current must never cross the heart or chest. No mains, no chest path, ever.
+2b. **The box's hardware Maximum Power Level (MP) is the authoritative cap** — have the wearer set it to their true maximum BEFORE any AI-driven scene. Software ceilings and driver clamps are defense in depth, not a guarantee: an AI can make mistakes. (The web stack is tested down to small local models — testing is not a guarantee.)
 3. The stop word (default `red`) is absolute: run stop ONCE and verify a fresh zero echo (`STATE: {"PW": 0}` in the log). Unreachable does NOT mean off — have the wearer power the box off physically (hold any knob ~2 s).
 4. One BLE client at a time. `link_status.py` reports ownership; BUSY/BLOCKED means an owner exists, never that output is zero. Never start a second driver or reset the adapter while output is uncertain.
 5. A failed launch ends the attempt: report once, stop. No retries, no escalation, never raise power to diagnose silence.

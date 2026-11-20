@@ -94,9 +94,9 @@ def main(argv=None):
               'started_at': time.time(), 'state': 'STARTING_NOT_VERIFIED'}
     (runtime / 'block-last.json').write_text(json.dumps(record, indent=2))
     print(json.dumps(record), flush=True)
-    print('LAUNCHED independently. Read the log to verify PLAY and the eventual fresh PW-zero '
+    print('LAUNCHED independently. Read the log to verify PLAY and the eventual fresh zero '
           'echoes. Do not relaunch because this launcher exited. Stop with k250_stop.py.',
-          flush=True)
+          file=sys.stderr, flush=True)
     return 0
 
 
