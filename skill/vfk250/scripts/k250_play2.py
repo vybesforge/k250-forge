@@ -355,25 +355,59 @@ async def main() -> int:
         if dual:
             log(f"PLAY {a.pattern2} base={a.base2}% peak={a.peak2}% secs={a.secs} (ch2)")
             tasks.append(PATTERNS[a.pattern2](ChanView(pl, 1), a.base2, a.peak2, a.secs))  # type: ignore[arg-type]
+        rc = 0
         try:
             await asyncio.gather(*tasks)
         finally:
             pl.stop = True
             driven = list(pl.channels)
-            for ch in driven:
-                await pl.w_ch(ch, 0.0)
-            await asyncio.sleep(0.4)
-            async with pl._lock:
+            confirmed = False
+            try:
                 for ch in driven:
-                    await pl.select(ch)
-                    await k.send({"PW": "0"})
-                    await asyncio.sleep(0.15)
-            await asyncio.sleep(0.8)
-            await k.send(READ_ALL)
-            await asyncio.sleep(1.0)
-            log("PW=*** (ended)")
-            log("last:", json.dumps(k.last, ensure_ascii=False))
-    return 0
+                    await pl.w_ch(ch, 0.0)
+                await asyncio.sleep(0.4)
+                async with pl._lock:
+                    for ch in driven:
+                        await pl.select(ch)
+                        await k.send({"PW": "0"})
+                        await asyncio.sleep(0.15)
+                await asyncio.sleep(0.8)
+                await k.send(READ_ALL)
+                await asyncio.sleep(1.0)
+                log("last:", json.dumps(k.last, ensure_ascii=False))
+                confirmed = True
+            except Exception as e:
+                # the link dropped mid-shutdown — a dead link must never leave the
+                # box hot. One fresh reconnect attempt to zero every driven channel.
+                log(f"!! zeroing over the live link failed ({e.__class__.__name__}); "
+                    f"attempting one fresh reconnect to zero")
+                try:
+                    dev2 = await find(address=a.address)
+                    if dev2 is None:
+                        raise RuntimeError("box not advertising (asleep or out of range)")
+                    async with BleakClient(dev2, timeout=30) as cl2:
+                        k2 = K250(cl2)
+                        await k2.start()
+                        await asyncio.sleep(0.5)
+                        for ch in driven:
+                            await k2.send({"AC": str(ch)})
+                            await asyncio.sleep(0.05)
+                            await k2.send({"PW": "0"})
+                            await asyncio.sleep(0.05)
+                        await asyncio.sleep(0.5)
+                        await k2.send(READ_ALL)
+                        await asyncio.sleep(1.0)
+                        log("reconnect zero state:", json.dumps(k2.last or {}, ensure_ascii=False))
+                        confirmed = True
+                except Exception as e2:
+                    log(f"!! reconnect zeroing ALSO failed: {e2}")
+            if confirmed:
+                log("PW=*** (ended)")
+            else:
+                log("!! ZEROING UNCONFIRMED — the link is down and recovery failed. The box")
+                log("!! may still hold its last power. Power it off PHYSICALLY: hold any knob ~2 s.")
+                rc = 4
+    return rc
 
 
 if __name__ == "__main__":

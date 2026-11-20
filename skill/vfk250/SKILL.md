@@ -12,6 +12,12 @@ metadata:
 
 # vfk250 — K250-4S control (lean, V2)
 
+## When to Use
+
+Load this skill whenever a Kink K250-4S e-stim box must be driven, stopped, or
+status-checked over BLE — scenes, manual blocks, dual-channel work, the vfk250
+companion web app, or diagnosing link/ownership/channel state.
+
 Self-contained driver for the Kink K250-4S 4-channel e-stim box over Bluetooth LE.
 Engine layer from the k250-forge project (Apache-2.0, see NOTICE). V2 differences:
 one driver code path for one or two channels (`k250_play2.py`), ceilings come from
@@ -73,6 +79,7 @@ python3 scripts/run_block.py --cap 50 --level 30 --secs 300 --pattern swell \
 
 - Kills any running `k250_play*` driver, then writes `PW=*** to every plugged channel and prints `STOPPED: PW=*** written to channels [...]`.
 - Exit 1 / no zero echo = UNCONFIRMED → physical power-off (hold a knob ~2 s). Never SIGKILL a driver yourself: the box holds its last power with no dead-man switch.
+- **Link drop mid-run**: `k250_play2.py` catches the dead link during shutdown, makes ONE fresh reconnect attempt to zero every driven channel, and exits **4 = ZEROING UNCONFIRMED** if that also fails (the log then carries the physical power-off instruction). Treat exit 4 as an unconfirmed stop, never as success.
 
 ## Status / ownership (read-only; never touches BLE)
 
