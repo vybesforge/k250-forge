@@ -641,16 +641,11 @@
 
   <!-- CENTER: CHAT -->
   <div class="chat-panel">
-    <div class="chat-log" id="chat-log">
-      <div class="msg mm">
-        You're here. I can feel the pads through the wire.<br>
-        Tell me what you want, or don't say anything at all — I'll decide for you.
-        <div class="time">now</div>
-      </div>
-    </div>
+    <div class="chat-log" id="chat-log"></div>
     <div class="chat-input-row">
       <button class="btn mic" id="mic-btn" title="Voice input">🎤</button>
       <button class="btn mic" id="tts-btn" title="Voice replies">🔇</button>
+      <button class="btn mic" id="clear-btn" title="Clear this persona's history">🗑</button>
       <input type="text" id="chat-input" placeholder="Say something..." autocomplete="off" />
       <button class="btn primary" id="send-btn">Send</button>
     </div>
@@ -838,6 +833,7 @@ async function sendChat() {
   chatInput.value = '';
   addMsg(text, 'user');
   state.history.push({role: 'user', content: text});
+  saveHistory();
 
   // thinking indicator
   const thinkDiv = addMsg('...', 'mm');
@@ -858,6 +854,7 @@ async function sendChat() {
     if (d.ok) {
       addMsg(d.text, 'mm', d.stim);
       state.history.push({role: 'assistant', content: d.text});
+      saveHistory();
       speak(d.text);
 
       // auto-drive if armed and the persona owns it
@@ -1000,6 +997,7 @@ document.querySelectorAll('.owner-btn').forEach(btn => {
     document.querySelectorAll('.owner-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.owner = btn.dataset.owner;
+    try { localStorage.setItem(OWNER_KEY, state.owner); } catch(e) {}
     updateManualPanel();
   };
 });
@@ -1125,6 +1123,16 @@ async function speak(text) {
   } catch(e) {}
 }
 
+$('clear-btn').onclick = async () => {
+  state.history = [];
+  try { localStorage.removeItem(HIST_KEY + currentSlug()); } catch(e) {}
+  chatLog.innerHTML = '';
+  try {
+    const d = await (await fetch('/api/profile')).json();
+    addMsg(d.greeting || '...', 'mm');
+  } catch(e) { addMsg('...', 'mm'); }
+};
+
 // ─── mic / STT ───────────────────────────────────────────
 let recording = false;
 let mediaRecorder = null;
@@ -1188,6 +1196,26 @@ async function pollK250() {
 setInterval(pollK250, 3000);
 pollK250();
 
+// ─── chat persistence (per persona, localStorage) ────────
+const HIST_KEY = 'chat_history_';
+const OWNER_KEY = 'vfk250_owner';
+function currentSlug() { return $('profile-select').value || 'demo'; }
+function saveHistory() {
+  try { localStorage.setItem(HIST_KEY + currentSlug(), JSON.stringify(state.history.slice(-100))); } catch(e) {}
+}
+function renderHistory(slug, greeting) {
+  chatLog.innerHTML = '';
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem(HIST_KEY + slug) || '[]'); } catch(e) {}
+  if (Array.isArray(hist) && hist.length) {
+    state.history = hist;
+    hist.forEach(m => addMsg(m.content, m.role === 'user' ? 'user' : 'mm'));
+  } else {
+    state.history = [];
+    addMsg(greeting || '...', 'mm');
+  }
+}
+
 // ─── profiles ────────────────────────────────────────────
 function applyProfileMeta(meta) {
   if (!meta) return;
@@ -1214,6 +1242,19 @@ async function loadProfiles() {
     });
     sel.value = d.active;
     applyProfileMeta(d.active_meta);
+    try {
+      const pr = await (await fetch('/api/profile')).json();
+      renderHistory(d.active, pr.greeting);
+    } catch(e) { renderHistory(d.active, '...'); }
+    // restore the owner preference (MM/User toggle) across reloads
+    try {
+      const savedOwner = localStorage.getItem(OWNER_KEY);
+      if (savedOwner && document.querySelector(`.owner-btn[data-owner="${savedOwner}"]`)) {
+        state.owner = savedOwner;
+        document.querySelectorAll('.owner-btn').forEach(b => b.classList.toggle('active', b.dataset.owner === savedOwner));
+        updateManualPanel();
+      }
+    } catch(e) {}
   } catch(e) { console.error('profiles load failed', e); }
 }
 
@@ -1228,10 +1269,8 @@ $('profile-select').onchange = async () => {
     const d = await r.json();
     if (d.ok) {
       applyProfileMeta(d.profile);
-      // fresh room: new woman, new conversation
-      state.history = [];
-      chatLog.innerHTML = '';
-      addMsg(d.greeting || '...', 'mm');
+      // each persona keeps their own saved conversation
+      renderHistory(slug, d.greeting);
       $('mood-label').textContent = 'watching you';
       $('gen-status').textContent = d.portrait_pending
         ? 'she is dressing… 30-90s, the frame swaps when she is ready'

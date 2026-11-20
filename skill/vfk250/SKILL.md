@@ -40,7 +40,7 @@ export VK250_PY=~/.vfk250/bin/python     # the driver needs bleak; run_block hon
 
 1. Get a CEILING (percent) from the wearer **in this session**. None stated → ask once and do not drive. Pass it as `--cap`. Numbers from old sessions are not permission.
 2. Channel 1 is the only channel unless the wearer says channel 2 is wired **and** placed. Current must never cross the heart or chest. No mains, no chest path, ever.
-3. The stop word (default `red`) is absolute: run stop ONCE and verify a fresh `PW=*** echo. Unreachable does NOT mean off — have the wearer power the box off physically (hold any knob ~2 s).
+3. The stop word (default `red`) is absolute: run stop ONCE and verify a fresh zero echo (`STATE: {"PW": 0}` in the log). Unreachable does NOT mean off — have the wearer power the box off physically (hold any knob ~2 s).
 4. One BLE client at a time. `link_status.py` reports ownership; BUSY/BLOCKED means an owner exists, never that output is zero. Never start a second driver or reset the adapter while output is uncertain.
 5. A failed launch ends the attempt: report once, stop. No retries, no escalation, never raise power to diagnose silence.
 6. The launcher returns immediately while playback runs detached. Never wrap it in `timeout` or pipe it to `head`; that kills long scenes early.
@@ -52,7 +52,7 @@ python3 scripts/run_block.py --cap CAP --level LVL --secs SECS --pattern tide
 ```
 
 - Prints one JSON record `{pid, log, state: STARTING_NOT_VERIFIED, ...}` plus a LAUNCHED line. The launcher exiting is NOT the end of playback.
-- Read the log once: expect `PLAY <pattern> base=...%`, `PW` echoes while it runs, and at the end fresh `STATE: {"PW": 0}` lines with `PW=*** (ended)`. Only that fresh zero supports a "stopped/zero" claim.
+- Read the log once: expect `PLAY <pattern> base=...%`, `PW` echoes while it runs, and at the end fresh `STATE: {"PW": 0}` lines with `all zeroed (ended)`. Only that fresh zero supports a "stopped/zero" claim.
 - ~66 patterns ship in the engine (tide, swell, tease, arc, compress, sweep_drop, speed_sweep, signature, ...). List: `VK250_PY python3 scripts/k250_play.py --list`.
 - Bounds enforced in launcher AND driver: `0 < level <= cap <= 100`, `1 <= secs <= 3600`.
 
@@ -77,7 +77,7 @@ python3 scripts/run_block.py --cap 50 --level 30 --secs 300 --pattern swell \
 "$VK250_PY" scripts/k250_stop.py
 ```
 
-- Kills any running `k250_play*` driver, then writes `PW=*** to every plugged channel and prints `STOPPED: PW=*** written to channels [...]`.
+- Kills any running `k250_play*` driver, then zeroes every plugged channel and prints a `STOPPED:` line naming the channels it wrote.
 - Exit 1 / no zero echo = UNCONFIRMED → physical power-off (hold a knob ~2 s). Never SIGKILL a driver yourself: the box holds its last power with no dead-man switch.
 - **Link drop mid-run**: `k250_play2.py` catches the dead link during shutdown, makes ONE fresh reconnect attempt to zero every driven channel, and exits **4 = ZEROING UNCONFIRMED** if that also fails (the log then carries the physical power-off instruction). Treat exit 4 as an unconfirmed stop, never as success.
 

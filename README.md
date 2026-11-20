@@ -30,7 +30,7 @@ from [k250-forge](https://github.com/vybesforge/k250-forge) (Apache-2.0, see
 
 1. A ceiling is obtained from the wearer **per session**; nothing drives without one.
 2. Channel 1 only unless the wearer says channel 2 is wired and placed. **Current never crosses the heart or chest.**
-3. The stop word (default `red`) is absolute: stop once, verify a fresh `PW=*** echo; if the box is unreachable it is NOT off — power it off physically (hold any knob ~2 s).
+3. The stop word (default `red`) is absolute: stop once, verify a fresh zero echo (`STATE: {"PW": 0}` in the log); if the box is unreachable it is NOT off — power it off physically (hold any knob ~2 s).
 4. One BLE client at a time; a busy link is reported, never competed with.
 5. A failed attempt is reported once. No retries, no escalation, never raise power to diagnose silence.
 

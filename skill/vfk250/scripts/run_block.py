@@ -6,7 +6,7 @@ V2 contract:
     session, or the companion web page. There is no limits file on this path.
   * One ownership check, one launch, one JSON record. No retries, no recovery.
   * Playback continues independently of this launcher; read the log for PLAY
-    and the final fresh PW=*** echoes. Never wrap this in `timeout` or pipe it
+    and the final fresh PW-zero echoes. Never wrap this in `timeout` or pipe it
     to `head`.
 
 Usage:
@@ -94,7 +94,7 @@ def main(argv=None):
               'started_at': time.time(), 'state': 'STARTING_NOT_VERIFIED'}
     (runtime / 'block-last.json').write_text(json.dumps(record, indent=2))
     print(json.dumps(record), flush=True)
-    print('LAUNCHED independently. Read the log to verify PLAY and the eventual fresh PW=*** '
+    print('LAUNCHED independently. Read the log to verify PLAY and the eventual fresh PW-zero '
           'echoes. Do not relaunch because this launcher exited. Stop with k250_stop.py.',
           flush=True)
     return 0

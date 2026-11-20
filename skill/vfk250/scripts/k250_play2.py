@@ -402,7 +402,7 @@ async def main() -> int:
                 except Exception as e2:
                     log(f"!! reconnect zeroing ALSO failed: {e2}")
             if confirmed:
-                log("PW=*** (ended)")
+                log("all zeroed (ended)")
             else:
                 log("!! ZEROING UNCONFIRMED — the link is down and recovery failed. The box")
                 log("!! may still hold its last power. Power it off PHYSICALLY: hold any knob ~2 s.")

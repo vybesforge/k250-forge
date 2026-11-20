@@ -198,6 +198,8 @@ async def _queue_worker() -> None:
 @app.on_event("startup")
 async def _start_queue_worker() -> None:
     asyncio.create_task(_queue_worker())
+    if COMFY_CFG.get("prewarm_on_start"):
+        asyncio.create_task(_prewarm_qedit())
 
 
 def _k250_cfg() -> dict[str, str]:
@@ -479,7 +481,8 @@ async def list_profiles():
 
 @app.get("/api/profile")
 async def get_profile():
-    return {"ok": True, "profile": _profile_meta()}
+    return {"ok": True, "profile": _profile_meta(),
+            "greeting": _active_profile().get("greeting", "...")}
 
 
 @app.post("/api/profile")
@@ -723,6 +726,44 @@ async def vision_clear():
     """Webcam OFF means she genuinely cannot see him. Period."""
     VISION.update(summary=None, ts=0.0)
     return {"ok": True}
+
+
+@app.post("/api/image/prewarm")
+async def image_prewarm():
+    """Warm the Qwen-Edit model cache with a 1-step miniature job so the first
+    real [[image]] tag doesn't pay the multi-minute cold-load tax. Fire-and-forget."""
+    asyncio.create_task(_prewarm_qedit())
+    return {"ok": True, "state": "warming"}
+
+
+async def _prewarm_qedit():
+    prof = _active_profile()
+    g = prof.get("gen", {})
+    slug = prof.get("slug", "demo")
+    ref = IMG_DIR / g.get("reference", f"ref_{slug}.png")
+    if not ref.exists():
+        cands = sorted((q for q in IMG_DIR.glob(f"plates_{slug}_*.png") if q.is_file()),
+                       key=lambda q: q.stat().st_mtime, reverse=True)
+        if not cands:
+            cands = sorted((q for q in IMG_DIR.glob("mmweb_*.png") if q.is_file()),
+                           key=lambda q: q.stat().st_mtime, reverse=True)
+        if not cands:
+            cands = sorted((q for q in IMG_DIR.glob("mm_*.png") if q.is_file()),
+                           key=lambda q: q.stat().st_mtime, reverse=True)
+        if not cands:
+            return                      # nothing to warm against
+        ref = cands[0]
+    cmd = [str(_script_path(COMFY_CFG.get("qedit", "helpers/pg_qedit"))),
+           "--image", str(ref), "--prompt", "same woman, same pose",
+           "--steps", "1", "--w", "256", "--h", "256", "--prefix", "prewarm"]
+    env = {**os.environ, "COMFY_HOST": COMFY_CFG.get("url", "http://127.0.0.1:8188")}
+    try:
+        p = await asyncio.create_subprocess_exec(*cmd, env=env,
+                                                 stdout=asyncio.subprocess.DEVNULL,
+                                                 stderr=asyncio.subprocess.DEVNULL)
+        await asyncio.wait_for(p.communicate(), timeout=1200)
+    except Exception:
+        pass
 
 
 @app.get("/api/comfy/status")

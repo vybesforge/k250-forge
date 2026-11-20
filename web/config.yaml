@@ -22,6 +22,7 @@ vision:                    # optional — OpenAI-compatible VLM for the webcam t
 
 comfyui:                   # optional — image generation (router or a single ComfyUI)
   url: "http://127.0.0.1:8188"
+  prewarm_on_start: false   # true = warm Qwen-Edit at boot (only matters for edit-mode personas)
   checkpoint: "yourSDXL_v1.safetensors"
   img2img: "helpers/pg_img2img"
   t2i: "helpers/pg_lora_t2i"        # works with zero LoRAs as plain t2i
