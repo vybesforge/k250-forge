@@ -1,0 +1,44 @@
+# vfk250 web — EDIT EVERY PATH FOR YOUR MACHINE.
+# All relative paths resolve against this web/ folder.
+
+llm:
+  # OpenAI-compatible endpoints, probed in order; first answer wins (cached 20s).
+  candidates:
+    - { base_url: "http://127.0.0.1:8200/v1", model: "your-chat-model" }
+  temperature: 0.9
+  max_tokens: 320
+
+tts:                       # optional — Chatterbox-style TTS server
+  url: "http://127.0.0.1:3200/tts"
+  voice: "default.wav"
+
+stt:                       # optional — whisper-compatible transcription server
+  url: "http://127.0.0.1:3201/v1/audio/transcriptions"
+  model: "base"
+
+vision:                    # optional — OpenAI-compatible VLM for the webcam toggle
+  candidates:
+    - { base_url: "http://127.0.0.1:8200/v1", model: "your-vlm" }
+
+comfyui:                   # optional — image generation (router or a single ComfyUI)
+  url: "http://127.0.0.1:8188"
+  checkpoint: "yourSDXL_v1.safetensors"
+  img2img: "helpers/pg_img2img"
+  t2i: "helpers/pg_lora_t2i"        # works with zero LoRAs as plain t2i
+  lora_t2i: "helpers/pg_lora_t2i"
+  qedit: "helpers/pg_qedit"         # Qwen-Image-Edit (needs its own models, see profiles/README.md)
+  prompt_seed: ""
+  width: 832
+  height: 1216
+  steps: 30
+  cfg: 6.5
+  denoise: 0.55
+
+k250:
+  python: ""               # empty → VK250_PY env → this interpreter. Must have bleak.
+  run_block: "../skill/vfk250/scripts/run_block.py"
+  stop: "../skill/vfk250/scripts/k250_stop.py"
+  link_status: "../skill/vfk250/scripts/link_status.py"
+  patterns: ["tide", "swell", "tease", "arc", "compress", "sweep_drop", "speed_sweep", "signature"]
+
+port: 6868

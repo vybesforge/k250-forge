@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+web/.ceilings
+web/.active_profile
+web/assets/*
+!web/assets/README.md

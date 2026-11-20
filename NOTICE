@@ -1,0 +1,23 @@
+vfk250
+Copyright 2026 vybesforge contributors
+
+This product includes software from the k250-forge project
+(https://github.com/vybesforge/k250-forge), Copyright its contributors,
+licensed under the Apache License, Version 2.0.
+
+Bundled from k250-forge (Apache-2.0):
+  skill/vfk250/scripts/k250_ble.py
+  skill/vfk250/scripts/k250_codec.py
+  skill/vfk250/scripts/k250_play.py     (pattern engine)
+  skill/vfk250/scripts/k250_stop.py
+
+Derived from k250-forge:
+  skill/vfk250/scripts/k250_play2.py    (V2 dual-channel driver; imports the
+                                         engine above and adds per-channel
+                                         waveform frames, atomic AC+PW writes,
+                                         and CA-based channel detection)
+
+Original to vfk250:
+  skill/vfk250/scripts/run_block.py     (lean V2 launcher, caller ceilings)
+  skill/vfk250/scripts/link_status.py   (read-only ownership snapshot)
+  web/                                  (companion web app)
