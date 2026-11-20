@@ -5,3 +5,4 @@ web/.ceilings
 web/.active_profile
 web/assets/*
 !web/assets/README.md
+web/config.local.yaml

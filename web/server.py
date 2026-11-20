@@ -34,8 +34,31 @@ IMG_DIR = Path(os.environ.get("VFK250_ASSETS", str(ROOT / "assets"))).expanduser
 if not IMG_DIR.is_absolute():
     IMG_DIR = (ROOT / IMG_DIR).resolve()
 
-with open(CFG_PATH) as f:
-    CFG: dict[str, Any] = yaml.safe_load(f)
+def _deep_merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in (over or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def _load_cfg() -> dict[str, Any]:
+    """config.yaml is the shipped template; config.local.yaml holds machine-local
+    overrides (written by the page's settings dialog). Local wins."""
+    with open(CFG_PATH) as f:
+        cfg = yaml.safe_load(f) or {}
+    local = CFG_PATH.with_name("config.local.yaml")
+    if local.exists():
+        try:
+            cfg = _deep_merge(cfg, yaml.safe_load(local.read_text()) or {})
+        except Exception:
+            pass
+    return cfg
+
+
+CFG: dict[str, Any] = _load_cfg()
 
 app = FastAPI(title="mm-web")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -64,8 +87,8 @@ async def resolve_llm(client: httpx.AsyncClient) -> tuple[str, str]:
 
 # ---------------------------------------------------------------- k250 state
 K250 = {
-    "ceiling": 85,
-    "ceiling2": 30,          # channel-2 ceiling — the page is the authority
+    "ceiling": 10,           # conservative first-run defaults — raise deliberately
+    "ceiling2": 5,           # channel-2 ceiling — the page is the authority
     "level": 0,
     "level2": 0,
     "pattern": None,
@@ -798,6 +821,64 @@ async def _generate_plate(prompt: str, profile: dict[str, Any] | None = None,
         return {"ok": False, "error": "generation timed out"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------- settings
+def _parse_candidate_lines(lines) -> list[dict[str, str]]:
+    out = []
+    for ln in lines or []:
+        ln = str(ln).strip()
+        if not ln or ln.startswith("#"):
+            continue
+        parts = ln.split(None, 1)
+        out.append({"base_url": parts[0], "model": parts[1].strip() if len(parts) > 1 else ""})
+    return out
+
+
+def _candidate_lines(section: str) -> list[str]:
+    return [f"{c.get('base_url', '')} {c.get('model', '')}".strip()
+            for c in CFG.get(section, {}).get("candidates", [])]
+
+
+@app.get("/api/settings")
+async def get_settings():
+    return {"ok": True,
+            "llm_candidates": _candidate_lines("llm"),
+            "vision_candidates": _candidate_lines("vision"),
+            "tts_url": CFG.get("tts", {}).get("url", ""),
+            "stt_url": CFG.get("stt", {}).get("url", ""),
+            "comfy_url": CFG.get("comfyui", {}).get("url", "")}
+
+
+@app.post("/api/settings")
+async def set_settings(req: Request):
+    """Persist overrides to config.local.yaml, hot-apply, reset probe caches."""
+    global CFG, COMFY_CFG
+    body = await req.json()
+    over: dict[str, Any] = {}
+    if body.get("llm_candidates") is not None:
+        over["llm"] = {"candidates": _parse_candidate_lines(body["llm_candidates"])}
+    if body.get("vision_candidates") is not None:
+        over["vision"] = {"candidates": _parse_candidate_lines(body["vision_candidates"])}
+    if body.get("tts_url") is not None:
+        over["tts"] = {"url": str(body["tts_url"]).strip()}
+    if body.get("stt_url") is not None:
+        over["stt"] = {"url": str(body["stt_url"]).strip()}
+    if body.get("comfy_url") is not None:
+        over["comfyui"] = {"url": str(body["comfy_url"]).strip()}
+    try:
+        local = CFG_PATH.with_name("config.local.yaml")
+        existing = {}
+        if local.exists():
+            existing = yaml.safe_load(local.read_text()) or {}
+        local.write_text(yaml.safe_dump(_deep_merge(existing, over), sort_keys=False))
+        CFG = _load_cfg()
+        COMFY_CFG = CFG.get("comfyui", {})
+        _llm_cache.update(winner=None, ts=0.0)
+        _vlm_cache.update(winner=None, ts=0.0)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
 
 
 @app.get("/api/health")

@@ -14,6 +14,9 @@ runs as a detached subprocess with that interpreter).
 
 ## What it does
 
+- **Safety gate first** — the page opens on an e-stim safety warning and stays
+  dark until the wearer ticks "I understand and accept". The gate hides itself
+  and re-arms on every page load. Nothing drives until then.
 - **Chat** with a local LLM (any OpenAI-compatible endpoint; candidates are
   probed in order and the winner cached). The active persona can drive the box
   straight from conversation with machine-read tags:
@@ -24,7 +27,16 @@ runs as a detached subprocess with that interpreter).
   Tags are parsed tolerantly and **validated server-side**: unknown patterns
   are dropped, levels clamp to the page ceilings, seconds clamp to 30–600.
 - **Per-channel ceiling sliders** — the page is the ceiling authority
-  (persisted in `.ceilings`, loaded on boot, never clobbered by client defaults).
+  (persisted in `.ceilings`, loaded on boot, never clobbered by client
+  defaults). First-run defaults are deliberately conservative (CH1 10%,
+  CH2 5%); raise them deliberately.
+- **Manual drive panel** — pick "User" under *Who drives* and you get direct
+  controls: pattern dropdown, level slider (starts at 5%), duration, Start.
+  Pick the persona and chat takes the dial instead.
+- **Settings dialog** — click the header's status indicators (⚙) to edit every
+  service URL (LLM/vision candidates, TTS, STT, ComfyUI) from the page.
+  Overrides persist to `config.local.yaml` (gitignored) and hot-apply without
+  a restart, so `config.yaml` stays a clean template.
 - **Stim queue** — a command sent while a block is running queues behind it
   (max 3) and fires only when the link is genuinely free. STOP drops the queue:
   after a stop, nothing fires.

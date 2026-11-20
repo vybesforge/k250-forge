@@ -118,6 +118,19 @@
     height: 100%;
     object-fit: cover;
   }
+  .frame-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+    padding: 24px;
+    pointer-events: none;
+  }
   .expr-layer {
     opacity: 0;
     transition: opacity 800ms ease;   /* expression crossfade */
@@ -182,6 +195,7 @@
     gap: 12px;
   }
   .msg {
+    animation: msg-in 0.25s ease;
     max-width: 75%;
     padding: 10px 14px;
     border-radius: 12px;
@@ -200,6 +214,10 @@
     background: #2a1a2e;
     border: 1px solid #3d2040;
     border-bottom-right-radius: 4px;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
   }
   .msg .time {
     font-size: 10px;
@@ -459,6 +477,35 @@
     object-fit: cover;
   }
 
+  /* ── settings dialog ── */
+  .status-row { cursor: pointer; }
+  .status-row .gear { opacity: 0.55; font-size: 13px; }
+  .status-row:hover .gear { opacity: 1; }
+  dialog#settings-dialog {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    width: min(540px, 92vw);
+  }
+  dialog#settings-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+  .dlg-title {
+    font-weight: 800; letter-spacing: 1.5px; font-size: 12px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .dlg-label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .dlg-label span { opacity: 0.6; }
+  #settings-dialog textarea, #settings-dialog input[type="text"] {
+    width: 100%; box-sizing: border-box;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 8px 10px; font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    outline: none; resize: vertical;
+  }
+  #settings-dialog textarea:focus, #settings-dialog input[type="text"]:focus { border-color: var(--accent); }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
   /* ── safety gate ── */
   body.gated header, body.gated main, body.gated footer { display: none; }
   body:not(.gated) .gate { display: none; }
@@ -541,6 +588,7 @@
     .portrait-panel, .k250-panel { border: none; border-bottom: 1px solid var(--border); }
   }
 </style>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
 </head>
 <body class="gated">
 
@@ -564,7 +612,8 @@
 <header>
   <div class="brand"><span id="brand-name">vfk250</span></div>
   <select id="profile-select" title="Who is behind the dial"></select>
-  <div class="status-row">
+  <div class="status-row" id="status-row" title="Click to configure service URLs">
+    <span class="gear">⚙</span>
     <span><span class="dot down" id="dot-llm"></span>LLM</span>
     <span><span class="dot down" id="dot-tts"></span>TTS</span>
     <span><span class="dot down" id="dot-k250"></span>K250</span>
@@ -578,6 +627,7 @@
     <div class="portrait-frame">
       <img id="portrait" src="/api/portrait" alt="persona" />
       <img id="portrait-expr" class="expr-layer" alt="" />
+      <div class="frame-hint" id="frame-hint" style="display:none">no portrait yet —<br>describe a look below<br>and let her render</div>
     </div>
     <div class="mood-label" id="mood-label">watching you</div>
     <div class="gen-block">
@@ -622,8 +672,8 @@
       <div class="panel-title" style="margin-bottom:6px">Manual drive</div>
       <select id="manual-pattern" class="manual-select"></select>
       <div class="level-bar-wrap" style="margin-top:10px">
-        <input type="range" id="manual-level" min="1" max="85" value="20" style="flex:1">
-        <div class="level-num" id="manual-level-num">20</div>
+        <input type="range" id="manual-level" min="1" max="10" value="5" style="flex:1">
+        <div class="level-num" id="manual-level-num">5</div>
       </div>
       <select id="manual-secs" class="manual-select" style="margin-top:8px">
         <option value="60">60 seconds</option>
@@ -635,12 +685,12 @@
 
     <div class="ceiling-block">
       <div class="panel-title" style="margin-bottom:4px">Ceiling · CH1</div>
-      <div class="ceiling-val"><span id="ceiling-num">85</span>%</div>
-      <input type="range" id="ceiling-slider" min="10" max="100" value="85">
+      <div class="ceiling-val"><span id="ceiling-num">10</span>%</div>
+      <input type="range" id="ceiling-slider" min="10" max="100" value="10">
       <div class="panel-title" style="margin:12px 0 4px">Ceiling · CH2</div>
       <div style="font-size:10px;color:var(--muted);margin-bottom:4px">never across heart or chest</div>
-      <div class="ceiling-val" style="font-size:18px"><span id="ceiling2-num">30</span>%</div>
-      <input type="range" id="ceiling2-slider" min="0" max="85" value="30">
+      <div class="ceiling-val" style="font-size:18px"><span id="ceiling2-num">5</span>%</div>
+      <input type="range" id="ceiling2-slider" min="0" max="85" value="5">
     </div>
 
     <div>
@@ -687,14 +737,33 @@
   <a href="https://buy.stripe.com/14A3cxcnb92QfS80wfc3m00" target="_blank" rel="noopener">tip via Stripe</a>
 </footer>
 
+<dialog id="settings-dialog">
+  <div class="dlg-title">Service settings — saved to config.local.yaml</div>
+  <label class="dlg-label">LLM candidates <span>(one per line: base_url model — probed in order)</span></label>
+  <textarea id="set-llm" rows="3" spellcheck="false"></textarea>
+  <label class="dlg-label">Vision candidates <span>(one per line: base_url model)</span></label>
+  <textarea id="set-vision" rows="2" spellcheck="false"></textarea>
+  <label class="dlg-label">TTS URL</label>
+  <input type="text" id="set-tts" spellcheck="false">
+  <label class="dlg-label">STT URL</label>
+  <input type="text" id="set-stt" spellcheck="false">
+  <label class="dlg-label">ComfyUI URL</label>
+  <input type="text" id="set-comfy" spellcheck="false">
+  <div class="dlg-actions">
+    <button type="button" class="btn" id="set-cancel">Cancel</button>
+    <button type="button" class="btn primary" id="set-save">Save</button>
+  </div>
+  <div class="gen-status" id="set-status"></div>
+</dialog>
+
 <script>
 // ─── state ───────────────────────────────────────────────
 const state = {
   history: [],
   armed: false,   // set by the safety gate
   owner: 'ai',
-  ceiling: 85,
-  ceiling2: 30,
+  ceiling: 10,
+  ceiling2: 5,
   level: 0,
   level2: 0,
   pattern: null,
@@ -1205,7 +1274,10 @@ function setExpression(mood) {
 async function refreshPortrait() {
   try {
     const r = await fetch('/api/portrait', {cache: 'no-store'});
-    if (!r.ok) return;
+    if (!r.ok) {
+      if (!lastPlate) $('frame-hint').style.display = 'flex';
+      return;
+    }
     const plate = r.headers.get('x-plate') || '';
     if (plate === lastPlate) return;   // same file — no swap, expression layer stays
     const blob = await r.blob();
@@ -1213,6 +1285,7 @@ async function refreshPortrait() {
     const pre = new Image();
     pre.onload = () => {
       portrait.src = url;
+      $('frame-hint').style.display = 'none';
       if (lastPlate !== null) {        // base plate changed → any expression is stale
         exprImg.classList.remove('visible');
         currentExpr = null;
@@ -1268,6 +1341,48 @@ genBtn.onclick = async () => {
   genBtn.disabled = false;
 };
 genPrompt.onkeydown = e => { if (e.key === 'Enter') genBtn.onclick(); };
+
+// ─── settings dialog ─────────────────────────────────────
+const settingsDialog = $('settings-dialog');
+async function openSettings() {
+  try {
+    const r = await fetch('/api/settings');
+    const d = await r.json();
+    if (!d.ok) return;
+    $('set-llm').value = (d.llm_candidates || []).join('\n');
+    $('set-vision').value = (d.vision_candidates || []).join('\n');
+    $('set-tts').value = d.tts_url || '';
+    $('set-stt').value = d.stt_url || '';
+    $('set-comfy').value = d.comfy_url || '';
+    $('set-status').textContent = '';
+    settingsDialog.showModal();
+  } catch(e) { console.error('settings load failed', e); }
+}
+$('status-row').onclick = openSettings;
+$('set-cancel').onclick = () => settingsDialog.close();
+$('set-save').onclick = async () => {
+  $('set-status').textContent = 'saving…';
+  try {
+    const body = {
+      llm_candidates: $('set-llm').value.split('\n'),
+      vision_candidates: $('set-vision').value.split('\n'),
+      tts_url: $('set-tts').value,
+      stt_url: $('set-stt').value,
+      comfy_url: $('set-comfy').value,
+    };
+    const r = await fetch('/api/settings', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      settingsDialog.close();
+      checkHealth(); checkComfy();
+    } else {
+      $('set-status').textContent = 'failed: ' + (d.error || 'unknown');
+    }
+  } catch(e) { $('set-status').textContent = 'failed: ' + e.message; }
+};
 </script>
 </body>
 </html>
