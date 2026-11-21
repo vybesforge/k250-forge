@@ -4,7 +4,7 @@ description: "Use when driving a Kink K250-4S e-stim box over BLE, single or dua
 version: 2.0.0
 author: vybesforge
 license: Apache-2.0
-platforms: [linux]
+platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [k250, e-stim, ble, hardware]
@@ -28,9 +28,27 @@ this repo under `web/` and works outside Hermes.
 ## Setup (once per machine)
 
 ```bash
+# Linux / macOS
 python3 -m venv ~/.vfk250 && ~/.vfk250/bin/pip install bleak
 export VK250_PY=~/.vfk250/bin/python     # the driver needs bleak; run_block honours this
 ```
+
+```powershell
+# Windows (PowerShell) -- same venv, different bin dir
+py -m venv $HOME\.vfk250
+& "$HOME\.vfk250\Scripts\python.exe" -m pip install bleak
+$env:VK250_PY = "$HOME\.vfk250\Scripts\python.exe"
+```
+
+- **Windows is a supported host.** BLE runs on bleak's WinRT backend (verified against
+  a live `Kx250-4S`: discovery, GATT connect, notifications and state reads all work).
+  `link_status.py` and `k250_stop.py` reach for PowerShell where Linux uses `/proc` and
+  `bluetoothctl`, and the launcher detaches playback with a Windows process group.
+  Point `VK250_PY` at the venv's `Scripts\python.exe` — there is no `bin/python`.
+- **macOS is ported but NOT verified on hardware.** It has no `/proc` (`link_status.py`
+  falls back to `ps -eo`) and no `bluetoothctl` (it reads the `Connected:` group of
+  `system_profiler SPBluetoothDataType`). If `link_status.py` reports `UNKNOWN` on a
+  Mac, that probe is the first thing to check.
 
 - Box: powered on, LCD on **Options → Remote App Control** (that is when it advertises).
 - Pads: channel 1 only by default, loop complete, seated. Channel 2 only per the dual rules below.
@@ -94,8 +112,10 @@ IDLE → safe to launch (or make one direct probe). BUSY/CONFLICT → report the
 
 - v2.x: PW is percent×1, MA (frequency axis) apexes ~100, PA writes refused (pattern set by hand). v1: PW is percent×100. **Unknown firmware → the driver refuses** (fail safe). Details: `references/protocol.md`.
 - Plug status is **CA**, which must be requested explicitly (`{"CA": ""}`) — it is not in read-all. **PA slots lie**: verified live `CA=['Active','Active',...]` while `PA=['Rhythm',"UNPLUG'D",...]`.
+- **On v2 firmware the `PA` pattern NAME is unreadable too.** Every slot reports `Rhythm` no matter which pattern is actually selected on the box — verified 2026-11-20 on fw `2.00.09` (box set to another pattern by hand, `PA[0]` still `Rhythm`). So `PA` can confirm neither plug state nor the chosen pattern. Never treat a `Rhythm` reading as "the box is on Rhythm", and never use it to verify the wearer's selection — ask them.
 - `MP` is the box's own master cap (L-05..L-100) and limits every channel regardless of software. Ask the wearer what it is set to; don't assume.
 - BlueZ wedge after a crashed scan (`org.bluez.Error.InProgress`): full `bluetoothctl power off && bluetoothctl power on` cycle; the HCI number can re-enumerate.
+- **Windows**: there is no BlueZ to wedge. Ownership comes from the CIM process list, and "is the box connected" from `Get-PnpDevice -PresentOnly -Class Bluetooth` — a Bluetooth PnP node exists only while the peripheral is CONNECTED, so that listing is the live-link signal (the host's own controllers/enumerators are present too and never match `Kx250`). A non-paired Web Bluetooth link is invisible to it. `k250_play2.py` installs its SIGINT/SIGTERM handlers via `signal.signal` (asyncio's `add_signal_handler` is unsupported on Windows), and `k250_stop.py` terminates pattern processes — `TerminateProcess` runs no exit handler, which is why the `PW=0` writes that follow it are the ones that matter.
 
 ## Companion web app
 

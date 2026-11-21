@@ -25,8 +25,12 @@ MINE = os.getpid()
 PS_POSIX = ["ps", "-eo", "pid=,comm=,args="]
 # Windows has no `ps`. Ask PowerShell for the pid + command line of anything running the engine;
 # one "pid,commandline" line per match, so there is nothing to unquote.
+# `$_.Name -match 'python'` is load-bearing: the PowerShell process running THIS query has
+# `k250_play|k250_show` in its own command line, so a CommandLine-only filter matches itself and
+# the stop tries to kill the query it just ran (WinError 87, the process is already gone).
 PS_WINDOWS = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-              "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'k250_play|k250_show' } "
+              "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'python' -and "
+              "$_.CommandLine -match 'k250_play|k250_show' } "
               "| ForEach-Object { \"$($_.ProcessId),$($_.CommandLine)\" }"]
 
 

@@ -46,6 +46,9 @@ refuses outright.
 - Plug detection: **only `CA` is authoritative.** `PA` slots can read `UNPLUG'D`
   for a channel whose `CA` reads `Active` (verified live). `CA` is not part of
   read-all — request it with `{"CA": ""}` and read it from the reply.
+- On v2 the `PA` pattern NAME is unreadable as well: every slot reports `Rhythm`
+  whatever is selected on the box (verified 2026-11-20, fw `2.00.09`). `PA` can
+  therefore confirm neither plug state nor the chosen pattern — ask the wearer.
 - `AC=n` is refused while channel n is unplugged.
 
 ## Connection lifecycle notes
@@ -57,3 +60,9 @@ refuses outright.
   Re-ask every ~3 s for up to ~12 s before declaring a read timeout.
 - One BLE client at a time. Two concurrent drivers corrupt each other's channel
   selection. Ownership must be checked before connecting (see link_status).
+- Host support: Linux (BlueZ) and Windows (WinRT through bleak). `link_status.py`
+  answers the same two questions on both — running driver processes (CIM vs /proc)
+  and whether the box is connected (`Get-PnpDevice -PresentOnly -Class Bluetooth`
+  vs `bluetoothctl devices Connected`). On Windows a Bluetooth PnP node exists only
+  while the peripheral is CONNECTED, so that listing is the live-link signal; a
+  non-paired Web Bluetooth link is invisible to it.

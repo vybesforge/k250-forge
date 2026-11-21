@@ -25,6 +25,10 @@ from [k250-forge](https://github.com/vybesforge/k250-forge) (Apache-2.0, see
 - **Fail-closed everywhere** — unknown firmware, unplugged requested channel,
   busy link, bad arguments: refuse, report once, never retry, never degrade
   silently.
+- **Host-portable** — Linux (BlueZ), Windows (WinRT) and macOS. The ownership
+  check and the stop use whichever the host offers (`/proc` + `bluetoothctl`,
+  the CIM process list + the present Bluetooth PnP tree, or `ps -eo` +
+  `system_profiler`); the driver itself is one code path everywhere.
 
 ## The safety contract (both halves)
 
@@ -47,8 +51,19 @@ python3 skill/vfk250/scripts/link_status.py
 # one bounded block: 30% for 5 minutes, ceiling 50
 python3 skill/vfk250/scripts/run_block.py --cap 50 --level 30 --secs 300 --pattern tide
 
+# one bounded block with a power envelope: 10% floor, 25% peak
+python3 skill/vfk250/scripts/run_block.py --cap 50 --level 25 --base 10 --peak 25 --secs 300 --pattern swell
+
 # stop (kills drivers, zeroes every plugged channel, prints confirmation)
 "$VK250_PY" skill/vfk250/scripts/k250_stop.py
+```
+
+On Windows the driver venv lives under `Scripts\` instead of `bin/`:
+
+```powershell
+py -m venv $HOME\.vfk250
+& "$HOME\.vfk250\Scripts\python.exe" -m pip install bleak
+$env:VK250_PY = "$HOME\.vfk250\Scripts\python.exe"
 ```
 
 Full operating manual: [`skill/vfk250/SKILL.md`](skill/vfk250/SKILL.md).
@@ -58,8 +73,9 @@ Web app setup: [`web/README.md`](web/README.md).
 ## Hardware
 
 [Kink K250-4S](https://kinkstore.com) 4-channel e-stim power box, firmware
-v1.x/v2.x, BLE name `Kx250-4S`. Linux + BlueZ. Nothing here is medical advice;
-the wearer owns every limit.
+v1.x/v2.x, BLE name `Kx250-4S`. Hosts: Linux (BlueZ) and Windows (WinRT), both
+verified against real hardware; macOS is ported but not yet verified on
+hardware. Nothing here is medical advice; the wearer owns every limit.
 
 ## License
 
