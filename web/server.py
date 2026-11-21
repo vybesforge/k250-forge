@@ -60,7 +60,7 @@ def _load_cfg() -> dict[str, Any]:
 
 CFG: dict[str, Any] = _load_cfg()
 
-app = FastAPI(title="mm-web")
+app = FastAPI(title="vfk250-web")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # ---------------------------------------------------------------- llm routing
