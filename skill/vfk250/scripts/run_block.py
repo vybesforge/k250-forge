@@ -76,14 +76,13 @@ def main(argv=None):
     # "the driver validates", but the launcher detached the child, printed LAUNCHED and
     # exited 0 for a run that never happened -- a failed attempt reported as a success,
     # which the V2 contract forbids. Same table the driver uses.
-    try:
-        from k250_play import PATTERNS as _PATTERNS
-    except Exception:
-        _PATTERNS = None
-    if _PATTERNS:
-        for _nm in (a.pattern, a.pattern2 if dual else None):
-            if _nm and _nm not in _PATTERNS:
-                errs.append(f'unknown pattern {_nm!r}')
+    # The name table lives in k250_codec (stdlib-only), so this pre-check works
+    # even where the launcher's python has no bleak — k250_play asserts its live
+    # PATTERNS table matches the codec set at driver import (drift fails there).
+    from k250_codec import PATTERN_NAMES as _PATTERNS
+    for _nm in (a.pattern, a.pattern2 if dual else None):
+        if _nm and _nm not in _PATTERNS:
+            errs.append(f'unknown pattern {_nm!r}')
     if errs:
         print('REFUSED: ' + '; '.join(errs), flush=True)
         return 2

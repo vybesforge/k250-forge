@@ -100,3 +100,26 @@ if __name__ == "__main__":
     print("frame(240,1,'') =", got.hex())
     print("reference       =", ref.hex())
     print("MATCH" if got == ref else "MISMATCH")
+
+
+# ---------------------------------------------------------------------------
+# Pattern vocabulary — the SINGLE SOURCE OF TRUTH for pattern NAMES.
+# Lives here (dependency-free: stdlib only) so tools that must validate a
+# pattern name — the launcher's pre-check, the web bridge's drift check —
+# can import it WITHOUT bleak being installed in their interpreter.
+# k250_play.py asserts its live PATTERNS table == this set at import time,
+# so drift between the two fails loudly on the driver, never mid-scene.
+PATTERN_NAMES = frozenset({
+"arc","ascend","bounce","buzzline","climb","compress","cooldown",
+    "crawl","creep","crescendo","dice","dread","drift","dual","edge",
+    "edging_continuous","edging_pulse","edging_wave","engulf","fangs",
+    "flat","flick","friction","groove","heartbeat","heavy",
+    "high_sweep","hr_follow","jelly","knead","lie","lift",
+    "light_pulse","light_stutter","map","metronome","milker","mirror",
+    "pain_edge","pain_shocks","pain_slow_ramp","pain_stutter",
+    "power_sweep","power_sweep_rich","pulse","rain","ration","ripple",
+    "signature","sound","speed_step","speed_sweep","stutter",
+    "sweep_drop","sweep_hold_zero","swell","switchback","tease",
+    "teasing_continuous","teasing_pulse","teasing_stutter","thrust",
+    "tickles","tide","trap","verge",
+})

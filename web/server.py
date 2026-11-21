@@ -195,9 +195,30 @@ async def _queue_worker() -> None:
             pass
 
 
+def _check_pattern_drift() -> None:
+    """Log-only startup check: every pattern on the web whitelist must exist in the
+    driver's dependency-free name table (k250_codec.PATTERN_NAMES). A whitelisted
+    pattern the driver does not know = a mid-scene REFUSED waiting to happen."""
+    try:
+        rb = _script_path(CFG.get("k250", {}).get("run_block", ""))
+        if str(rb.parent) not in sys.path:
+            sys.path.insert(0, str(rb.parent))
+        from k250_codec import PATTERN_NAMES
+        allowed = set(CFG.get("k250", {}).get("patterns", []))
+        unknown = sorted(allowed - set(PATTERN_NAMES))
+        if unknown:
+            print(f"[warn] stim whitelist patterns the driver does NOT know: {unknown}", flush=True)
+        else:
+            print(f"[ok] stim whitelist ({len(allowed)} patterns) is a subset of the "
+                  f"driver's {len(PATTERN_NAMES)}", flush=True)
+    except Exception as e:
+        print(f"[warn] pattern drift check skipped: {e}", flush=True)
+
+
 @app.on_event("startup")
 async def _start_queue_worker() -> None:
     asyncio.create_task(_queue_worker())
+    _check_pattern_drift()
     if COMFY_CFG.get("prewarm_on_start"):
         asyncio.create_task(_prewarm_qedit())
 

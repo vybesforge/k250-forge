@@ -108,15 +108,16 @@ def _processes_ps():
         raise OSError(f'ps exited {r.returncode}')
     found = []
     for line in r.stdout.splitlines():
-        parts = line.split(None, 2)
-        if len(parts) < 3:
+        parts = line.split()
+        if len(parts) < 2 or not parts[0].isdigit():
             continue
-        pid, comm, args = parts
-        if not pid.isdigit() or 'python' not in comm.lower():
+        # Scan ALL tokens: comm paths may contain spaces (a venv under
+        # "My Documents"), so never rely on a fixed pid/comm/args column split.
+        if not any('python' in tok.lower() for tok in parts[1:]):
             continue
-        script = next((Path(a).name for a in args.split() if Path(a).name in DRIVERS), None)
+        script = next((Path(tok).name for tok in parts[1:] if Path(tok).name in DRIVERS), None)
         if script:
-            found.append({'pid': int(pid), 'script': script, 'argv': args.split()})
+            found.append({'pid': int(parts[0]), 'script': script, 'argv': parts[1:]})
     return sorted(found, key=lambda x: x['pid'])
 
 

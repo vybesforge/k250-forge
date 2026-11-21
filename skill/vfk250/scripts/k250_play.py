@@ -26,7 +26,7 @@ import signal
 import sys
 import time
 
-from k250_codec import READ_ALL
+from k250_codec import READ_ALL, PATTERN_NAMES
 
 from k250_ble import K250, find
 
@@ -1652,6 +1652,15 @@ PATTERNS = {
     "pain_shocks": p_pain_shocks,
     "flat": p_flat, "mirror": p_mirror, "hr_follow": p_hr_follow,
 }
+
+
+# Drift alarm: launcher/bridge pre-validate pattern names against
+# k250_codec.PATTERN_NAMES without importing this module (bleak-free). If the
+# tables ever diverge, fail HERE, loudly, at driver import — never mid-scene.
+assert set(PATTERNS) == set(PATTERN_NAMES), (
+    'PATTERNS drifted from k250_codec.PATTERN_NAMES — '
+    f'only-in-play={sorted(set(PATTERNS) - set(PATTERN_NAMES))} '
+    f'only-in-codec={sorted(set(PATTERN_NAMES) - set(PATTERNS))}')
 
 
 # ---------------------------------------------------------------------------

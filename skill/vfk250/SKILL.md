@@ -72,7 +72,20 @@ python3 scripts/run_block.py --cap CAP --level LVL --secs SECS --pattern tide
 
 - Prints one JSON record `{pid, log, state: STARTING_NOT_VERIFIED, ...}` plus a LAUNCHED line. The launcher exiting is NOT the end of playback.
 - Read the log once: expect `PLAY <pattern> base=...%`, `PW` echoes while it runs, and at the end fresh `STATE: {"PW": 0}` lines with `all zeroed (ended)`. Only that fresh zero supports a "stopped/zero" claim.
-- ~66 patterns ship in the engine (tide, swell, tease, arc, compress, sweep_drop, speed_sweep, signature, ...). List: `VK250_PY python3 scripts/k250_play.py --list`.
+- **66 patterns** ship in the engine. Authoritative name list: `scripts/k250_codec.py` → `PATTERN_NAMES` (stdlib-only; the launcher pre-validates against it, so an unknown name is REFUSED before launch). All names — no lookup needed:
+```
+  arc, ascend, bounce, buzzline, climb, compress, cooldown, crawl, creep, 
+  crescendo, dice, dread, drift, dual, edge, edging_continuous, 
+  edging_pulse, edging_wave, engulf, fangs, flat, flick, friction, groove, 
+  heartbeat, heavy, high_sweep, hr_follow, jelly, knead, lie, lift, 
+  light_pulse, light_stutter, map, metronome, milker, mirror, pain_edge, 
+  pain_shocks, pain_slow_ramp, pain_stutter, power_sweep, power_sweep_rich, 
+  pulse, rain, ration, ripple, signature, sound, speed_step, speed_sweep, 
+  stutter, sweep_drop, sweep_hold_zero, swell, switchback, tease, 
+  teasing_continuous, teasing_pulse, teasing_stutter, thrust, tickles, 
+  tide, trap, verge
+```
+- Optional envelope: `--base B --peak P` override the flat `--level` (both ≤ cap; the JSON record echoes level, base and peak).
 - Bounds enforced in launcher AND driver: `0 < level <= cap <= 100`, `1 <= secs <= 3600`.
 
 ## Dual channel (V2)
