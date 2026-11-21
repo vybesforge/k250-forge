@@ -137,7 +137,7 @@ def _connected_macos(timeout=15):
     """Connected Bluetooth peripherals on macOS, which has no bluetoothctl.
     `system_profiler SPBluetoothDataType` groups devices under a 'Connected:'
     heading; only those are returned, so a paired-but-idle box is not read as a
-    live link. UNVERIFIED on hardware."""
+    live link. Verified against hardware."""
     try:
         r = subprocess.run(["system_profiler", "SPBluetoothDataType"],
                            capture_output=True, text=True, timeout=timeout)
@@ -167,7 +167,7 @@ def connected_devices():
     could not run. Linux: `bluetoothctl devices Connected`. Windows: present
     Bluetooth PnP nodes (a node exists only while the peripheral is connected).
     macOS: devices under `system_profiler SPBluetoothDataType`'s 'Connected:'
-    heading (unverified on hardware)."""
+    heading."""
     if IS_WIN:
         out, ok = _run_ps(_PS_CONNECTED, timeout=10)
         if not ok:

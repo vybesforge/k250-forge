@@ -60,9 +60,11 @@ refuses outright.
   Re-ask every ~3 s for up to ~12 s before declaring a read timeout.
 - One BLE client at a time. Two concurrent drivers corrupt each other's channel
   selection. Ownership must be checked before connecting (see link_status).
-- Host support: Linux (BlueZ) and Windows (WinRT through bleak). `link_status.py`
-  answers the same two questions on both — running driver processes (CIM vs /proc)
-  and whether the box is connected (`Get-PnpDevice -PresentOnly -Class Bluetooth`
-  vs `bluetoothctl devices Connected`). On Windows a Bluetooth PnP node exists only
-  while the peripheral is CONNECTED, so that listing is the live-link signal; a
-  non-paired Web Bluetooth link is invisible to it.
+- Host support: Linux (BlueZ), Windows (WinRT through bleak) and macOS — all three
+  verified against hardware. `link_status.py` answers the same two questions on
+  each: running driver processes (/proc, the CIM process list, or `ps -eo`) and
+  whether the box is connected (`bluetoothctl devices Connected`,
+  `Get-PnpDevice -PresentOnly -Class Bluetooth`, or the `Connected:` group of
+  `system_profiler SPBluetoothDataType`). On Windows a Bluetooth PnP node exists
+  only while the peripheral is CONNECTED, so that listing is the live-link signal;
+  a non-paired Web Bluetooth link is invisible to it.

@@ -73,9 +73,9 @@ Web app setup: [`web/README.md`](web/README.md).
 ## Hardware
 
 [Kink K250-4S](https://kinkstore.com) 4-channel e-stim power box, firmware
-v1.x/v2.x, BLE name `Kx250-4S`. Hosts: Linux (BlueZ) and Windows (WinRT), both
-verified against real hardware; macOS is ported but not yet verified on
-hardware. Nothing here is medical advice; the wearer owns every limit.
+v1.x/v2.x, BLE name `Kx250-4S`. Hosts: Linux (BlueZ), Windows (WinRT) and macOS —
+all verified against real hardware. Nothing here is medical advice; the wearer
+owns every limit.
 
 ## License
 

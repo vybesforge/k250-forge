@@ -45,10 +45,10 @@ $env:VK250_PY = "$HOME\.vfk250\Scripts\python.exe"
   `link_status.py` and `k250_stop.py` reach for PowerShell where Linux uses `/proc` and
   `bluetoothctl`, and the launcher detaches playback with a Windows process group.
   Point `VK250_PY` at the venv's `Scripts\python.exe` — there is no `bin/python`.
-- **macOS is ported but NOT verified on hardware.** It has no `/proc` (`link_status.py`
-  falls back to `ps -eo`) and no `bluetoothctl` (it reads the `Connected:` group of
-  `system_profiler SPBluetoothDataType`). If `link_status.py` reports `UNKNOWN` on a
-  Mac, that probe is the first thing to check.
+- **macOS is a supported host** — verified against hardware, like Windows. It has no
+  `/proc` (`link_status.py` falls back to `ps -eo`) and no `bluetoothctl` (it reads the
+  `Connected:` group of `system_profiler SPBluetoothDataType`). If it ever reports
+  `UNKNOWN`, that probe is the first thing to check.
 
 - Box: powered on, LCD on **Options → Remote App Control** (that is when it advertises).
 - Pads: channel 1 only by default, loop complete, seated. Channel 2 only per the dual rules below.
