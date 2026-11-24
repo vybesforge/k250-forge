@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""pg_img2img — SDXL image-to-image via ComfyUI :8188 shim.
+
+  pg_img2img --image /path/to/face.png \
+      --ckpt RealVisXL_V5.0_fp16.safetensors \
+      --prompt "blue eyes, huge ass, huge tits, thin waist, asian female, ..." \
+      --denoise 0.6 --w 832 --h 1216 --steps 34 --cfg 6.5 --prefix mm_pose
+
+Prints the absolute path of the first saved image.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+
+COMFY = os.environ.get("COMFY_HOST", "http://127.0.0.1:8188")
+
+
+def _post(path: str, payload):
+    req = urllib.request.Request(
+        COMFY + path,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+
+def _get(path: str):
+    with urllib.request.urlopen(COMFY + path, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--image", required=True)
+    ap.add_argument("--ckpt", required=True)
+    ap.add_argument("--prompt", required=True)
+    ap.add_argument("--neg", default="lowres, bad anatomy, bad hands, cropped, worst quality, low quality, jpeg artifacts, signature, watermark, blurry, 2d, flat, sketch, deformed, extra fingers")
+    ap.add_argument("--w", type=int, default=832)
+    ap.add_argument("--h", type=int, default=1216)
+    ap.add_argument("--steps", type=int, default=34)
+    ap.add_argument("--cfg", type=float, default=6.5)
+    ap.add_argument("--denoise", type=float, default=0.6)
+    ap.add_argument("--sampler", default="euler_ancestral")
+    ap.add_argument("--scheduler", default="karras")
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--prefix", default="i2i")
+    a = ap.parse_args()
+
+    # upload the source image
+    import uuid
+    up = _post("/prompt/upload/image", {
+        "image": open(a.image, "rb").read().hex(),
+        "overwrite": "true",
+    }) if False else None
+    # simpler: use /upload endpoint via multipart
+    boundary = uuid.uuid4().hex
+    body = b""
+    body += f"--{boundary}\r\n".encode()
+    body += f'Content-Disposition: form-data; name="image"; filename="{os.path.basename(a.image)}"\r\n'.encode()
+    body += b"Content-Type: application/octet-stream\r\n\r\n"
+    with open(a.image, "rb") as f:
+        body += f.read()
+    body += b"\r\n"
+    body += f"--{boundary}\r\n".encode()
+    body += b'Content-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n'
+    body += f"--{boundary}--\r\n".encode()
+    req = urllib.request.Request(
+        COMFY + "/upload/image",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        updata = json.loads(r.read().decode())
+    uploaded_name = updata["name"]
+
+    seed = a.seed if a.seed is not None else int(time.time() * 1000) % (2**32)
+
+    workflow = {
+        "3": {"class_type": "KSampler", "inputs": {
+            "seed": seed, "steps": a.steps, "cfg": a.cfg,
+            "sampler_name": a.sampler, "scheduler": a.scheduler,
+            "denoise": a.denoise,
+            "model": ["10", 0], "latent_image": ["9", 0],
+            "positive": ["6", 0], "negative": ["7", 0]}},
+        "4": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["10", 2]}},
+        "5": {"class_type": "SaveImage", "inputs": {
+            "filename_prefix": a.prefix, "images": ["4", 0]}},
+        "6": {"class_type": "CLIPTextEncode", "inputs": {
+            "text": a.prompt, "clip": ["10", 1]}},
+        "7": {"class_type": "CLIPTextEncode", "inputs": {
+            "text": a.neg, "clip": ["10", 1]}},
+        "8": {"class_type": "LoadImage", "inputs": {"image": uploaded_name}},
+        "9": {"class_type": "VAEEncode", "inputs": {"pixels": ["8", 0], "vae": ["10", 2]}},
+        "10": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": a.ckpt}},
+    }
+
+    result = _post("/prompt", {"prompt": workflow, "client_id": "pg_img2img"})
+    pid = result["prompt_id"]
+    for _ in range(600):
+        time.sleep(1)
+        try:
+            h = _get(f"/history/{pid}")
+        except Exception:
+            continue
+        if pid in h:
+            outputs = h[pid].get("outputs", {})
+            for node_out in outputs.values():
+                imgs = node_out.get("images", [])
+                for img in imgs:
+                    fname = img.get("filename")
+                    sub = img.get("subfolder", "")
+                    typ = img.get("type", "output")
+                    url = f"/view?filename={fname}&subfolder={sub}&type={typ}"
+                    with urllib.request.urlopen(COMFY + url, timeout=30) as r:
+                        data = r.read()
+                    outdir = os.environ.get("COMFY_OUT", os.path.expanduser("~/comfy_output"))
+                    os.makedirs(outdir, exist_ok=True)
+                    outpath = os.path.join(outdir, fname)
+                    with open(outpath, "wb") as f:
+                        f.write(data)
+                    print(outpath)
+                    return
+            # check status
+            status = h[pid].get("status", {})
+            if status.get("status_str") == "error":
+                print(json.dumps(h[pid].get("status", {})), file=sys.stderr)
+                sys.exit(1)
+    print("TIMEOUT", file=sys.stderr)
+    sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

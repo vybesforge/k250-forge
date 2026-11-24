@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""pg_lora_t2i — SDXL/Illustrious text2img with up to 3 LoRAs, via ComfyUI :8188 shim.
+
+  pg_lora_t2i --ckpt NoobAI-XL-v1.1.safetensors \
+      --lora bl3d_illustrious_v2.safetensors 1.15 \
+      --prompt "3d, 1girl, solo, ..." --w 896 --h 1152 --seed 12345 --prefix bl3d_01
+
+Prints the absolute path of the first saved image.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+
+COMFY = os.environ.get("COMFY_HOST", "http://127.0.0.1:8188")
+OUT = os.environ.get("COMFY_OUT", os.path.expanduser("~/comfy_output"))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ckpt", required=True)
+    ap.add_argument("--lora", nargs=2, action="append", default=[],
+                    metavar=("NAME", "STRENGTH"))
+    ap.add_argument("--prompt", required=True)
+    ap.add_argument("--neg", default="lowres, bad anatomy, bad hands, cropped, worst quality, "
+                                    "low quality, jpeg artifacts, signature, watermark, blurry, "
+                                    "2d, flat, sketch, photo, realistic")
+    ap.add_argument("--w", type=int, default=896)
+    ap.add_argument("--h", type=int, default=1152)
+    ap.add_argument("--steps", type=int, default=30)
+    ap.add_argument("--cfg", type=float, default=6.5)
+    ap.add_argument("--sampler", default="euler_ancestral")
+    ap.add_argument("--scheduler", default="karras")
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--prefix", default="pglora")
+    a = ap.parse_args()
+
+    seed = a.seed if a.seed is not None else int(time.time() * 1000) % (2 ** 31)
+    wf = {
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": a.ckpt}},
+        "2": {"class_type": "CLIPTextEncode", "inputs": {"text": a.prompt, "clip": ["1", 1]}},
+        "3": {"class_type": "CLIPTextEncode", "inputs": {"text": a.neg, "clip": ["1", 1]}},
+        "4": {"class_type": "EmptyLatentImage",
+              "inputs": {"width": a.w, "height": a.h, "batch_size": 1}},
+    }
+    model_src, clip_src = ["1", 0], ["1", 1]
+    for i, (name, strength) in enumerate(a.lora):
+        nid = str(10 + i)
+        s = float(strength)
+        wf[nid] = {"class_type": "LoraLoader",
+                   "inputs": {"lora_name": name, "strength_model": s, "strength_clip": s,
+                              "model": model_src, "clip": clip_src}}
+        model_src, clip_src = [nid, 0], [nid, 1]
+
+    wf["5"] = {"class_type": "KSampler", "inputs": {
+        "seed": seed, "steps": a.steps, "cfg": a.cfg,
+        "sampler_name": a.sampler, "scheduler": a.scheduler, "denoise": 1.0,
+        "model": model_src, "positive": ["2", 0], "negative": ["3", 0],
+        "latent_image": ["4", 0]}}
+    wf["6"] = {"class_type": "VAEDecode", "inputs": {"samples": ["5", 0], "vae": ["1", 2]}}
+    wf["7"] = {"class_type": "SaveImage",
+               "inputs": {"images": ["6", 0], "filename_prefix": a.prefix}}
+
+    req = urllib.request.Request(COMFY + "/prompt",
+                                 data=json.dumps({"prompt": wf}).encode(),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        pid = json.load(urllib.request.urlopen(req, timeout=60))["prompt_id"]
+    except urllib.error.HTTPError as e:
+        sys.exit("SUBMIT FAIL %s %s" % (e.code, e.read()[:1500].decode(errors="replace")))
+    print("prompt_id", pid, "seed", seed, file=sys.stderr)
+    t0 = time.time()
+    while time.time() - t0 < 1800:
+        time.sleep(4)
+        try:
+            h = json.load(urllib.request.urlopen(COMFY + "/history/" + pid, timeout=20))
+        except Exception:
+            continue
+        if pid in h:
+            imgs = [f for n in h[pid].get("outputs", {}).values()
+                    for f in n.get("images", [])]
+            if imgs:
+                f0 = imgs[0]
+                # download through the router — never trust a lane-local path
+                from urllib.parse import quote
+                url = (f"{COMFY}/view?filename={quote(f0['filename'])}"
+                       f"&subfolder={quote(f0.get('subfolder',''))}&type={quote(f0.get('type','output'))}")
+                with urllib.request.urlopen(url, timeout=60) as r:
+                    data = r.read()
+                os.makedirs(OUT, exist_ok=True)
+                outpath = os.path.join(OUT, f0["filename"])
+                with open(outpath, "wb") as fh:
+                    fh.write(data)
+                print(outpath)
+                return
+            st = h[pid].get("status", {})
+            sys.exit("FAILED %s" % json.dumps(st)[:800])
+    sys.exit("TIMEOUT")
+
+
+if __name__ == "__main__":
+    main()

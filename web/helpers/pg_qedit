@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""pg_qedit — Qwen-Image-Edit 2509 instruction edits via the ComfyUI router.
+
+  pg_qedit --image /path/to/reference.png \
+      --prompt "same woman, now kneeling on a leather bench looking back over her shoulder" \
+      [--no-lightning] [--steps 8] [--cfg 1.0] [--w 928 --h 1232] [--prefix mmq]
+
+Identity-preserving edits: the reference woman stays the woman; the instruction
+changes pose/outfit/scene. Prints the absolute path of the downloaded output.
+GGUF weights (Q4_K_M unet + Q4_K_XL Qwen3-VL text encoder) keep it V100-safe.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+import uuid
+from urllib.parse import quote
+
+COMFY = os.environ.get("COMFY_HOST", "http://127.0.0.1:8188")
+OUT = os.environ.get("COMFY_OUT", os.path.expanduser("~/comfy_output"))
+
+UNET = "Qwen-Image-Edit-2509-Q4_K_M.gguf"
+CLIP = "qwen_2.5_vl_7b_fp8_scaled.safetensors"   # 2509 pairs with Qwen2.5-VL, NOT Qwen3-VL
+VAE = "qwen_image_vae.safetensors"
+LIGHTNING = "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors"
+
+
+def _post(path, payload):
+    req = urllib.request.Request(
+        COMFY + path, data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode())
+
+
+def _get(path):
+    with urllib.request.urlopen(COMFY + path, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+
+def _upload(image_path):
+    boundary = uuid.uuid4().hex
+    body = b""
+    body += f"--{boundary}\r\n".encode()
+    body += (f'Content-Disposition: form-data; name="image"; '
+             f'filename="{os.path.basename(image_path)}"\r\n').encode()
+    body += b"Content-Type: application/octet-stream\r\n\r\n"
+    with open(image_path, "rb") as f:
+        body += f.read()
+    body += b"\r\n"
+    body += f"--{boundary}\r\n".encode()
+    body += b'Content-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n'
+    body += f"--{boundary}--\r\n".encode()
+    req = urllib.request.Request(
+        COMFY + "/upload/image", data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST")
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return json.loads(r.read().decode())["name"]
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--image", required=True)
+    ap.add_argument("--prompt", required=True)
+    ap.add_argument("--neg", default="")
+    ap.add_argument("--w", type=int, default=928)
+    ap.add_argument("--h", type=int, default=1232)
+    ap.add_argument("--steps", type=int, default=None)   # default: 8 lightning / 24 plain
+    ap.add_argument("--cfg", type=float, default=None)   # default: 1.0 lightning / 2.5 plain
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--prefix", default="mmq")
+    ap.add_argument("--no-lightning", action="store_true")
+    a = ap.parse_args()
+
+    lightning = not a.no_lightning
+    steps = a.steps if a.steps is not None else (8 if lightning else 24)
+    cfg = a.cfg if a.cfg is not None else (1.0 if lightning else 2.5)
+    seed = a.seed if a.seed is not None else int(time.time() * 1000) % (2**31)
+
+    uploaded = _upload(a.image)
+
+    model_src = ["2", 0]
+    wf = {
+        "1": {"class_type": "CLIPLoader", "inputs": {
+            "clip_name": CLIP, "type": "qwen_image"}},
+        "2": {"class_type": "UnetLoaderGGUF", "inputs": {
+            "unet_name": UNET, "weight_dtype": "default"}},
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": VAE}},
+        "4": {"class_type": "LoadImage", "inputs": {"image": uploaded}},
+        "6": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {
+            "clip": ["1", 0], "prompt": a.prompt, "vae": ["3", 0], "image1": ["4", 0]}},
+        "7": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {
+            "clip": ["1", 0], "prompt": a.neg, "vae": ["3", 0], "image1": ["4", 0]}},
+        "8": {"class_type": "EmptySD3LatentImage", "inputs": {
+            "width": a.w, "height": a.h, "batch_size": 1}},
+        "10": {"class_type": "VAEDecode", "inputs": {"samples": ["9", 0], "vae": ["3", 0]}},
+        "11": {"class_type": "SaveImage", "inputs": {
+            "images": ["10", 0], "filename_prefix": a.prefix}},
+    }
+    if lightning:
+        wf["5"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "model": ["2", 0], "lora_name": LIGHTNING, "strength_model": 1.0}}
+        model_src = ["5", 0]
+    wf["9"] = {"class_type": "KSampler", "inputs": {
+        "seed": seed, "steps": steps, "cfg": cfg,
+        "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0,
+        "model": model_src, "positive": ["6", 0], "negative": ["7", 0],
+        "latent_image": ["8", 0]}}
+
+    try:
+        pid = _post("/prompt", {"prompt": wf, "client_id": "pg_qedit"})["prompt_id"]
+    except urllib.error.HTTPError as e:
+        sys.exit("SUBMIT FAIL %s %s" % (e.code, e.read()[:1500].decode(errors="replace")))
+    print("prompt_id", pid, "seed", seed, "steps", steps, file=sys.stderr)
+
+    t0 = time.time()
+    while time.time() - t0 < 1800:
+        time.sleep(4)
+        try:
+            h = _get(f"/history/{pid}")
+        except Exception:
+            continue
+        if pid in h:
+            entry = h[pid]
+            st = entry.get("status", {})
+            imgs = [f for n in entry.get("outputs", {}).values() for f in n.get("images", [])]
+            if imgs:
+                f0 = imgs[0]
+                url = (f"{COMFY}/view?filename={quote(f0['filename'])}"
+                       f"&subfolder={quote(f0.get('subfolder',''))}&type={quote(f0.get('type','output'))}")
+                with urllib.request.urlopen(url, timeout=120) as r:
+                    data = r.read()
+                os.makedirs(OUT, exist_ok=True)
+                outpath = os.path.join(OUT, f0["filename"])
+                with open(outpath, "wb") as fh:
+                    fh.write(data)
+                print(outpath)
+                return
+            if st.get("status_str") == "error":
+                sys.exit("EXEC FAIL %s" % json.dumps(st)[:1200])
+    sys.exit("TIMEOUT")
+
+
+if __name__ == "__main__":
+    main()
